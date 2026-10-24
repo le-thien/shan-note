@@ -1,0 +1,19 @@
+{
+  "name": "Nét — Bảng viết và Dựng hình học cho Mac",
+  "short_name": "Nét",
+  "description": "Ứng dụng viết tay, ghi chú tài liệu, dựng hình học tương tác và vẽ đồ thị toán học",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e9ece5",
+  "theme_color": "#28634e",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
