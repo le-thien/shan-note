@@ -3112,6 +3112,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toolGraph) toolGraph.classList.remove('active');
     const contextGraph = document.getElementById('context-graph-options');
     if (contextGraph) contextGraph.style.display = 'none';
+    const contextGraphToolbar = document.getElementById('context-graph-options-toolbar');
+    if (contextGraphToolbar) contextGraphToolbar.style.display = 'none';
 
     // 3. Reset trạng thái dựng hình
     state.activeGeo = null;
@@ -6493,11 +6495,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateContextualToolbar(tool) {
     const penSec = document.getElementById('context-pen-options');
     const graphSec = document.getElementById('context-graph-options');
+    const graphToolbarSec = document.getElementById('context-graph-options-toolbar');
     const selectSec = document.getElementById('context-select-options');
 
     // Bảng màu & nét vẽ luôn hiển thị sẵn sàng cho cả Bút, Dạ quang và Hình học
     if (penSec) penSec.style.display = 'flex';
     if (graphSec) graphSec.style.display = (tool === 'graph') ? 'flex' : 'none';
+    if (graphToolbarSec) graphToolbarSec.style.display = (tool === 'graph') ? 'flex' : 'none';
     if (selectSec) selectSec.style.display = (tool === 'select') ? 'flex' : 'none';
   }
 
@@ -6549,30 +6553,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const isAlreadyGraph = state.activeTool === 'graph' && tool === 'graph';
       if (isAlreadyGraph) {
-        // Đang ở công cụ Đồ thị mà bấm lại nút Đồ thị -> mở Bảng cài đặt đa hàm & Thể tích 3D
-        const pageEls = state.pages[state.currentPage] || [];
-        let targetWidget = (state.selectedElement && state.selectedElement.type === 'graph-widget')
-          ? state.selectedElement
-          : pageEls.find(el => el && el.type === 'graph-widget');
-        if (!targetWidget && window.__GraphWidget) {
-          const dims = getCanvasDimensions();
-          targetWidget = window.__GraphWidget.createDefaultGraphWidget(dims.width / 2, dims.height / 2);
-          pageEls.push(targetWidget);
-          renderPage();
-        }
-        if (targetWidget && window.__GraphWidget) {
-          window.__GraphWidget.openGraphSettingsModal(targetWidget, (updated) => {
-            const before = JSON.parse(JSON.stringify(targetWidget));
-            Object.assign(targetWidget, updated);
-            pushCommand({
-              type: 'modify-element',
-              element: targetWidget,
-              before: before,
-              after: JSON.parse(JSON.stringify(targetWidget))
-            });
-            renderPage();
-            showPageToast('📈 Đã cập nhật đồ thị hàm số!');
-          });
+        // Nếu đã ở công cụ Đồ thị mà bấm lại -> đảm bảo thanh nhập y = [ x^2 ] [ Vẽ ] luôn mở và chọn sẵn
+        updateContextualToolbar('graph');
+        const inputFuncToolbar = document.getElementById('input-graph-func-toolbar');
+        const inputFuncHeader = document.getElementById('input-graph-func');
+        if (inputFuncToolbar) {
+          inputFuncToolbar.focus();
+          inputFuncToolbar.select();
+        } else if (inputFuncHeader) {
+          inputFuncHeader.focus();
+          inputFuncHeader.select();
         }
         return;
       }
@@ -6625,15 +6615,24 @@ document.addEventListener('DOMContentLoaded', () => {
           ? state.selectedElement
           : pageEls.find(el => el && el.type === 'graph-widget');
         const inputFunc = document.getElementById('input-graph-func');
-        if (existingWidget && existingWidget.functions && existingWidget.functions.length > 0 && inputFunc) {
-          inputFunc.value = existingWidget.functions[0].expr || 'x^2';
+        const inputFuncToolbar = document.getElementById('input-graph-func-toolbar');
+        if (existingWidget && existingWidget.functions && existingWidget.functions.length > 0) {
+          const expr = existingWidget.functions[0].expr || 'x^2';
+          if (inputFunc) inputFunc.value = expr;
+          if (inputFuncToolbar) inputFuncToolbar.value = expr;
         }
 
         renderPage();
         updateContextualToolbar('graph');
-        if (inputFunc) {
-          setTimeout(() => { inputFunc.focus(); inputFunc.select(); }, 60);
-        }
+        setTimeout(() => {
+          if (inputFuncToolbar) {
+            inputFuncToolbar.focus();
+            inputFuncToolbar.select();
+          } else if (inputFunc) {
+            inputFunc.focus();
+            inputFunc.select();
+          }
+        }, 60);
         return;
       } else {
         setCanvasCursor('crosshair');
@@ -7054,6 +7053,61 @@ document.addEventListener('DOMContentLoaded', () => {
     inputGraphFunc.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         plotMathematicalGraph(inputGraphFunc.value);
+      }
+    });
+  }
+
+  // Khung nhập hàm số trên Primary Toolbar
+  const inputGraphFuncToolbar = document.getElementById('input-graph-func-toolbar');
+  const btnPlotGraphToolbar = document.getElementById('btn-plot-graph-toolbar');
+  const btnOpenGraphSettingsToolbar = document.getElementById('btn-open-graph-settings-toolbar');
+
+  if (btnPlotGraphToolbar && inputGraphFuncToolbar) {
+    btnPlotGraphToolbar.addEventListener('click', () => {
+      plotMathematicalGraph(inputGraphFuncToolbar.value);
+    });
+    inputGraphFuncToolbar.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        plotMathematicalGraph(inputGraphFuncToolbar.value);
+      }
+    });
+    // Đồng bộ giá trị 2 ô nhập
+    inputGraphFuncToolbar.addEventListener('input', () => {
+      if (inputGraphFunc) inputGraphFunc.value = inputGraphFuncToolbar.value;
+    });
+    if (inputGraphFunc) {
+      inputGraphFunc.addEventListener('input', () => {
+        inputGraphFuncToolbar.value = inputGraphFunc.value;
+      });
+    }
+  }
+
+  // Nút mở bảng cài đặt đa hàm & 3D từ Toolbar
+  if (btnOpenGraphSettingsToolbar) {
+    btnOpenGraphSettingsToolbar.addEventListener('click', () => {
+      const pageEls = state.pages[state.currentPage] || [];
+      let targetWidget = (state.selectedElement && state.selectedElement.type === 'graph-widget')
+        ? state.selectedElement
+        : pageEls.find(el => el && el.type === 'graph-widget');
+      if (!targetWidget && window.__GraphWidget) {
+        const dims = getCanvasDimensions();
+        targetWidget = window.__GraphWidget.createDefaultGraphWidget(dims.width / 2, dims.height / 2);
+        pageEls.push(targetWidget);
+        renderPage();
+      }
+      if (targetWidget && window.__GraphWidget) {
+        window.__GraphWidget.openGraphSettingsModal(targetWidget, (updated) => {
+          const before = JSON.parse(JSON.stringify(targetWidget));
+          Object.assign(targetWidget, updated);
+          pushCommand({
+            type: 'modify-element',
+            element: targetWidget,
+            before: before,
+            after: JSON.parse(JSON.stringify(targetWidget))
+          });
+          renderPage();
+          showPageToast('📈 Đã cập nhật đồ thị hàm số!');
+        });
       }
     });
   }
