@@ -2,17 +2,13 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
-## [Sửa Hiển thị & Đồng bộ Nổi bật Ô Nhập Hàm Số Đồ thị y = [ x^2 ] [ Vẽ ]] - 24/10/2026
+## [Khôi phục Phiên bản Trước cho Chức năng Vẽ Đồ thị] - 24/10/2026
 
-- **1. Đưa cụm nhập nhanh `y = [ x^2 ] [ Vẽ ]` lên vị trí trung tâm Thanh công cụ chính (Primary Toolbar):**
-  - Khắc phục triệt để hiện tượng ô nhập bị che khuất hoặc tràn khỏi màn hình trên các máy Mac màn hình vừa và nhỏ: Cụm nhập nhanh được hiển thị trực tiếp ngay trên thanh công cụ chính (cùng hàng với nút Chữ và Bút).
-  - Tích hợp thêm nút `[ ⚙️ Nâng cao & 3D ]` bên cạnh ô nhập để người dùng chủ động mở bảng Cài đặt đa hàm & Mô phỏng khối tròn xoay 3D khi có nhu cầu, tránh việc bấm nhầm tự ý bật hộp thoại to che mất vùng vẽ.
-- **2. Đồng bộ 2 chiều và Bắt nét tức thì:**
-  - Bấm vào nút `[ 📈 Đồ thị ]` sẽ kích hoạt ngay công cụ Đồ thị, hiển thị thanh nhập `y = [ x^2 ] [ Vẽ ]` sáng rõ ràng và tự động bôi đen (select) giá trị `x^2` để người dùng có thể gõ ngay biểu thức mới.
-  - Bấm nút `[ Vẽ ]` hoặc nhấn phím `Enter` trong ô nhập sẽ vẽ ngay đồ thị lên giấy tại vị trí trung tâm hoặc điểm vừa bấm.
-  - Bấm lại nút Đồ thị vẫn giữ nguyên thanh nhập, không làm biến mất hay ẩn nhầm ô nhập.
-- **3. Nâng phiên bản Cache Service Worker (`net-app-v2`):**
-  - Đảm bảo khi người dùng tải lại trang web (`⌘R` hoặc `F5`), trình duyệt sẽ lập tức cập nhật bộ mã nguồn mới nhất.
+- **1. Trở lại nguyên bản quy trình vẽ đồ thị trực quan:**
+  - Khôi phục hành vi gốc: Bấm vào nút `[ 📈 Đồ thị ]` sẽ trực tiếp tạo/chọn widget đồ thị và mở ngay Bảng cài đặt đa hàm số & Mô phỏng thể tích 3D toàn diện.
+  - Loại bỏ hoàn toàn các khung nhập hàm nhanh tạm thời (`context-graph-options`), giữ cho giao diện thanh tiêu đề và thanh công cụ sạch sẽ, tinh gọn đúng thiết kế chuẩn ban đầu.
+- **2. Nâng phiên bản Cache Service Worker (`net-app-v3`):**
+  - Đảm bảo khi người dùng tải lại trang web (`⌘R` hoặc `F5`), trình duyệt cập nhật tức thì về phiên bản đồ thị chuẩn.
 
 ## [Chuẩn bị và Tối ưu hóa Toàn diện để Xuất bản Web App Online / PWA] - 24/10/2026
 

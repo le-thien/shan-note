@@ -16,7 +16,7 @@
 ## 2. Các chức năng đã thực hiện
 - [x] **Bật lại & Hoàn thiện toàn diện tính năng các button trên thanh Header:**
   - 4 nhóm nút hình học (`Cơ bản ▾`, `Hình ▾`, `Dựng hình ▾`, `HHKG ▾`): Bấm trực tiếp vào nút kích hoạt vẽ ngay (0ms) không bị popup che khuất màn hình; bấm chevron `▾` hoặc bấm lại khi đang active mở dropdown chọn công cụ con mượt mà. Hỗ trợ chọn trước 2 điểm/cạnh để dựng hình tự động.
-  - Nút `[ 📈 Đồ thị ]`: Bấm một lần giữ active và hiển thị rõ ràng cụm nhập nhanh `y = [ x^2 ] [ Vẽ ] [ ⚙️ Nâng cao & 3D ]` trên thanh công cụ chính và thanh tiêu đề, tự động bôi đen giá trị để gõ ngay; nhấp chuột lên giấy vẽ tạo widget đồ thị tại đúng vị trí nhấp; bấm nút Nâng cao hoặc nhấp đúp mở Modal cài đặt đa hàm & thể tích 3D.
+  - Nút `[ 📈 Đồ thị ]`: Bấm nút tạo/chọn widget đồ thị và mở trực tiếp Bảng cài đặt đa hàm số & Mô phỏng khối tròn xoay 3D, giao diện thanh công cụ giữ nguyên tinh gọn chuẩn gốc.
   - Các menu `[Nhập ▾]`, `[Xuất ▾]`, `[...]` và `[fx580]`: Gỡ bỏ giới hạn tràn khung ở `.header-right`, đưa `overflow: visible !important;` và `z-index: 1000` giúp menu dropdown nổi bật trên mọi lớp, không còn bị che khuất hay cắt cụt.
 - [x] **Widget Đồ thị hàm số & Mô phỏng Khối tròn xoay 3D (Math Function Graph Widget & 3D Solid of Revolution):**
   - Khối đồ thị dạng Widget tương tác trực tiếp trên canvas: di chuyển nguyên khối, co giãn 4 góc, căn chỉnh gốc tọa độ $O$ và tỉ lệ thu phóng (scale).
