@@ -7,7 +7,7 @@ Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đâ
 - **1. Hợp nhất cụm nút ở Header thành duy nhất một menu [Tệp ▾]:**
   - Thay thế các nút riêng lẻ trước đây (`Nhập ▾`, `Xuất ▾`, `...`) bằng một nút dropdown **[Tệp ▾]** đồng bộ, tinh gọn thanh header theo chuẩn phần mềm chuyên nghiệp.
 - **2. Đầy đủ các tính năng quản lý tệp:**
-  - **Mới (New) (`⌘N`):** Tạo tài liệu mới, thiết lập lại trạng thái 1 trang trắng và khởi tạo ngăn xếp hoàn tác mới.
+  - **Mới (New) (`⌘N`):** Tạo tài liệu mới. Khi trang hiện tại có nội dung, hiển thị hộp thoại xác nhận phong cách macOS: *"Bạn có muốn tạo tài liệu mới? Toàn bộ các trang hiện tại sẽ được làm mới."* đi kèm lựa chọn *"💾 Lưu & Tạo mới"*, *"Không lưu & Tạo mới"* và *"Hủy"*. Khi đồng ý, đưa về trang 1 trắng tinh, đặt tiêu đề "Ghi chú mới", xóa hoàn tác, ẩn widget đồ thị và hiển thị thông báo "✨ Đã tạo tài liệu mới!".
   - **Lưu (Save) (`⌘S`):** Lưu ngay lập tức toàn bộ trạng thái ghi chú (các trang, nét vẽ, hình học, màu sắc, nền giấy) vào bộ nhớ cục bộ `localStorage` an toàn trên máy.
   - **Lưu thành... (Save As) (`⌘⇧S`):** Xuất toàn bộ dự án thành tệp sao lưu `.net` (định dạng JSON tiêu chuẩn của Nét) tải về máy tính.
   - **Nhập (Import):**

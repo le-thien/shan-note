@@ -623,6 +623,36 @@
     </div>
   </div>
 
+  <!-- Hộp thoại xác nhận Tạo tài liệu mới (Hỗ trợ Lưu trước khi tạo mới) -->
+  <div id="new-confirm-modal" class="modal-backdrop" style="display: none;" aria-hidden="true">
+    <div class="modal-box modal-box-alert" style="width: 480px; max-width: 92vw; border-radius: 12px; box-shadow: 0 16px 40px rgba(36, 60, 54, 0.2);">
+      <div class="modal-header" style="padding: 14px 18px; border-bottom: 1px solid var(--color-divider); background: #fdfefe;">
+        <div class="modal-title-wrap" style="display: flex; align-items: center; gap: 8px;">
+          <span class="modal-icon" style="font-size: 18px;">📄</span>
+          <h3 class="modal-title" style="margin: 0; font-size: 14px; font-weight: 700; color: #243c36;">Tạo tài liệu mới?</h3>
+        </div>
+        <button id="btn-close-new-modal" class="modal-close-btn" title="Đóng hộp thoại">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 18px;">
+        <p style="margin: 0; font-size: 13.5px; line-height: 1.6; color: #243c36; font-weight: 500;">
+          Bạn có muốn tạo tài liệu mới? Toàn bộ các trang hiện tại sẽ được làm mới.
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 12px; line-height: 1.5; color: #5f756d; background: rgba(40, 99, 78, 0.05); padding: 8px 10px; border-radius: 6px; border: 1px dashed rgba(40, 99, 78, 0.2);">
+          💡 <em>Gợi ý: Bạn có thể chọn <strong>"💾 Lưu & Tạo mới"</strong> để tự động tải bản sao lưu (.net) về máy trước khi làm mới.</em>
+        </p>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 18px; background: #f9fbf9; border-top: 1px solid var(--color-divider);">
+        <button id="btn-new-cancel" class="btn-secondary btn-sm" style="padding: 7px 14px; border-radius: 6px; border: 1px solid var(--color-divider); background: #ffffff; color: #3b5049; cursor: pointer; font-size: 12.5px; font-weight: 500;">Hủy</button>
+        <button id="btn-new-discard" class="btn-secondary btn-sm" style="padding: 7px 14px; border-radius: 6px; border: 1px solid #fecaca; background: #fff1f2; color: #be123c; cursor: pointer; font-size: 12.5px; font-weight: 600;">Không lưu & Tạo mới</button>
+        <button id="btn-new-save-and-create" class="btn-action btn-sm" style="padding: 7px 16px; border-radius: 6px; border: none; background: #28634e; color: #ffffff; cursor: pointer; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+          <span>💾 Lưu & Tạo mới</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Thông báo trạng thái sinh trang (Toast) -->
   <div class="page-toast-notification" id="page-toast-notification" aria-live="polite"></div>
 

@@ -8358,13 +8358,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 0. Tạo mới (New)
   const btnFileNew = document.getElementById('btn-file-new');
-  function createNewProject() {
-    const totalElements = Object.values(state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0);
-    if (totalElements > 0) {
-      const ok = confirm('Bạn có muốn tạo tài liệu mới? Toàn bộ các trang hiện tại sẽ được làm mới.');
-      if (!ok) return;
-    }
+  const newConfirmModal = document.getElementById('new-confirm-modal');
+  const btnCloseNewModal = document.getElementById('btn-close-new-modal');
+  const btnNewCancel = document.getElementById('btn-new-cancel');
+  const btnNewDiscard = document.getElementById('btn-new-discard');
+  const btnNewSaveAndCreate = document.getElementById('btn-new-save-and-create');
 
+  function openNewConfirmModal() {
+    if (newConfirmModal) {
+      newConfirmModal.style.display = 'flex';
+    }
+  }
+
+  function closeNewConfirmModal() {
+    if (newConfirmModal) {
+      newConfirmModal.style.display = 'none';
+    }
+  }
+
+  function doResetToNew() {
     state.pages = { 1: [] };
     state.currentPage = 1;
     state.undoStacks = { 1: [] };
@@ -8373,6 +8385,10 @@ document.addEventListener('DOMContentLoaded', () => {
     state.selectedElements = [];
     state.selectedEdge = null;
     state.selectedVertex = null;
+    state.pendingSingleSelect = null;
+    state.activeHandle = null;
+    state.hoverHandle = null;
+    state.hoverElement = null;
 
     if (docTitleInput) {
       docTitleInput.value = 'Ghi chú mới';
@@ -8388,6 +8404,44 @@ document.addEventListener('DOMContentLoaded', () => {
     updateUndoState();
     saveProject(false);
     showPageToast('✨ Đã tạo tài liệu mới!');
+  }
+
+  function createNewProject() {
+    const totalElements = Object.values(state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0);
+    // Nếu trang hiện tại đã có nét vẽ hoặc bài làm, hiện hộp thoại xác nhận đồng thời hỗ trợ lưu
+    if (totalElements > 0) {
+      openNewConfirmModal();
+      return;
+    }
+
+    // Nếu trang đang trống, trực tiếp làm mới
+    doResetToNew();
+  }
+
+  if (btnCloseNewModal) btnCloseNewModal.addEventListener('click', closeNewConfirmModal);
+  if (btnNewCancel) btnNewCancel.addEventListener('click', closeNewConfirmModal);
+  if (newConfirmModal) {
+    newConfirmModal.addEventListener('click', (e) => {
+      if (e.target === newConfirmModal) closeNewConfirmModal();
+    });
+  }
+
+  if (btnNewDiscard) {
+    btnNewDiscard.addEventListener('click', () => {
+      closeNewConfirmModal();
+      doResetToNew();
+    });
+  }
+
+  if (btnNewSaveAndCreate) {
+    btnNewSaveAndCreate.addEventListener('click', () => {
+      closeNewConfirmModal();
+      saveAsProject(); // Tải tệp sao lưu .net về máy
+      saveProject(false);
+      setTimeout(() => {
+        doResetToNew();
+      }, 350);
+    });
   }
 
   // Gán sự kiện cho các mục trong menu Tệp
