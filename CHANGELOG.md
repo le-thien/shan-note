@@ -2,6 +2,16 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Xuất bản Web App lên GitHub Pages] - 25/10/2026
+
+- **1. Đẩy toàn bộ mã nguồn lên GitHub:**
+  - Đồng bộ toàn bộ các tính năng hoàn thiện (vẽ viết, 13 dạng hình học, đồ thị hàm số, mô phỏng tròn xoay 3D, máy tính Casio fx-580VN X) lên kho lưu trữ `le-thien/shan-note` tại nhánh `main`.
+  - Cấu hình upstream tracking (`origin/main`) hoàn chỉnh cho kho cục bộ.
+- **2. Kích hoạt xuất bản GitHub Pages & GitHub Actions:**
+  - Kích hoạt thành công tính năng GitHub Pages với nguồn triển khai tự động qua Workflow GitHub Actions (`.github/workflows/deploy.yml`).
+  - Triển khai thành công toàn bộ thư mục `web/` lên tên miền chính thức: **`https://le-thien.github.io/shan-note/`**.
+  - Kiểm tra kết nối HTTP 200 OK thành công trên toàn cầu.
+
 ## [Hiển thị góc chuẩn xác theo tia được chọn trong chức năng Chọn góc] - 25/10/2026
 
 - **1. Hoàn thành tác vụ: Góc hiển thị đúng theo tia được chọn:**
