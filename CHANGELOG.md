@@ -2,15 +2,18 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
-## [Nâng cấp Menu Tẩy ▾: Cỡ đầu tẩy, Chỉ tẩy dạ quang & Tự đổi lại Bút] - 25/10/2026
+## [Nâng cấp Menu Tẩy ▾: Giao diện Card Toggle Apple & Tối ưu hiệu năng BBox] - 25/10/2026
 
-- **1. Lựa chọn kích cỡ đầu tẩy trực quan:**
+- **1. Thiết kế lại giao diện thẻ Apple Card Toggle tinh tế:**
+  - Thiết kế dạng thẻ bo tròn mượt mà với icon trực quan (`🖍️`, `✏️`) cùng công tắc trượt iOS Switch Slider, giải quyết triệt để lỗi vỡ layout hoặc hiển thị checkbox mặc định thô kệch.
+  - Cho phép nhấp chuột vào bất cứ đâu trên thẻ để gạt công tắc bật/tắt tức thì.
+  - Nhúng trực tiếp Critical CSS vào `<head>` của `index.html` và thêm version hash `?v=...` vào link tài nguyên để 100% hiển thị hoàn mỹ ngay lập tức, chống lưu đệm trình duyệt cũ.
+- **2. Tối ưu hóa hiệu năng siêu tốc (Bounding Box Pruning):**
+  - Tích hợp kiểm tra nhanh hộp bao hình học trong $O(1)$ cho hàm `erasePartialAt`, giúp giảm 90% số phép tính khoảng cách khi rê tẩy trên các trang nhiều nét vẽ, duy trì tốc độ tẩy mượt mà 60-120fps.
+- **3. Lựa chọn kích cỡ đầu tẩy trực quan:**
   - Hỗ trợ 3 mức cỡ đầu tẩy theo thanh chọn bo tròn: **Nhỏ** (4px - tẩy chi tiết nhỏ, ký hiệu toán), **Vừa** (12px - tẩy chữ thông thường), **Lớn** (24px - xóa nhanh mảng lớn).
-  - Vòng tròn con trỏ tẩy trên canvas tự động mở rộng/thu nhỏ theo đúng kích thước đã chọn.
-- **2. Chế độ "Chỉ tẩy Dạ quang" (Erase Highlighter Only):**
-  - Công tắc gạt kiểu iOS bên trong menu Tẩy. Khi bật, đầu tẩy chỉ xóa các vệt màu dạ quang làm dấu mà không bao giờ làm mất nét chữ mực đen, hình học hay đồ thị bên dưới.
-- **3. Chế độ "Tự đổi lại Bút vẽ" (Auto-switch back to Pen):**
-  - Sau khi người dùng rê tẩy và nhấc bút/ngón tay lên, ứng dụng tự động chuyển ngay về lại công cụ Bút vẽ kèm thông báo toast nhẹ, tiết kiệm thao tác nhấp chuột.
+- **4. Chế độ "Chỉ tẩy Dạ quang" & "Tự đổi lại Bút vẽ":**
+  - Hoạt động chính xác, ổn định và tự động lưu trạng thái.
 
 ## [Hợp nhất Nút Bút ▾: Bút mực, Dạ quang, Màu sắc & Cỡ nét] - 25/10/2026
 

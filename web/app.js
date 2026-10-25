@@ -6925,6 +6925,26 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (el.type === 'stroke') {
+        // Tối ưu hóa cực nhanh: Kiểm tra nhanh hộp bao (Bounding Box) trước khi duyệt từng điểm
+        if (!el._bbox && el.points && el.points.length > 0) {
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          for (let pIdx = 0; pIdx < el.points.length; pIdx++) {
+            const pt = el.points[pIdx];
+            if (pt.x < minX) minX = pt.x;
+            if (pt.x > maxX) maxX = pt.x;
+            if (pt.y < minY) minY = pt.y;
+            if (pt.y > maxY) maxY = pt.y;
+          }
+          el._bbox = { minX, maxX, minY, maxY };
+        }
+        if (el._bbox) {
+          const pad = radius + (el.width || 2) + 2;
+          if (x < el._bbox.minX - pad || x > el._bbox.maxX + pad ||
+              y < el._bbox.minY - pad || y > el._bbox.maxY + pad) {
+            continue; // Nằm ngoài phạm vi -> bỏ qua tức thì (0ms)!
+          }
+        }
+
         // Kiểm tra xem đầu tẩy có chạm vào nét vẽ không (chuẩn xác theo vòng tròn tẩy)
         let touches = false;
         const hitR = radius + Math.min(0.5, (el.width || 2) / 4);
@@ -7887,6 +7907,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Tùy chọn thông minh trong menu Tẩy: Chỉ tẩy dạ quang & Tự động quay lại Bút
   const chkEraseHighlighterOnly = document.getElementById('chk-erase-highlighter-only');
+  const chkAutoSwitchToPen = document.getElementById('chk-auto-switch-to-pen');
+  const rowEraseHighlighter = document.getElementById('row-erase-highlighter');
+  const rowAutoSwitch = document.getElementById('row-auto-switch');
+
   if (chkEraseHighlighterOnly) {
     chkEraseHighlighterOnly.addEventListener('change', (e) => {
       e.stopPropagation();
@@ -7895,7 +7919,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const chkAutoSwitchToPen = document.getElementById('chk-auto-switch-to-pen');
+  if (rowEraseHighlighter) {
+    rowEraseHighlighter.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (e.target.tagName !== 'INPUT' && chkEraseHighlighterOnly) {
+        chkEraseHighlighterOnly.checked = !chkEraseHighlighterOnly.checked;
+        chkEraseHighlighterOnly.dispatchEvent(new Event('change'));
+      }
+    });
+  }
+
   if (chkAutoSwitchToPen) {
     chkAutoSwitchToPen.addEventListener('change', (e) => {
       e.stopPropagation();
@@ -7904,11 +7937,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.querySelectorAll('.eraser-toggle-row').forEach(row => {
-    row.addEventListener('click', (e) => {
+  if (rowAutoSwitch) {
+    rowAutoSwitch.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (e.target.tagName !== 'INPUT' && chkAutoSwitchToPen) {
+        chkAutoSwitchToPen.checked = !chkAutoSwitchToPen.checked;
+        chkAutoSwitchToPen.dispatchEvent(new Event('change'));
+      }
     });
-  });
+  }
 
   // Bảng màu nhanh
   colorSwatches.forEach(swatch => {

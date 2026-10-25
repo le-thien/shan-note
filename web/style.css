@@ -626,19 +626,19 @@ body {
    Popup menu Tẩy ▾: Cỡ đầu tẩy, Chỉ tẩy dạ quang, Tự đổi lại Bút vẽ
    ========================================================================== */
 .eraser-dropdown-menu {
-  min-width: 235px;
-  padding: 8px 10px;
+  min-width: 250px;
+  padding: 9px 10px;
   gap: 6px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid rgba(36, 60, 54, 0.16);
-  box-shadow: 0 10px 30px rgba(36, 60, 54, 0.16);
+  box-shadow: 0 12px 36px rgba(36, 60, 54, 0.18);
 }
 
 .eraser-cluster-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .eraser-cluster-label {
@@ -651,7 +651,8 @@ body {
   margin-bottom: 2px;
 }
 
-/* Thanh chọn kích thước đầu tẩy: Nhỏ / Vừa / Lớn */
+/* Chế độ tẩy & Thanh chọn kích thước đầu tẩy */
+.eraser-mode-segmented,
 .eraser-size-segmented {
   display: flex;
   align-items: center;
@@ -661,12 +662,13 @@ body {
   border-radius: 8px;
 }
 
+.eraser-mode-btn,
 .eraser-size-btn {
   flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   height: 28px;
   padding: 0 6px;
   border-radius: 6px;
@@ -681,16 +683,18 @@ body {
   white-space: nowrap;
 }
 
+.eraser-mode-btn:hover:not(.active),
 .eraser-size-btn:hover:not(.active) {
   background-color: rgba(255, 255, 255, 0.6);
   color: var(--color-text-main);
 }
 
+.eraser-mode-btn.active,
 .eraser-size-btn.active {
   background: #ffffff;
   color: var(--color-action-primary);
   font-weight: 600;
-  box-shadow: 0 1px 4px rgba(36, 60, 54, 0.12);
+  box-shadow: 0 1px 4px rgba(36, 60, 54, 0.14);
 }
 
 .eraser-size-dot {
@@ -700,89 +704,109 @@ body {
   flex-shrink: 0;
 }
 
-.eraser-size-dot.dot-sm {
-  width: 4px;
-  height: 4px;
-}
+.eraser-size-dot.dot-sm { width: 4px; height: 4px; }
+.eraser-size-dot.dot-md { width: 8px; height: 8px; }
+.eraser-size-dot.dot-lg { width: 13px; height: 13px; }
 
-.eraser-size-dot.dot-md {
-  width: 8px;
-  height: 8px;
-}
-
-.eraser-size-dot.dot-lg {
-  width: 13px;
-  height: 13px;
-}
-
-/* Hàng chuyển đổi Toggle Switch kiểu iOS */
-.eraser-toggle-row {
+/* Thẻ Toggle Switch kiểu iOS cực đẹp */
+.eraser-card-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 6px;
-  border-radius: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f8faf9;
+  border: 1px solid rgba(40, 99, 78, 0.08);
   cursor: pointer;
-  transition: background-color 0.1s ease;
+  transition: all 0.12s ease;
   user-select: none;
 }
 
-.eraser-toggle-row:hover {
-  background-color: rgba(40, 99, 78, 0.06);
+.eraser-card-toggle:hover {
+  background: #f0f5f2;
+  border-color: rgba(40, 99, 78, 0.18);
 }
 
-.eraser-toggle-info {
+.eraser-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eraser-card-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.eraser-card-text {
   display: flex;
   flex-direction: column;
+  text-align: left;
 }
 
-.eraser-toggle-title {
+.eraser-card-title {
   font-size: 11.5px;
   font-weight: 600;
   color: var(--color-text-main);
 }
 
-.eraser-toggle-desc {
+.eraser-card-sub {
   font-size: 9.5px;
   color: #71877e;
   margin-top: 1px;
 }
 
-/* Switch Slider */
-.eraser-switch-input {
+/* iOS Switch Slider */
+.ios-switch {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 19px;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.ios-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+  margin: 0;
+  pointer-events: none;
   display: none;
 }
 
-.eraser-switch-slider {
-  position: relative;
-  display: inline-block;
-  width: 32px;
-  height: 18px;
+.ios-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-color: #d1d5db;
-  border-radius: 18px;
-  transition: background-color 0.2s ease;
-  flex-shrink: 0;
+  border-radius: 19px;
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.eraser-switch-slider::before {
-  content: "";
+.ios-slider::before {
   position: absolute;
-  width: 14px;
-  height: 14px;
+  content: "";
+  height: 15px;
+  width: 15px;
   left: 2px;
-  top: 2px;
+  bottom: 2px;
   background-color: #ffffff;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.eraser-switch-input:checked + .eraser-switch-slider {
+.ios-switch input:checked + .ios-slider {
   background-color: var(--color-action-primary);
 }
 
-.eraser-switch-input:checked + .eraser-switch-slider::before {
-  transform: translateX(14px);
+.ios-switch input:checked + .ios-slider::before {
+  transform: translateX(15px);
 }
 
 .toolbar-menu-item {
