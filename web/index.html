@@ -425,22 +425,74 @@
             <span id="label-eraser">Tẩy</span>
             <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="toolbar-dropdown-menu" id="menu-eraser">
-            <button class="toolbar-menu-item active" id="btn-eraser-partial" data-eraser-mode="partial">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/></svg>
-              <div class="menu-item-text">
-                <span class="menu-item-title">Tẩy từng tí (Tẩy nét)</span>
-                <span class="menu-item-desc">Rê đầu tẩy nhỏ cắt gọt phân đoạn mịn</span>
-              </div>
-            </button>
-            <button class="toolbar-menu-item" id="btn-eraser-object" data-eraser-mode="object">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/></svg>
-              <div class="menu-item-text">
-                <span class="menu-item-title">Tẩy cả hình (Đối tượng)</span>
-                <span class="menu-item-desc">Chạm vào nét hoặc hình là xóa trọn vẹn</span>
-              </div>
-            </button>
+          <div class="toolbar-dropdown-menu eraser-dropdown-menu" id="menu-eraser">
+            <!-- 1. Kiểu tẩy: Tẩy từng tí & Tẩy cả hình -->
+            <div class="eraser-cluster-section">
+              <div class="eraser-cluster-label">Chế độ tẩy</div>
+              <button class="toolbar-menu-item active" id="btn-eraser-partial" data-eraser-mode="partial">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/></svg>
+                <div class="menu-item-text">
+                  <span class="menu-item-title">Tẩy từng tí (Tẩy nét)</span>
+                  <span class="menu-item-desc">Rê đầu tẩy nhỏ cắt gọt phân đoạn mịn</span>
+                </div>
+              </button>
+              <button class="toolbar-menu-item" id="btn-eraser-object" data-eraser-mode="object">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/></svg>
+                <div class="menu-item-text">
+                  <span class="menu-item-title">Tẩy cả hình (Đối tượng)</span>
+                  <span class="menu-item-desc">Chạm vào nét hoặc hình là xóa trọn vẹn</span>
+                </div>
+              </button>
+            </div>
+
             <div class="toolbar-menu-divider"></div>
+
+            <!-- 2. Kích thước đầu tẩy (Nhỏ / Vừa / Lớn) -->
+            <div class="eraser-cluster-section">
+              <div class="eraser-cluster-label">Cỡ đầu tẩy</div>
+              <div class="eraser-size-segmented">
+                <button type="button" class="eraser-size-btn btn-eraser-size" data-rad="4" title="Đầu tẩy nhỏ (4px) - Tẩy số mũ, ký hiệu chi tiết">
+                  <span class="eraser-size-dot dot-sm"></span>
+                  <span>Nhỏ</span>
+                </button>
+                <button type="button" class="eraser-size-btn btn-eraser-size active" data-rad="12" title="Đầu tẩy vừa (12px) - Tẩy chữ thông thường">
+                  <span class="eraser-size-dot dot-md"></span>
+                  <span>Vừa</span>
+                </button>
+                <button type="button" class="eraser-size-btn btn-eraser-size" data-rad="24" title="Đầu tẩy lớn (24px) - Xóa nhanh mảng lớn">
+                  <span class="eraser-size-dot dot-lg"></span>
+                  <span>Lớn</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="toolbar-menu-divider"></div>
+
+            <!-- 3. Tùy chọn thông minh: Chỉ tẩy dạ quang & Tự động quay lại Bút -->
+            <div class="eraser-cluster-section">
+              <div class="eraser-cluster-label">Tùy chọn thông minh</div>
+              <label class="eraser-toggle-row" title="Khi bật, đầu tẩy chỉ xóa vệt dạ quang, giữ nguyên nét chữ và hình vẽ bên dưới">
+                <span class="eraser-toggle-info">
+                  <span class="eraser-toggle-title">Chỉ tẩy dạ quang</span>
+                  <span class="eraser-toggle-desc">Không xóa mất nét chữ mực</span>
+                </span>
+                <input type="checkbox" id="chk-erase-highlighter-only" class="eraser-switch-input">
+                <span class="eraser-switch-slider"></span>
+              </label>
+
+              <label class="eraser-toggle-row" title="Sau khi tẩy xong và nhấc bút lên, tự động chuyển về lại Bút để viết tiếp">
+                <span class="eraser-toggle-info">
+                  <span class="eraser-toggle-title">Tự đổi lại Bút vẽ</span>
+                  <span class="eraser-toggle-desc">Sau khi tẩy xong tự quay lại bút</span>
+                </span>
+                <input type="checkbox" id="chk-auto-switch-to-pen" class="eraser-switch-input">
+                <span class="eraser-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="toolbar-menu-divider"></div>
+
+            <!-- 4. Xóa toàn bộ trang -->
             <button class="toolbar-menu-item item-danger" id="btn-clear-canvas-from-eraser">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
               <span>Xóa toàn bộ hình trên trang</span>

@@ -121,7 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
     hoverPointTarget: null,
     // Chế độ tẩy: 'object' (xóa hết đối tượng) hoặc 'partial' (xóa từng tí khi rê tẩy vào)
     eraserMode: 'partial',
-    eraserRadius: 3,
+    eraserRadius: 12,
+    eraseHighlighterOnly: false,
+    autoSwitchToPen: false,
     eraserCursorPoint: null,
     eraserLastPoint: null,
     // Trạng thái hover xem trước cho Trung điểm và Phân giác
@@ -6625,6 +6627,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (state.activeTool === 'eraser') {
+      const wasModified = state.eraserDragModified;
       if (state.eraserMode === 'partial' && state.eraserDragModified && state.eraserDragBefore) {
         pushCommand({
           type: 'page-replace',
@@ -6637,6 +6640,12 @@ document.addEventListener('DOMContentLoaded', () => {
       state.eraserDragModified = false;
       state.isDrawing = false;
       renderPage();
+
+      // Nếu bật tính năng "Tự đổi lại Bút vẽ sau khi tẩy xong"
+      if (state.autoSwitchToPen && wasModified) {
+        setPenToolMode('pen');
+        showPageToast('✏️ Đã tự động chuyển về Bút viết');
+      }
       return;
     }
 
@@ -6882,6 +6891,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = state.pages[state.currentPage] || [];
     const el = findElementAt(x, y);
     if (el) {
+      // Nếu đang bật "Chỉ tẩy dạ quang", bỏ qua nét mực thường và hình học
+      if (state.eraseHighlighterOnly && el.tool !== 'highlighter') {
+        return;
+      }
       const idx = list.indexOf(el);
       if (idx !== -1) {
         list.splice(idx, 1);
@@ -6891,19 +6904,25 @@ document.addEventListener('DOMContentLoaded', () => {
           element: el,
           index: idx
         });
+        state.eraserDragModified = true;
         renderPage();
       }
     }
   }
 
-  // Xóa một phần nhỏ nét vẽ khi đưa tẩy đến (chế độ tẩy phân đoạn / từng tí siêu nhỏ và cực mảnh)
-  function erasePartialAt(x, y, radius = 3) {
+  // Xóa một phần nhỏ nét vẽ khi đưa tẩy đến (chế độ tẩy phân đoạn / từng tí)
+  function erasePartialAt(x, y, radius = 12) {
     const list = state.pages[state.currentPage] || [];
     let modified = false;
 
     for (let i = list.length - 1; i >= 0; i--) {
       const el = list[i];
       if (!el) continue;
+
+      // Nếu đang bật "Chỉ tẩy dạ quang", chỉ tác động lên nét bút dạ quang
+      if (state.eraseHighlighterOnly && el.tool !== 'highlighter') {
+        continue;
+      }
 
       if (el.type === 'stroke') {
         // Kiểm tra xem đầu tẩy có chạm vào nét vẽ không (chuẩn xác theo vòng tròn tẩy)
@@ -7855,12 +7874,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Thiết lập Cỡ đầu tẩy (Nhỏ 8px, Vừa 14px, Lớn 24px)
+  // Thiết lập Cỡ đầu tẩy (Nhỏ 4px, Vừa 12px, Lớn 24px)
   document.querySelectorAll('.btn-eraser-size').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       document.querySelectorAll('.btn-eraser-size').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      state.eraserRadius = parseInt(btn.dataset.rad, 10) || 14;
+      state.eraserRadius = parseInt(btn.dataset.rad, 10) || 12;
+      statusToolInfo.textContent = `Công cụ: ${state.eraserMode === 'partial' ? 'Tẩy từng tí' : 'Tẩy cả hình'} (Cỡ tẩy: ${state.eraserRadius}px)`;
+    });
+  });
+
+  // Tùy chọn thông minh trong menu Tẩy: Chỉ tẩy dạ quang & Tự động quay lại Bút
+  const chkEraseHighlighterOnly = document.getElementById('chk-erase-highlighter-only');
+  if (chkEraseHighlighterOnly) {
+    chkEraseHighlighterOnly.addEventListener('change', (e) => {
+      e.stopPropagation();
+      state.eraseHighlighterOnly = chkEraseHighlighterOnly.checked;
+      showPageToast(state.eraseHighlighterOnly ? '🖍️ Đã bật: Chỉ tẩy nét bút dạ quang' : '✨ Đã tắt: Tẩy mọi nét vẽ');
+    });
+  }
+
+  const chkAutoSwitchToPen = document.getElementById('chk-auto-switch-to-pen');
+  if (chkAutoSwitchToPen) {
+    chkAutoSwitchToPen.addEventListener('change', (e) => {
+      e.stopPropagation();
+      state.autoSwitchToPen = chkAutoSwitchToPen.checked;
+      showPageToast(state.autoSwitchToPen ? '✏️ Đã bật: Tự động đổi về Bút sau khi tẩy' : '✨ Đã tắt: Giữ nguyên chế độ tẩy');
+    });
+  }
+
+  document.querySelectorAll('.eraser-toggle-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
     });
   });
 

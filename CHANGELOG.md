@@ -2,6 +2,16 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Nâng cấp Menu Tẩy ▾: Cỡ đầu tẩy, Chỉ tẩy dạ quang & Tự đổi lại Bút] - 25/10/2026
+
+- **1. Lựa chọn kích cỡ đầu tẩy trực quan:**
+  - Hỗ trợ 3 mức cỡ đầu tẩy theo thanh chọn bo tròn: **Nhỏ** (4px - tẩy chi tiết nhỏ, ký hiệu toán), **Vừa** (12px - tẩy chữ thông thường), **Lớn** (24px - xóa nhanh mảng lớn).
+  - Vòng tròn con trỏ tẩy trên canvas tự động mở rộng/thu nhỏ theo đúng kích thước đã chọn.
+- **2. Chế độ "Chỉ tẩy Dạ quang" (Erase Highlighter Only):**
+  - Công tắc gạt kiểu iOS bên trong menu Tẩy. Khi bật, đầu tẩy chỉ xóa các vệt màu dạ quang làm dấu mà không bao giờ làm mất nét chữ mực đen, hình học hay đồ thị bên dưới.
+- **3. Chế độ "Tự đổi lại Bút vẽ" (Auto-switch back to Pen):**
+  - Sau khi người dùng rê tẩy và nhấc bút/ngón tay lên, ứng dụng tự động chuyển ngay về lại công cụ Bút vẽ kèm thông báo toast nhẹ, tiết kiệm thao tác nhấp chuột.
+
 ## [Hợp nhất Nút Bút ▾: Bút mực, Dạ quang, Màu sắc & Cỡ nét] - 25/10/2026
 
 - **1. Hợp nhất cụm nút Bút & Tùy chọn nét trên Toolbar chính:**

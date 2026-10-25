@@ -46,6 +46,10 @@
       - Danh sách độ dày nét (1.5px, 2.5px, 5px, 10px kèm đường kẻ minh họa trực quan).
       - Kiểu nét: `[ Liền ]` và `[ Đứt ]`.
     + Tương thích đầy đủ phím tắt macOS: `B` (Bút mực) và `H` (Dạ quang).
+  - **Nâng cấp toàn diện Menu Tẩy (`[ ⬡ Tẩy ▾ ]`) với 3 tính năng thông minh:**
+    + *1. Chọn kích thước đầu tẩy:* 3 mức lựa chọn trực quan Nhỏ (4px - tẩy số mũ, chi tiết toán học), Vừa (12px - tẩy chữ thông thường), Lớn (24px - xóa nhanh đoạn dài). Vòng tròn con trỏ tẩy trên canvas tự động co giãn theo đúng kích thước đã chọn.
+    + *2. Chế độ "Chỉ tẩy Dạ quang" (Erase Highlighter Only):* Khi bật công tắc, đầu tẩy chỉ xóa các vệt màu dạ quang làm dấu mà không bao giờ làm mất nét chữ mực đen, hình học hay đồ thị bên dưới.
+    + *3. Chế độ "Tự đổi lại Bút vẽ" (Auto-switch back to Pen):* Sau khi rê tẩy xong và nhấc ngón tay/bút lên, hệ thống tự động chuyển ngay về lại Bút mực để tiếp tục viết mà không cần nhấp chuột chọn lại.
 - **Sẵn sàng chuyển tiếp:** Đóng gói ứng dụng macOS `.app`.
 
 ## 2. Các chức năng đã thực hiện

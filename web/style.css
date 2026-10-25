@@ -622,6 +622,169 @@ body {
   font-size: 11.5px;
 }
 
+/* ==========================================================================
+   Popup menu Tẩy ▾: Cỡ đầu tẩy, Chỉ tẩy dạ quang, Tự đổi lại Bút vẽ
+   ========================================================================== */
+.eraser-dropdown-menu {
+  min-width: 235px;
+  padding: 8px 10px;
+  gap: 6px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid rgba(36, 60, 54, 0.16);
+  box-shadow: 0 10px 30px rgba(36, 60, 54, 0.16);
+}
+
+.eraser-cluster-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eraser-cluster-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #71877e;
+  padding: 0 2px;
+  margin-bottom: 2px;
+}
+
+/* Thanh chọn kích thước đầu tẩy: Nhỏ / Vừa / Lớn */
+.eraser-size-segmented {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background-color: rgba(40, 99, 78, 0.08);
+  border-radius: 8px;
+}
+
+.eraser-size-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #40534b;
+  font-family: var(--font-main);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.eraser-size-btn:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.6);
+  color: var(--color-text-main);
+}
+
+.eraser-size-btn.active {
+  background: #ffffff;
+  color: var(--color-action-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(36, 60, 54, 0.12);
+}
+
+.eraser-size-dot {
+  display: inline-block;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.eraser-size-dot.dot-sm {
+  width: 4px;
+  height: 4px;
+}
+
+.eraser-size-dot.dot-md {
+  width: 8px;
+  height: 8px;
+}
+
+.eraser-size-dot.dot-lg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Hàng chuyển đổi Toggle Switch kiểu iOS */
+.eraser-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  user-select: none;
+}
+
+.eraser-toggle-row:hover {
+  background-color: rgba(40, 99, 78, 0.06);
+}
+
+.eraser-toggle-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.eraser-toggle-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.eraser-toggle-desc {
+  font-size: 9.5px;
+  color: #71877e;
+  margin-top: 1px;
+}
+
+/* Switch Slider */
+.eraser-switch-input {
+  display: none;
+}
+
+.eraser-switch-slider {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  background-color: #d1d5db;
+  border-radius: 18px;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.eraser-switch-slider::before {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  top: 2px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.eraser-switch-input:checked + .eraser-switch-slider {
+  background-color: var(--color-action-primary);
+}
+
+.eraser-switch-input:checked + .eraser-switch-slider::before {
+  transform: translateX(14px);
+}
+
 .toolbar-menu-item {
   display: flex;
   align-items: center;
