@@ -2070,7 +2070,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (count === 2) {
       const isTwoPoints = state.selectedElements.every(el => el.type === 'geo' && el.shape === 'point');
       if (isTwoPoints) {
-        statusToolInfo.textContent = 'Đã chọn 2 điểm! Bấm [Cơ bản ▾] -> [Trung điểm] hoặc phím M để xuất ngay trung điểm.';
+        statusToolInfo.textContent = 'Đã chọn 2 điểm! Bấm [Dựng hình ▾] -> [Trung điểm] hoặc phím M để xuất ngay trung điểm.';
       } else {
         statusToolInfo.textContent = 'Đã chọn 2 đối tượng (Bấm nút Vuông góc, Song song, Phân giác, Tiếp tuyến hoặc Trung điểm để dựng hình ngay)';
       }
@@ -3213,25 +3213,19 @@ document.addEventListener('DOMContentLoaded', () => {
     return best;
   }
 
-  // Cấu hình nhãn & biểu tượng mặc định ban đầu theo thứ tự: Cơ bản; Hình; Dựng hình
+  // Cấu hình nhãn & biểu tượng mặc định ban đầu: Hình; Dựng hình; HHKG
   const DEFAULT_GEO_GROUPS = {
-    basic: {
-      btnId: 'btn-group-basic',
-      label: 'Cơ bản',
-      defaultGeo: 'line',
-      icon: '<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="4" y1="20" x2="20" y2="4"/></svg>'
-    },
     shapes: {
       btnId: 'btn-group-shapes',
       label: 'Hình',
-      defaultGeo: 'triangle',
-      icon: '<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><polygon points="12 3 21 21 3 21"/></svg>'
+      defaultGeo: 'line',
+      icon: '<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="4" y1="20" x2="20" y2="4"/></svg>'
     },
     construction: {
       btnId: 'btn-group-construction',
       label: 'Dựng hình',
-      defaultGeo: 'bisector',
-      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/><line x1="4" y1="20" x2="20" y2="20"/><line x1="4" y1="20" x2="14" y2="9"/></svg>'
+      defaultGeo: 'midpoint',
+      icon: '<svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>'
     },
     hhkg: {
       btnId: 'btn-group-hhkg',
@@ -3241,7 +3235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Khôi phục lại đúng tên và biểu tượng ban đầu theo thứ tự: Cơ bản; Hình; Dựng hình
+  // Khôi phục lại đúng tên và biểu tượng ban đầu theo thứ tự: Hình; Dựng hình; HHKG
   function resetGeoDropdownLabels() {
     Object.values(DEFAULT_GEO_GROUPS).forEach(cfg => {
       const btn = document.getElementById(cfg.btnId);
@@ -7782,7 +7776,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPage();
   }
 
-  // Quản lý các nhóm menu xổ xuống của thanh hình học phẳng (Cơ bản, Hình, Dựng hình, HHKG)
+  // Quản lý các nhóm menu xổ xuống của thanh hình học (Hình, Dựng hình, HHKG)
   const geoGroupButtons = document.querySelectorAll('.geo-group-btn');
   geoGroupButtons.forEach(groupBtn => {
     groupBtn.addEventListener('click', (e) => {

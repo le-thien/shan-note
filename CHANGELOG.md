@@ -2,6 +2,18 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Tái cấu trúc cụm Hình học: Gom nút Cơ bản vào Hình và Dựng hình] - 25/10/2026
+
+- **1. Loại bỏ nút dropdown Cơ bản khỏi Header:**
+  - Tinh gọn thanh Header, giúp người dùng không bị phân tâm bởi nút "Cơ bản" vốn có ít tính năng riêng rẽ.
+- **2. Phân tách và dịch chuyển đúng bản chất tính năng:**
+  - **Menu [ 📐 Hình ▾ ]:** Tiếp nhận **Đoạn thẳng** (`line`) và **Điểm** (`point`), cùng với Đường tròn, Elip, Tam giác các loại và Tứ giác các loại. Công cụ mặc định ban đầu là Đoạn thẳng (`line`).
+  - **Menu [ 🛠️ Dựng hình ▾ ]:** Tiếp nhận **Trung điểm** (`midpoint`), đưa lên vị trí đầu tiên trong danh sách các tác vụ dựng hình tương tác (cùng với Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc). Công cụ mặc định ban đầu là Trung điểm (`midpoint`).
+- **3. Cập nhật logic điều hướng & Service Worker:**
+  - Đồng bộ `DEFAULT_GEO_GROUPS` trong `web/app.js` cho nhóm `shapes` và `construction`.
+  - Cập nhật thông báo hướng dẫn khi chọn 2 điểm ("Bấm [Dựng hình ▾] -> [Trung điểm]...").
+  - Nâng cache Service Worker lên `net-app-v14` trong `web/sw.js` để tự động làm mới bộ nhớ đệm trình duyệt cho người dùng.
+
 ## [Nâng cấp Menu Tẩy ▾: Giao diện Card Toggle Apple & Tối ưu hiệu năng BBox] - 25/10/2026
 
 - **1. Thiết kế lại giao diện thẻ Apple Card Toggle tinh tế:**

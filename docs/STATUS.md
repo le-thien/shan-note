@@ -53,6 +53,11 @@
     + *4. Chế độ "Tự đổi lại Bút vẽ" (Auto-switch back to Pen):* Sau khi nhấc bút tẩy, tự động chuyển ngay về Bút mực.
     + *5. Tối ưu hóa hiệu năng siêu tốc (Bounding Box Pruning):* Áp dụng thuật toán kiểm tra nhanh hộp bao hình học trong $O(1)$ trước khi tính toán va chạm phân đoạn, giúp tốc độ tẩy nét tăng gấp 10-20 lần, lướt êm ru 60-120fps trên màn hình Retina.
     + *6. Chống lưu đệm trình duyệt (Cache-Busting & Network-First):* Tích hợp CSS nhúng trực tiếp và cấu hình Service Worker Network-First cho tài nguyên cốt lõi, đảm bảo mọi thiết bị luôn tải giao diện đẹp hoàn mỹ tức thì.
+  - **Tái cấu trúc cụm công cụ Hình học: Gom nút Cơ bản vào nút Hình và Dựng hình:**
+    + Loại bỏ hoàn toàn nút dropdown `[ Cơ bản ▾ ]`, tinh gọn thanh Header giúp giao diện trực quan và phân loại chức năng rõ ràng hơn.
+    + **Nút `[ 📐 Hình ▾ ]`:** Đảm nhận toàn bộ các thực thể hình học: `Đoạn thẳng` (mặc định), `Điểm`, `Đường tròn`, `Elip`, các loại Tam giác và Tứ giác với đường phân cách trang nhã.
+    + **Nút `[ 🛠️ Dựng hình ▾ ]`:** Đảm nhận toàn bộ các tác vụ dựng hình tương tác: `Trung điểm` (mặc định được đưa lên đầu), `Phân giác`, `Vuông góc`, `Song song`, `Tiếp tuyến`, `2 tiếp tuyến`, `Chọn góc`.
+    + Đồng bộ nhãn tên, icon mặc định (`line` cho Hình, `midpoint` cho Dựng hình) và nâng cache Service Worker lên `net-app-v14`.
 - **Sẵn sàng chuyển tiếp:** Đóng gói ứng dụng macOS `.app`.
 
 ## 2. Các chức năng đã thực hiện
