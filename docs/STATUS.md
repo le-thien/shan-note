@@ -36,6 +36,16 @@
     + *Nhập (Import):* Mở tệp Nét (`.net` / `⌘O`), Nhập PDF, Nhập ảnh.
     + *Xuất (Export):* Xuất PDF (`⌘P`), Xuất ảnh PNG, Xuất văn bản TXT.
     + *Tiện ích:* Thông tin Nét, Xóa toàn bộ trang.
+  - **Hợp nhất Nút Bút (`[ ✏️ Bút ▾ ]`) trên thanh công cụ chính:**
+    + Gom chung toàn bộ các nút phân tán trước đây: `[Bút viết]`, `[Dạ quang]` cùng toàn bộ bảng màu sắc, độ dày nét và kiểu nét thành **duy nhất 1 nút dropdown `[ ✏️ Bút ▾ ]`**.
+    + *Thao tác vẽ tức thì (0ms):* Nhấp vào nút khi đang ở công cụ khác sẽ kích hoạt ngay công cụ bút để bắt đầu viết vẽ lập tức, không làm gián đoạn dòng suy nghĩ của người dùng.
+    + *Chấm màu trực quan (Color Dot):* Trên nút chính luôn có chấm màu tròn hiển thị màu mực hiện tại, người dùng nhận biết ngay mà không cần mở popup.
+    + *Menu thả xuống `#menu-pen-cluster`:* Bấm vào mũi tên `▾` hoặc nhấp lại vào nút bút sẽ mở bảng điều khiển:
+      - Phân đoạn chuyển đổi giữa `[ ✏️ Bút mực ]` và `[ 🖍️ Dạ quang ]` (tự động cập nhật biểu tượng và nhãn ngoài nút chính).
+      - Bảng màu tròn (4 màu thanh lịch + nút `+` tùy chọn màu bất kỳ).
+      - Danh sách độ dày nét (1.5px, 2.5px, 5px, 10px kèm đường kẻ minh họa trực quan).
+      - Kiểu nét: `[ Liền ]` và `[ Đứt ]`.
+    + Tương thích đầy đủ phím tắt macOS: `B` (Bút mực) và `H` (Dạ quang).
 - **Sẵn sàng chuyển tiếp:** Đóng gói ứng dụng macOS `.app`.
 
 ## 2. Các chức năng đã thực hiện

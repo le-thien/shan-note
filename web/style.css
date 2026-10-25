@@ -488,6 +488,140 @@ body {
   display: flex !important;
 }
 
+/* ==========================================================================
+   Popup gom chung Bút ▾: Chọn loại bút, Bảng màu, Độ dày nét, Kiểu nét
+   ========================================================================== */
+.pen-color-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #30493c;
+  box-shadow: 0 0 0 1.5px #ffffff, 0 1px 3px rgba(0, 0, 0, 0.2);
+  margin: 0 2px;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.pen-dropdown-menu {
+  min-width: 220px;
+  padding: 8px 10px;
+  gap: 7px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid rgba(36, 60, 54, 0.16);
+  box-shadow: 0 10px 30px rgba(36, 60, 54, 0.16);
+}
+
+.pen-cluster-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pen-cluster-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #71877e;
+  padding: 0 2px;
+}
+
+/* Segmented control: Bút mực / Dạ quang & Kiểu nét Liền / Đứt */
+.pen-type-segmented,
+.pen-dash-segmented {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background-color: rgba(40, 99, 78, 0.08);
+  border-radius: 8px;
+}
+
+.pen-segment-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #40534b;
+  font-family: var(--font-main);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.pen-segment-btn:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.6);
+  color: var(--color-text-main);
+}
+
+.pen-segment-btn.active {
+  background: #ffffff;
+  color: var(--color-action-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(36, 60, 54, 0.12);
+}
+
+/* Hàng bảng màu bên trong popup Bút */
+.pen-cluster-colors {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 2px;
+}
+
+/* Danh sách độ dày nét */
+.pen-size-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pen-size-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-main);
+  font-family: var(--font-main);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.pen-size-row:hover {
+  background-color: rgba(40, 99, 78, 0.08);
+}
+
+.pen-size-row.active {
+  background-color: rgba(40, 99, 78, 0.12);
+  color: #1a4537;
+  font-weight: 600;
+}
+
+.pen-size-row .size-line-preview {
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+}
+
+.pen-size-row .size-text {
+  font-size: 11.5px;
+}
+
 .toolbar-menu-item {
   display: flex;
   align-items: center;

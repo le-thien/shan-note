@@ -332,17 +332,91 @@
           <span>Chọn</span>
         </button>
 
-        <!-- Nút Bút viết (Mực thường) -->
-        <button id="tool-pen" class="tool-btn active" data-tool="pen" title="Bút viết tay (Phím B)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-          <span>Bút</span>
-        </button>
+        <!-- Nút Bút gom chung: [ ✏️ Bút ▾ ] (Gộp Bút viết, Dạ quang, Màu sắc & Cỡ nét) -->
+        <div class="toolbar-dropdown-container" id="dropdown-pen-container">
+          <button id="tool-pen" class="tool-btn active" data-tool="pen" title="Bút vẽ (Phím B) / Nhấp để chọn loại bút, màu và nét">
+            <span class="pen-icon-slot" id="pen-icon-slot">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            </span>
+            <span class="pen-color-dot" id="pen-active-color-dot" style="background-color: #30493c;"></span>
+            <span id="label-pen-main">Bút</span>
+            <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="toolbar-dropdown-menu pen-dropdown-menu" id="menu-pen-cluster">
+            <!-- 1. Chọn loại bút: Bút mực & Dạ quang -->
+            <div class="pen-cluster-section">
+              <div class="pen-type-segmented">
+                <button type="button" class="pen-segment-btn active" id="btn-pen-type-pen" data-pen-mode="pen" title="Bút viết tay (Phím B)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                  <span>Bút mực</span>
+                </button>
+                <button type="button" class="pen-segment-btn" id="btn-pen-type-highlighter" data-pen-mode="highlighter" title="Bút dạ quang đánh dấu (Phím H)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11-6 6v3h3l6-6"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+                  <span>Dạ quang</span>
+                </button>
+              </div>
+            </div>
 
-        <!-- Nút Bút dạ quang (Đánh dấu) -->
-        <button id="tool-highlighter" class="tool-btn" data-tool="highlighter" title="Bút dạ quang đánh dấu (Phím H)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11-6 6v3h3l6-6"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
-          <span>Dạ quang</span>
-        </button>
+            <div class="toolbar-menu-divider"></div>
+
+            <!-- 2. Bảng màu sắc -->
+            <div class="pen-cluster-section">
+              <div class="pen-cluster-label">Màu sắc</div>
+              <div class="color-palette-group pen-cluster-colors">
+                <button class="color-swatch active" data-color="#30493c" style="--swatch-color: #30493c;" title="Mực xanh sẫm tự nhiên"></button>
+                <button class="color-swatch" data-color="#537fc1" style="--swatch-color: #537fc1;" title="Xanh dương cổ điển"></button>
+                <button class="color-swatch" data-color="#cf7969" style="--swatch-color: #cf7969;" title="Đất nung / Đỏ gạch"></button>
+                <button class="color-swatch" data-color="#b6a24c" style="--swatch-color: #b6a24c;" title="Vàng mù tạt trầm"></button>
+                <label class="custom-color-picker" title="Chọn màu tùy ý">
+                  <input type="color" id="input-custom-color" value="#30493c">
+                  <span class="custom-color-btn">+</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="toolbar-menu-divider"></div>
+
+            <!-- 3. Độ dày nét -->
+            <div class="pen-cluster-section">
+              <div class="pen-cluster-label">Độ dày nét</div>
+              <div class="pen-size-list">
+                <button type="button" class="pen-size-row size-btn" data-size="1.5">
+                  <span class="size-line-preview"><span class="size-line" style="height: 1.5px;"></span></span>
+                  <span class="size-text">Mảnh (1.5px)</span>
+                </button>
+                <button type="button" class="pen-size-row size-btn active" data-size="2.5">
+                  <span class="size-line-preview"><span class="size-line" style="height: 2.5px;"></span></span>
+                  <span class="size-text">Vừa (2.5px)</span>
+                </button>
+                <button type="button" class="pen-size-row size-btn" data-size="5">
+                  <span class="size-line-preview"><span class="size-line" style="height: 5px;"></span></span>
+                  <span class="size-text">Đậm (5px)</span>
+                </button>
+                <button type="button" class="pen-size-row size-btn" data-size="10">
+                  <span class="size-line-preview"><span class="size-line" style="height: 8px;"></span></span>
+                  <span class="size-text">Rất đậm (10px)</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="toolbar-menu-divider"></div>
+
+            <!-- 4. Kiểu nét (Liền / Đứt) -->
+            <div class="pen-cluster-section">
+              <div class="pen-cluster-label">Kiểu nét</div>
+              <div class="pen-dash-segmented">
+                <button type="button" class="pen-segment-btn style-btn active" id="stroke-solid" data-dash="solid">
+                  <svg width="22" height="6" viewBox="0 0 22 6"><line x1="1" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  <span>Liền</span>
+                </button>
+                <button type="button" class="pen-segment-btn style-btn" id="stroke-dashed" data-dash="dashed">
+                  <svg width="22" height="6" viewBox="0 0 22 6"><line x1="1" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2.2" stroke-dasharray="4 3" stroke-linecap="round"/></svg>
+                  <span>Đứt</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Nút Tẩy ▾ -->
         <div class="toolbar-dropdown-container" id="dropdown-eraser-container">
@@ -397,49 +471,8 @@
           </button>
         </div>
 
-        <div class="primary-divider"></div>
-
-        <!-- CỤM MÀU SẮC, ĐỘ DÀY & KIỂU NÉT: Luôn hiển thị sẵn sàng cho cả Bút lẫn Hình học -->
-        <div class="context-section" id="context-pen-options" style="display: flex;">
-          <div class="color-palette-group" aria-label="Bảng màu sắc">
-            <button class="color-swatch active" data-color="#30493c" style="--swatch-color: #30493c;" title="Mực xanh sẫm tự nhiên"></button>
-            <button class="color-swatch" data-color="#537fc1" style="--swatch-color: #537fc1;" title="Xanh dương cổ điển"></button>
-            <button class="color-swatch" data-color="#cf7969" style="--swatch-color: #cf7969;" title="Đất nung / Đỏ gạch"></button>
-            <button class="color-swatch" data-color="#b6a24c" style="--swatch-color: #b6a24c;" title="Vàng mù tạt trầm"></button>
-            <label class="custom-color-picker" title="Chọn màu tùy ý">
-              <input type="color" id="input-custom-color" value="#30493c">
-              <span class="custom-color-btn">+</span>
-            </label>
-          </div>
-
-          <div class="context-divider"></div>
-
-          <div class="context-dropdown-wrap" id="dropdown-size-container">
-            <button class="context-select-btn" id="btn-size-dropdown" title="Chọn độ dày nét">
-              <span id="label-stroke-size" class="size-line-preview"><span class="size-line" style="height: 2.5px;"></span></span>
-              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="context-select-menu" id="menu-size-options">
-              <button class="context-menu-item size-btn" data-size="1.5"><span>Mảnh (1.5px)</span><span class="size-line" style="height: 1.5px; width: 40px;"></span></button>
-              <button class="context-menu-item size-btn active" data-size="2.5"><span>Vừa (2.5px)</span><span class="size-line" style="height: 2.5px; width: 40px;"></span></button>
-              <button class="context-menu-item size-btn" data-size="5"><span>Đậm (5px)</span><span class="size-line" style="height: 5px; width: 40px;"></span></button>
-              <button class="context-menu-item size-btn" data-size="10"><span>Rất đậm (10px)</span><span class="size-line" style="height: 8px; width: 40px;"></span></button>
-            </div>
-          </div>
-
-          <div class="context-divider"></div>
-
-          <div class="context-dropdown-wrap" id="dropdown-dash-container">
-            <button class="context-select-btn" id="btn-dash-dropdown" title="Chọn kiểu nét">
-              <span id="label-stroke-dash">Liền</span>
-              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="context-select-menu" id="menu-dash-options">
-              <button class="context-menu-item style-btn active" id="stroke-solid" data-dash="solid"><span>Nét liền</span></button>
-              <button class="context-menu-item style-btn" id="stroke-dashed" data-dash="dashed"><span>Nét đứt</span></button>
-            </div>
-          </div>
-        </div>
+        <!-- Phần context-pen-options ảo để tương thích mã cũ nếu có truy vấn -->
+        <div id="context-pen-options" style="display: none;"></div>
       </div>
     </nav>
 

@@ -2,6 +2,21 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Hợp nhất Nút Bút ▾: Bút mực, Dạ quang, Màu sắc & Cỡ nét] - 25/10/2026
+
+- **1. Hợp nhất cụm nút Bút & Tùy chọn nét trên Toolbar chính:**
+  - Thay thế các nút riêng lẻ (`tool-pen`, `tool-highlighter`) và chuyển toàn bộ cụm bảng màu, độ dày nét, kiểu nét vào duy nhất một nút dropdown **`[ ✏️ Bút ▾ ]`**.
+  - Thanh công cụ chính trở nên cực kỳ thoáng đãng, sang trọng, không bị tràn dòng hay chiếm diện tích.
+- **2. Cơ chế tương tác linh hoạt:**
+  - *Vẽ ngay lập tức (0ms):* Nhấp vào nút khi đang ở công cụ khác sẽ chuyển sang chế độ Bút ngay mà không bật popup, cho phép ghi chú tức thì.
+  - *Chấm màu trực quan:* Nút chính có chấm màu phản ánh chính xác màu nét đang chọn.
+  - *Menu tùy chỉnh chuyên nghiệp `#menu-pen-cluster`:*
+    + Chuyển đổi giữa **Bút mực** và **Dạ quang** (tự động đổi icon và tên nút chính).
+    + Bảng màu tròn (4 màu nét + nút chọn màu tùy ý `+`).
+    + Lựa chọn độ dày nét trực quan: 1.5px (Mảnh), 2.5px (Vừa), 5px (Đậm), 10px (Rất đậm).
+    + Kiểu nét: Nét liền (Solid) & Nét đứt (Dashed).
+- **3. Phím tắt macOS:** Phím `B` kích hoạt Bút mực, phím `H` kích hoạt Dạ quang.
+
 ## [Hợp nhất Menu Tệp ▾: Lưu, Save As, Nhập, Xuất, Phím tắt] - 25/10/2026
 
 - **1. Hợp nhất cụm nút ở Header thành duy nhất một menu [Tệp ▾]:**

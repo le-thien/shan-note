@@ -7339,8 +7339,19 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', (e) => {
       const tool = btn.dataset.tool;
 
-      // Nếu bấm vào chevron của nút Tẩy thì toggle menu chọn chế độ tẩy
+      // Nếu bấm vào nút Bút (hoặc chevron của nút Bút)
       const chevron = e.target.closest('.tool-chevron');
+      if (tool === 'pen') {
+        const menuPen = document.getElementById('menu-pen-cluster');
+        const isPenActive = (state.activeTool === 'pen' || state.activeTool === 'highlighter');
+        if (chevron || isPenActive) {
+          e.stopPropagation();
+          toggleDropdownMenu(btn, menuPen);
+          return;
+        }
+      }
+
+      // Nếu bấm vào chevron của nút Tẩy thì toggle menu chọn chế độ tẩy
       if (chevron && tool === 'eraser') {
         e.stopPropagation();
         const menu = document.getElementById('menu-eraser');
@@ -7436,6 +7447,83 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       updateContextualToolbar(state.activeTool);
+    });
+  });
+
+  // Quản lý chuyển đổi chế độ Bút mực / Bút dạ quang trong dropdown Bút ▾
+  function setPenToolMode(mode) {
+    const penIconSlot = document.getElementById('pen-icon-slot');
+    const labelPenMain = document.getElementById('label-pen-main');
+    const btnPenTypePenEl = document.getElementById('btn-pen-type-pen');
+    const btnPenTypeHighlighterEl = document.getElementById('btn-pen-type-highlighter');
+    const toolPen = document.getElementById('tool-pen');
+
+    if (mode === 'highlighter') {
+      state.activeTool = 'highlighter';
+      if (labelPenMain) labelPenMain.textContent = 'Dạ quang';
+      if (penIconSlot) {
+        penIconSlot.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11-6 6v3h3l6-6"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>';
+      }
+      if (btnPenTypeHighlighterEl) btnPenTypeHighlighterEl.classList.add('active');
+      if (btnPenTypePenEl) btnPenTypePenEl.classList.remove('active');
+      if (toolPen) toolPen.title = 'Bút dạ quang đánh dấu (Phím H) / Nhấp để chọn loại bút, màu và nét';
+    } else {
+      state.activeTool = 'pen';
+      if (labelPenMain) labelPenMain.textContent = 'Bút';
+      if (penIconSlot) {
+        penIconSlot.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
+      }
+      if (btnPenTypePenEl) btnPenTypePenEl.classList.add('active');
+      if (btnPenTypeHighlighterEl) btnPenTypeHighlighterEl.classList.remove('active');
+      if (toolPen) toolPen.title = 'Bút vẽ (Phím B) / Nhấp để chọn loại bút, màu và nét';
+    }
+
+    state.activeGeo = null;
+    state.selectedElement = null;
+    setCanvasCursor('crosshair');
+
+    toolButtons.forEach(b => b.classList.remove('active'));
+    if (toolPen) toolPen.classList.add('active');
+    statusToolInfo.textContent = `Công cụ: ${state.activeTool === 'highlighter' ? 'Dạ quang' : 'Bút viết'} (Màu: ${state.color}, Nét: ${state.strokeWidth}px)`;
+    renderPage();
+  }
+
+  const btnPenTypePen = document.getElementById('btn-pen-type-pen');
+  const btnPenTypeHighlighter = document.getElementById('btn-pen-type-highlighter');
+
+  if (btnPenTypePen) {
+    btnPenTypePen.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setPenToolMode('pen');
+    });
+  }
+
+  if (btnPenTypeHighlighter) {
+    btnPenTypeHighlighter.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setPenToolMode('highlighter');
+    });
+  }
+
+  // Chọn độ dày nét bên trong dropdown Bút ▾
+  document.querySelectorAll('.pen-size-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.pen-size-row').forEach(r => r.classList.remove('active'));
+      row.classList.add('active');
+      state.strokeWidth = parseFloat(row.dataset.size);
+      state.eraserRadius = Math.max(2.5, Math.min(5.5, Math.round(state.strokeWidth * 1.1 * 10) / 10));
+      statusToolInfo.textContent = `Công cụ: ${state.activeTool === 'highlighter' ? 'Dạ quang' : 'Bút viết'} (Màu: ${state.color}, Nét: ${state.strokeWidth}px)`;
+    });
+  });
+
+  // Chọn kiểu nét (Liền / Đứt) bên trong dropdown Bút ▾
+  document.querySelectorAll('.pen-dash-segmented .style-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.pen-dash-segmented .style-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.dashStyle = btn.dataset.dash;
     });
   });
 
@@ -7782,6 +7870,8 @@ document.addEventListener('DOMContentLoaded', () => {
       colorSwatches.forEach(s => s.classList.remove('active'));
       swatch.classList.add('active');
       state.color = swatch.dataset.color;
+      const penDot = document.getElementById('pen-active-color-dot');
+      if (penDot) penDot.style.backgroundColor = state.color;
       statusToolInfo.textContent = `Công cụ: ${state.activeTool} (Màu: ${state.color})`;
     });
   });
@@ -7790,6 +7880,8 @@ document.addEventListener('DOMContentLoaded', () => {
     customColorInput.addEventListener('input', (e) => {
       state.color = e.target.value;
       colorSwatches.forEach(s => s.classList.remove('active'));
+      const penDot = document.getElementById('pen-active-color-dot');
+      if (penDot) penDot.style.backgroundColor = state.color;
     });
   }
 
@@ -9423,11 +9515,11 @@ document.addEventListener('DOMContentLoaded', () => {
         undo();
       }
     } else if (e.key.toLowerCase() === 'b') {
-      document.getElementById('tool-pen').click();
+      setPenToolMode('pen');
     } else if (e.key.toLowerCase() === 'v' || e.key.toLowerCase() === 's') {
       document.getElementById('tool-select').click();
     } else if (e.key.toLowerCase() === 'h') {
-      document.getElementById('tool-highlighter').click();
+      setPenToolMode('highlighter');
     } else if (e.key.toLowerCase() === 'e') {
       const activeObj = document.getElementById('tool-eraser-object');
       const activePart = document.getElementById('tool-eraser-partial');
