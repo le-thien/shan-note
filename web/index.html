@@ -234,71 +234,85 @@
       </div>
 
       <div class="header-right">
-        <button id="btn-toggle-fx580" class="btn-header-dropdown" title="Bật/Tắt máy tính tương thích fx-580VN X">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></svg>
-          <span>fx580</span>
-        </button>
-        <!-- Menu Nhập ▾ -->
-        <div class="header-dropdown-container" id="dropdown-import-container">
-          <button id="btn-import-menu" class="btn-header-dropdown" title="Nhập tệp PDF hoặc hình ảnh">
-            <span>Nhập</span>
+        <!-- Nút Tệp ▾ thống nhất toàn bộ tính năng Lưu, Xuất, Nhập... -->
+        <div class="header-dropdown-container" id="dropdown-file-container">
+          <button id="btn-file-menu" class="btn-header-dropdown" title="Menu Tệp (Lưu, Nhập, Xuất...)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>Tệp</span>
             <svg class="header-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="header-dropdown-menu" id="menu-import">
-            <button class="header-menu-item" id="btn-import-pdf">
+          <div class="header-dropdown-menu header-menu-wide" id="menu-file">
+            <!-- 1. Lưu (Save) -->
+            <button class="header-menu-item" id="btn-file-save" title="Lưu ghi chú vào bộ nhớ máy (⌘S)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span>Lưu</span>
+              <span class="menu-shortcut">⌘S</span>
+            </button>
+
+            <!-- 2. Lưu thành... (Save As) -->
+            <button class="header-menu-item" id="btn-file-save-as" title="Tải tệp sao lưu (.net) về máy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+              <span>Lưu thành... (Save As)</span>
+              <span class="menu-shortcut">⌘⇧S</span>
+            </button>
+
+            <div class="header-menu-divider"></div>
+
+            <!-- 3. Nhập (Import) -->
+            <div class="menu-section-label">Nhập (Import)</div>
+            <button class="header-menu-item" id="btn-file-import-project" title="Mở tệp dự án Nét (.net / .json) từ máy tính">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span>Mở tệp Nét (.net)...</span>
+              <span class="menu-shortcut">⌘O</span>
+            </button>
+            <button class="header-menu-item" id="btn-import-pdf" title="Nhập tài liệu PDF vào trang">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <span>Nhập PDF...</span>
             </button>
-            <button class="header-menu-item" id="btn-import-image">
+            <button class="header-menu-item" id="btn-import-image" title="Chèn hình ảnh vào trang">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               <span>Nhập ảnh...</span>
             </button>
-          </div>
-          <input type="file" id="input-pdf-file" accept="application/pdf" style="display: none;">
-          <input type="file" id="input-image-file" accept="image/*" style="display: none;">
-        </div>
 
-        <!-- Menu Xuất ▾ -->
-        <div class="header-dropdown-container" id="dropdown-export-container">
-          <button id="btn-export-menu" class="btn-header-dropdown" title="Xuất tài liệu (PDF, Ảnh, Text)">
-            <span>Xuất</span>
-            <svg class="header-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="header-dropdown-menu" id="menu-export">
-            <button class="header-menu-item" id="btn-export-pdf">
+            <div class="header-menu-divider"></div>
+
+            <!-- 4. Xuất (Export) -->
+            <div class="menu-section-label">Xuất (Export)</div>
+            <button class="header-menu-item" id="btn-export-pdf" title="In hoặc xuất tài liệu sang PDF">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               <span>Xuất PDF...</span>
+              <span class="menu-shortcut">⌘P</span>
             </button>
-            <button class="header-menu-item" id="btn-export-png">
+            <button class="header-menu-item" id="btn-export-png" title="Xuất trang hiện tại thành ảnh PNG chất lượng cao">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               <span>Xuất ảnh (PNG)...</span>
             </button>
-            <button class="header-menu-item" id="btn-export-txt">
+            <button class="header-menu-item" id="btn-export-txt" title="Xuất văn bản đã nhận dạng OCR">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               <span>Xuất văn bản (.txt)...</span>
             </button>
-          </div>
-        </div>
 
-        <!-- Menu [...] Tài liệu -->
-        <div class="header-dropdown-container" id="dropdown-doc-more-container">
-          <button id="btn-doc-more" class="btn-header-more" title="Tùy chọn tài liệu">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
-            </svg>
-          </button>
-          <div class="header-dropdown-menu" id="menu-doc-more">
+            <div class="header-menu-divider"></div>
+
+            <!-- 5. Tiện ích -->
             <button class="header-menu-item" id="btn-doc-about">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               <span>Thông tin Nét</span>
             </button>
-            <div class="header-menu-divider"></div>
             <button class="header-menu-item item-danger" id="btn-clear-canvas">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
               <span>Xóa toàn bộ trang</span>
             </button>
           </div>
+          <input type="file" id="input-pdf-file" accept="application/pdf" style="display: none;">
+          <input type="file" id="input-image-file" accept="image/*" style="display: none;">
+          <input type="file" id="input-project-file" accept=".net,.json" style="display: none;">
         </div>
+
+        <button id="btn-toggle-fx580" class="btn-header-dropdown" title="Bật/Tắt máy tính tương thích fx-580VN X">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></svg>
+          <span>fx580</span>
+        </button>
       </div>
     </header>
 

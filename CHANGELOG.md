@@ -2,6 +2,26 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Hợp nhất Menu Tệp ▾: Lưu, Save As, Nhập, Xuất, Phím tắt] - 25/10/2026
+
+- **1. Hợp nhất cụm nút ở Header thành duy nhất một menu [Tệp ▾]:**
+  - Thay thế các nút riêng lẻ trước đây (`Nhập ▾`, `Xuất ▾`, `...`) bằng một nút dropdown **[Tệp ▾]** đồng bộ, tinh gọn thanh header theo chuẩn phần mềm chuyên nghiệp.
+- **2. Đầy đủ các tính năng quản lý tệp:**
+  - **Lưu (Save) (`⌘S`):** Lưu ngay lập tức toàn bộ trạng thái ghi chú (các trang, nét vẽ, hình học, màu sắc, nền giấy) vào bộ nhớ cục bộ `localStorage` an toàn trên máy.
+  - **Lưu thành... (Save As) (`⌘⇧S`):** Xuất toàn bộ dự án thành tệp sao lưu `.net` (định dạng JSON tiêu chuẩn của Nét) tải về máy tính.
+  - **Nhập (Import):**
+    + *Mở tệp Nét (.net / .json) (`⌘O`):* Nạp lại bài ghi chú đã lưu từ tệp trên máy để tiếp tục làm việc.
+    + *Nhập PDF...:* Nạp tài liệu PDF vào các trang vẽ.
+    + *Nhập ảnh...:* Chèn hình ảnh minh họa vào trang hiện tại.
+  - **Xuất (Export):**
+    + *Xuất PDF (`⌘P`):* Hỗ trợ in hoặc lưu sang file PDF chuẩn.
+    + *Xuất ảnh PNG:* Tải ảnh độ nét cao của trang đang vẽ.
+    + *Xuất văn bản (.txt):* Xuất kết quả nhận dạng OCR.
+  - **Tiện ích:** Thông tin Nét & Xóa toàn bộ nội dung trang.
+- **3. Trạng thái lưu động & Tự động lưu (Auto-save):**
+  - Nhãn trạng thái `· Đã lưu` / `· Đang sửa...` tự động phản hồi theo thời gian thực khi vẽ hoặc sửa tên tài liệu; tự động lưu ngầm sau 1.5 giây nghỉ tay.
+  - Tự động khôi phục bài viết trước đó khi người dùng mở lại trang web.
+
 ## [Đổi Slogan: Nét — Một khoảng trống cho mọi ý tưởng] - 25/10/2026
 
 - **Cập nhật nhận diện và slogan ứng dụng:**

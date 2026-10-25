@@ -7155,6 +7155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.undoStacks[page].push(cmd);
     state.redoStacks[page] = []; // Xóa redo khi có thao tác mới
     updateUndoState();
+    if (typeof markUnsaved === 'function') markUnsaved();
   }
 
   function pushNewElement(element) {
@@ -8227,33 +8228,206 @@ document.addEventListener('DOMContentLoaded', () => {
     showPageToast('✨ Đã áp dụng góc nhìn 3D mới vào hình vẽ!');
   };
 
-  // Dropdown Nhập ▾, Xuất ▾, [...] ở Header (Theo Hình 1)
-  const btnImportMenu = document.getElementById('btn-import-menu');
-  const menuImport = document.getElementById('menu-import');
-  const btnExportMenu = document.getElementById('btn-export-menu');
-  const menuExport = document.getElementById('menu-export');
-  const btnDocMore = document.getElementById('btn-doc-more');
-  const menuDocMore = document.getElementById('menu-doc-more');
+  // ==========================================================================
+  // MENU TỆP ▾ THỐNG NHẤT (Lưu, Lưu thành..., Nhập, Xuất, Tiện ích)
+  // ==========================================================================
+  const btnFileMenu = document.getElementById('btn-file-menu');
+  const menuFile = document.getElementById('menu-file');
+  const btnFileSave = document.getElementById('btn-file-save');
+  const btnFileSaveAs = document.getElementById('btn-file-save-as');
+  const btnFileImportProject = document.getElementById('btn-file-import-project');
+  const inputProjectFile = document.getElementById('input-project-file');
+  const saveBadge = document.getElementById('save-badge');
+  const docTitleInput = document.getElementById('doc-title');
 
-  if (btnImportMenu && menuImport) {
-    btnImportMenu.addEventListener('click', (e) => {
+  // Mở/đóng dropdown Menu Tệp
+  if (btnFileMenu && menuFile) {
+    btnFileMenu.addEventListener('click', (e) => {
       e.stopPropagation();
-      toggleDropdownMenu(btnImportMenu, menuImport);
+      toggleDropdownMenu(btnFileMenu, menuFile);
     });
   }
 
-  if (btnExportMenu && menuExport) {
-    btnExportMenu.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleDropdownMenu(btnExportMenu, menuExport);
+  // Thu thập dữ liệu toàn bộ tài liệu Nét (Schema chuẩn v1)
+  function getProjectData() {
+    return {
+      version: 1,
+      appName: 'Nét',
+      slogan: 'Một khoảng trống cho mọi ý tưởng',
+      savedAt: new Date().toISOString(),
+      timestamp: Date.now(),
+      title: docTitleInput ? docTitleInput.value.trim() : 'Ghi chú hình học',
+      state: {
+        orientation: state.orientation,
+        currentPage: state.currentPage,
+        pages: state.pages,
+        pageOrder: state.pageOrder || Object.keys(state.pages).map(Number).sort((a, b) => a - b),
+        gridType: (typeof selectGrid !== 'undefined' && selectGrid) ? selectGrid.value : 'blank'
+      }
+    };
+  }
+
+  // 1. Lưu (Save) - Lưu vào localStorage của trình duyệt
+  function saveProject(isManual = false) {
+    try {
+      const data = getProjectData();
+      localStorage.setItem('net_saved_project', JSON.stringify(data));
+      if (saveBadge) {
+        saveBadge.textContent = '· Đã lưu';
+        saveBadge.className = 'badge-saved';
+        saveBadge.style.color = '#28634e';
+      }
+      if (isManual) {
+        showPageToast('💾 Đã lưu ghi chú thành công!');
+      }
+    } catch (err) {
+      console.warn('Lỗi lưu cục bộ:', err);
+      if (isManual) {
+        showPageToast('⚠️ Bộ nhớ cục bộ bị đầy, hãy dùng "Lưu thành..." để tải tệp về máy.');
+      }
+    }
+  }
+
+  // 2. Lưu thành... (Save As) - Xuất file dự án .net về máy tính
+  function saveAsProject() {
+    const data = getProjectData();
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const rawTitle = docTitleInput ? docTitleInput.value.trim() : 'ghi-chu-net';
+    const cleanTitle = rawTitle.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9 -]/g, '').trim() || 'ghi-chu-net';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${cleanTitle}.net`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showPageToast('📄 Đã tải tệp sao lưu (.net) về máy!');
+  }
+
+  // 3. Mở tệp Nét (.net / .json) từ máy tính
+  function importProject(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data || !data.state || !data.state.pages) {
+          alert('Định dạng tệp không hợp lệ! Vui lòng chọn tệp .net hoặc .json của Nét.');
+          return;
+        }
+        if (docTitleInput && data.title) {
+          docTitleInput.value = data.title;
+        }
+        state.pages = data.state.pages || {};
+        if (data.state.orientation && data.state.orientation !== state.orientation) {
+          setOrientation(data.state.orientation);
+        }
+        if (data.state.gridType) {
+          document.querySelectorAll('.paper-sheet').forEach(sheet => {
+            sheet.className = `paper-sheet paper-${data.state.gridType}`;
+          });
+          if (typeof selectGrid !== 'undefined' && selectGrid) selectGrid.value = data.state.gridType;
+        }
+        state.currentPage = data.state.currentPage || 1;
+        updatePageListBar();
+        renderPage();
+        saveProject(false);
+        showPageToast('📂 Đã mở tệp Nét thành công!');
+      } catch (err) {
+        alert('Không thể mở tệp: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // Tự động lưu sau khi chỉnh sửa (Auto-save debounce 1.5s)
+  let autoSaveTimer = null;
+  function markUnsaved() {
+    if (saveBadge) {
+      saveBadge.textContent = '· Đang sửa...';
+      saveBadge.className = 'badge-saved';
+      saveBadge.style.color = '#d97706';
+    }
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      saveProject(false);
+    }, 1500);
+  }
+
+  // Gán sự kiện cho các mục trong menu Tệp
+  if (btnFileSave) {
+    btnFileSave.addEventListener('click', () => {
+      closeAllDropdowns();
+      saveProject(true);
     });
   }
 
-  if (btnDocMore && menuDocMore) {
-    btnDocMore.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleDropdownMenu(btnDocMore, menuDocMore);
+  if (btnFileSaveAs) {
+    btnFileSaveAs.addEventListener('click', () => {
+      closeAllDropdowns();
+      saveAsProject();
     });
+  }
+
+  if (btnFileImportProject && inputProjectFile) {
+    btnFileImportProject.addEventListener('click', () => {
+      closeAllDropdowns();
+      inputProjectFile.click();
+    });
+
+    inputProjectFile.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) importProject(file);
+      inputProjectFile.value = '';
+    });
+  }
+
+  if (docTitleInput) {
+    docTitleInput.addEventListener('input', markUnsaved);
+  }
+
+  // Phím tắt bàn phím toàn cục cho menu Tệp (⌘S, ⌘⇧S, ⌘O, ⌘P)
+  window.addEventListener('keydown', (e) => {
+    // ⌘S hoặc Ctrl+S -> Lưu (Save)
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveProject(true);
+      return;
+    }
+    // ⌘⇧S hoặc Ctrl+Shift+S -> Lưu thành... (Save As)
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveAsProject();
+      return;
+    }
+    // ⌘O hoặc Ctrl+O -> Mở tệp Nét (Open)
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'o') {
+      e.preventDefault();
+      if (inputProjectFile) inputProjectFile.click();
+      return;
+    }
+  });
+
+  // Tự động khôi phục bản ghi chú đã lưu từ lần trước khi mở app (nếu có)
+  try {
+    const lastSaved = localStorage.getItem('net_saved_project');
+    if (lastSaved) {
+      const parsed = JSON.parse(lastSaved);
+      if (parsed && parsed.state && parsed.state.pages) {
+        const totalElements = Object.values(state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0);
+        if (totalElements === 0 && Object.keys(parsed.state.pages).length > 0) {
+          state.pages = parsed.state.pages;
+          if (docTitleInput && parsed.title) docTitleInput.value = parsed.title;
+          if (parsed.state.currentPage) state.currentPage = parsed.state.currentPage;
+          updatePageListBar();
+          renderPage();
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Lỗi khôi phục ghi chú cũ:', err);
   }
 
   const btnImportImage = document.getElementById('btn-import-image');
@@ -8288,7 +8462,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnDocAbout) {
     btnDocAbout.addEventListener('click', () => {
       closeAllDropdowns();
-      alert('Nét — Ứng dụng ghi chú hình học & bài tập cho Mac.\n\n• Công cụ viết tay & dựng hình học chính xác.\n• Hỗ trợ nhập PDF, chèn ảnh, nhận dạng chữ viết tay (OCR).\n• Toàn bộ dữ liệu xử lý trực tiếp trên máy của bạn.');
+      alert('Nét — Một khoảng trống cho mọi ý tưởng.\n\n• Công cụ viết tay & dựng hình học chính xác cho Mac.\n• Hỗ trợ nhập PDF, chèn ảnh, vẽ đồ thị & tính S/V, giả lập Casio fx-580VN X.\n• Toàn bộ dữ liệu xử lý an toàn trực tiếp trên máy của bạn.');
     });
   }
 
