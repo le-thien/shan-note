@@ -8356,7 +8356,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1500);
   }
 
+  // 0. Tạo mới (New)
+  const btnFileNew = document.getElementById('btn-file-new');
+  function createNewProject() {
+    const totalElements = Object.values(state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0);
+    if (totalElements > 0) {
+      const ok = confirm('Bạn có muốn tạo tài liệu mới? Toàn bộ các trang hiện tại sẽ được làm mới.');
+      if (!ok) return;
+    }
+
+    state.pages = { 1: [] };
+    state.currentPage = 1;
+    state.undoStacks = { 1: [] };
+    state.redoStacks = { 1: [] };
+    state.selectedElement = null;
+    state.selectedElements = [];
+    state.selectedEdge = null;
+    state.selectedVertex = null;
+
+    if (docTitleInput) {
+      docTitleInput.value = 'Ghi chú mới';
+    }
+
+    const graphWidget = document.getElementById('graph-widget');
+    if (graphWidget) {
+      graphWidget.style.display = 'none';
+    }
+
+    updatePageListBar();
+    renderPage();
+    updateUndoState();
+    saveProject(false);
+    showPageToast('✨ Đã tạo tài liệu mới!');
+  }
+
   // Gán sự kiện cho các mục trong menu Tệp
+  if (btnFileNew) {
+    btnFileNew.addEventListener('click', () => {
+      closeAllDropdowns();
+      createNewProject();
+    });
+  }
+
   if (btnFileSave) {
     btnFileSave.addEventListener('click', () => {
       closeAllDropdowns();
@@ -8388,8 +8429,14 @@ document.addEventListener('DOMContentLoaded', () => {
     docTitleInput.addEventListener('input', markUnsaved);
   }
 
-  // Phím tắt bàn phím toàn cục cho menu Tệp (⌘S, ⌘⇧S, ⌘O, ⌘P)
+  // Phím tắt bàn phím toàn cục cho menu Tệp (⌘N, ⌘S, ⌘⇧S, ⌘O, ⌘P)
   window.addEventListener('keydown', (e) => {
+    // ⌘N hoặc Ctrl+N -> Tạo mới (New)
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      createNewProject();
+      return;
+    }
     // ⌘S hoặc Ctrl+S -> Lưu (Save)
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 's') {
       e.preventDefault();

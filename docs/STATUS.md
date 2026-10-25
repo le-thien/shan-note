@@ -30,6 +30,7 @@
   - **Xuất bản thành công Web App trực tuyến qua GitHub Pages:** Mã nguồn đã được tải lên kho GitHub `le-thien/shan-note` tại nhánh `main`, cấu hình tự động kích hoạt GitHub Actions Workflow và xuất bản trang web hoạt động hoàn hảo 100% tại địa chỉ: `https://le-thien.github.io/shan-note/`.
   - **Đổi slogan và định danh thương hiệu:** Cập nhật tiêu đề trang web, thẻ meta và manifest PWA sang slogan chính thức: **"Nét — Một khoảng trống cho mọi ý tưởng"**.
   - **Hợp nhất Menu "Tệp ▾" chuẩn mực trên Header:** Gom toàn bộ các nút phân tán (Nhập ▾, Xuất ▾, ...) thành duy nhất 1 menu Tệp chuyên nghiệp:
+    + *Mới (New) (`⌘N`):* Tạo tài liệu mới, xóa trắng trang, thiết lập lại tiêu đề mặc định và làm mới toàn bộ ngăn xếp hoàn tác.
     + *Lưu (Save) (`⌘S`):* Lưu tức thì toàn bộ bài ghi chú vào bộ nhớ máy, chỉ báo "· Đang sửa..." và "· Đã lưu" cập nhật linh hoạt.
     + *Lưu thành... (Save As) (`⌘⇧S`):* Tải tệp dự án sao lưu `.net` (JSON chuẩn) về máy.
     + *Nhập (Import):* Mở tệp Nét (`.net` / `⌘O`), Nhập PDF, Nhập ảnh.
