@@ -1,16 +1,32 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 24/10/2026
+**Cập nhật lần cuối:** 25/10/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
-  - Điểm gắn liền đường thẳng/đường tròn & dịch chuyển đồng bộ toàn diện cho 4 menu hình học (Cơ bản, Hình, Dựng hình, HHKG).
+  - **Chức năng "Chọn" chỉ chọn đơn lẻ một đối tượng:** Bấm vào bất kỳ đối tượng nào chỉ chọn duy nhất đối tượng đó (không tự động gom cả nhóm các hình xung quanh), giúp người dùng dễ dàng chỉnh sửa, di chuyển hoặc xóa riêng từng đối tượng độc lập. Khi hover chỉ sáng nhẹ hình đang trỏ vào, giữ bảng vẽ luôn gọn gàng và chính xác.
+  - **Quy trình 4 bước chuẩn mực cho nhóm tác vụ Dựng hình (Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc):**
+    + *Bước 1 - Chọn 1 tác vụ:* Người dùng nhấp chọn bất kỳ tác vụ nào trong menu xổ xuống; nút Dựng hình cập nhật biểu tượng và tên tác vụ tương ứng.
+    + *Bước 2 - Chuyển sang chế độ "Chọn":* Ứng dụng tự động kích hoạt công cụ Chọn (`Select Tool`), con trỏ chuyển sang mũi tên nhọn macOS chuẩn xác, thanh trạng thái hướng dẫn chi tiết đối tượng cần chọn.
+    + *Bước 3 - Chọn điểm (hoặc đường) rồi tiếp tục chọn đối tượng còn lại:* Nhấp chọn đối tượng 1 (sáng quầng ngọc bích rực rỡ kèm chỉ báo "✓ Đã chọn"), sau đó nhấp tiếp đối tượng 2 còn lại.
+    + *Bước 4 - Thực hiện tác vụ:* Hệ thống tự động dựng hình ngay tức thì (0ms), đối tượng mới sinh ra tự động gắn nhóm, sáng viền được chọn và sẵn sàng tiếp tục thao tác ở chế độ Chọn.
+  - **Hiển thị 2 Option nét đứt trực quan cho Tiếp tuyến và Chọn góc (Người dùng nhập số góc và bấm chọn đường cần chọn):**
+    + *Tiếp tuyến:* Khi chọn điểm ngoài đường tròn, hệ thống tính toán và hiển thị cả 2 tiếp tuyến đối xứng dưới dạng đường nét đứt kèm nhãn chỉ báo (`🎯 Tiếp tuyến 1`, `🎯 Tiếp tuyến 2`) và quầng sáng khi hover. Người dùng bấm chuột vào đường nào thì tạo tiếp tuyến theo đường đó (điểm trên đường tròn vẫn tự động tạo ngay 1 tiếp tuyến duy nhất).
+    + *Chọn góc:* Khi chọn cạnh và đỉnh, hiển thị 2 tia gợi ý nét đứt (hướng $-\alpha$ và $+\alpha$) kèm cung góc nhỏ xem trước; **xuất hiện ngay khung nhập số đo góc nổi trên canvas tại đỉnh góc (`floating-angle-box`) và đồng bộ ô trên toolbar**. Người dùng có thể gõ trực tiếp số đo góc (ví dụ: $30^\circ, 45^\circ, 120^\circ...$), 2 đường nét đứt lập tức co/giãn theo thời gian thực (real-time). Sau đó người dùng bấm chọn vào 1 đường để chốt vẽ góc. Ghi nhớ liên kết động (Dynamic binding) khi kéo chỉnh hình mẹ.
+    + *Hiển thị góc chuẩn xác theo tia được chọn:* Khi hoàn thành tác vụ chọn góc, góc được vẽ ra bám sát chính xác theo đúng tia mà người dùng đã bấm chọn: cả tia thứ hai, cung tròn số đo và nhãn độ (`xx°`) đều quay theo hướng của tia đó; đồng bộ toàn diện trên các thao tác điều khiển tay cầm (`second_pt`), tìm kiếm chọn hình (`findElementAt`), làm sáng quầng chọn (`highlightElementShape`) và xóa đối tượng (`erasePartialAt`).
   - Giả lập máy tính Casio fx-580VN X chuẩn mực.
   - **Tối ưu hóa chức năng Đồ thị thành Widget tương tác linh hoạt & Mô phỏng Khối tròn xoay 3D trực quan:** Di chuyển tự do trên trang giấy, co giãn 4 góc, nhập đa hàm số, miền vẽ $x$, tự động tìm điểm đặc biệt (giao Ox, Oy, cực trị) kèm đường dóng nét đứt, nhập cận độc lập cho hai trục Ox và Oy (`x = ... đến x = ...`, `y = ... đến y = ...`), lựa chọn tốc độ xoay từ từ (0.5x, 1.0x, 2.0x) và cụm nút điều khiển chuyển động trực quan giúp học sinh quan sát rõ ràng quá trình sinh khối thể tích.
-  - **Chuẩn bị và hoàn thiện nền tảng xuất bản Web App (Progressive Web App - PWA):** Đã tạo bộ nhận diện SVG vector (`favicon.svg`), tệp khai báo chuẩn PWA (`manifest.json`), tích hợp Service Worker (`sw.js`) hỗ trợ hoạt động ngoại tuyến và lưu đệm siêu tốc, sẵn sàng đưa lên mạng Internet (Netlify, Vercel, GitHub Pages) hoặc cài đặt trực tiếp thành ứng dụng riêng trên máy.
+  - **Tính năng Tính Diện tích hình phẳng (S) và Thể tích tròn xoay (V) (1 hàm, 2 hàm, 3 hàm):**
+    + Nút `[📐 Tính S & V]` trực tiếp trên header widget đồ thị giúp truy cập tức thì.
+    + Tab chuyên biệt `[📐 Tính Diện tích (S) & Thể tích (V)]` trong Modal đồ thị.
+    + Hỗ trợ 1 hàm (2 cận $x=a, x=b$, nút gợi ý giao trục $Ox$).
+    + Hỗ trợ 2 hàm (tự động giải giao điểm $f(x)=g(x)$ hoặc người dùng nhập 2 cận 4 đường $y=f(x), y=g(x), x=a, x=b$).
+    + Hỗ trợ 3 hàm (tự động tìm 3 đỉnh tam giác cong chia 2 khoảng tích phân hoặc người dùng nhập cận).
+    + Tô màu miền diện tích $S$ bán trong suốt trên đồ thị, kẻ đường dóng các cận nét đứt, đánh dấu giao điểm và hiển thị thẻ kết quả $S$ & $V$ trên đồ thị.
+  - **Chuẩn bị và hoàn thiện nền tảng xuất bản Web App (Progressive Web App - PWA):** Đã tạo bộ nhận diện SVG vector (`favicon.svg`), tệp khai báo chuẩn PWA (`manifest.json`), tích hợp Service Worker (`sw.js` cache `net-app-v4`) hỗ trợ hoạt động ngoại tuyến và lưu đệm siêu tốc, sẵn sàng đưa lên mạng Internet (Netlify, Vercel, GitHub Pages) hoặc cài đặt trực tiếp thành ứng dụng riêng trên máy.
 - **Sẵn sàng chuyển tiếp:** Xuất bản Web App online và đóng gói ứng dụng macOS `.app`.
 
 ## 2. Các chức năng đã thực hiện

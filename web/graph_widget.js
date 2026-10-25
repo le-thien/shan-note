@@ -247,6 +247,513 @@
     }
   }
 
+  // =============================================================
+  // THUẬT TOÁN TÍNH DIỆN TÍCH (S) VÀ THỂ TÍCH TRÒN XOAY (V)
+  // =============================================================
+
+  // Tìm nghiệm của hàm số f(x) = 0 trên đoạn [minX, maxX]
+  function findFunctionRoots(funcStr, minX = -12, maxX = 12) {
+    const fn = compileMathExpr(funcStr);
+    if (!fn) return [];
+    const roots = [];
+    const step = 0.04;
+    let prevX = minX;
+    let prevY = fn(prevX);
+
+    for (let x = minX + step; x <= maxX + step * 0.5; x += step) {
+      const curY = fn(x);
+      if (isNaN(curY) || !isFinite(curY)) {
+        prevX = x;
+        prevY = curY;
+        continue;
+      }
+
+      if (!isNaN(prevY) && isFinite(prevY) && Math.abs(curY - prevY) < 40) {
+        if (prevY === 0) {
+          roots.push(Number(prevX.toFixed(4)));
+        } else if (curY === 0) {
+          roots.push(Number(x.toFixed(4)));
+        } else if (prevY * curY < 0) {
+          let left = prevX;
+          let right = x;
+          for (let iter = 0; iter < 24; iter++) {
+            const mid = (left + right) / 2;
+            const midY = fn(mid);
+            if (isNaN(midY) || Math.abs(midY) < 1e-7) {
+              left = mid;
+              break;
+            }
+            if (prevY * midY < 0) {
+              right = mid;
+            } else {
+              left = mid;
+            }
+          }
+          const rootVal = Number(left.toFixed(4));
+          if (!roots.some(r => Math.abs(r - rootVal) < 0.015)) {
+            roots.push(rootVal);
+          }
+        }
+      }
+
+      prevX = x;
+      prevY = curY;
+    }
+
+    return roots.sort((a, b) => a - b);
+  }
+
+  // Tìm các giao điểm giữa 2 hàm số f(x) và g(x)
+  function findTwoFunctionsIntersections(expr1, expr2, minX = -12, maxX = 12) {
+    const fn1 = compileMathExpr(expr1);
+    const fn2 = compileMathExpr(expr2);
+    if (!fn1 || !fn2) return [];
+
+    const diffFn = (x) => fn1(x) - fn2(x);
+    const roots = [];
+    const step = 0.04;
+    let prevX = minX;
+    let prevY = diffFn(prevX);
+
+    for (let x = minX + step; x <= maxX + step * 0.5; x += step) {
+      const curY = diffFn(x);
+      if (isNaN(curY) || !isFinite(curY)) {
+        prevX = x;
+        prevY = curY;
+        continue;
+      }
+
+      if (!isNaN(prevY) && isFinite(prevY) && Math.abs(curY - prevY) < 50) {
+        if (prevY === 0) {
+          roots.push(Number(prevX.toFixed(4)));
+        } else if (curY === 0) {
+          roots.push(Number(x.toFixed(4)));
+        } else if (prevY * curY < 0) {
+          let left = prevX;
+          let right = x;
+          for (let iter = 0; iter < 24; iter++) {
+            const mid = (left + right) / 2;
+            const midY = diffFn(mid);
+            if (isNaN(midY) || Math.abs(midY) < 1e-7) {
+              left = mid;
+              break;
+            }
+            if (prevY * midY < 0) {
+              right = mid;
+            } else {
+              left = mid;
+            }
+          }
+          const rootVal = Number(left.toFixed(4));
+          if (!roots.some(r => Math.abs(r - rootVal) < 0.015)) {
+            roots.push(rootVal);
+          }
+        }
+      }
+
+      prevX = x;
+      prevY = curY;
+    }
+
+    return roots.sort((a, b) => a - b).map(rx => ({
+      x: rx,
+      y: Number(fn1(rx).toFixed(4))
+    }));
+  }
+
+  // Tích phân Simpson số học
+  function integrateSimpson(fn, a, b, n = 500) {
+    if (a === b) return 0;
+    if (a > b) {
+      const tmp = a; a = b; b = tmp;
+    }
+    const h = (b - a) / n;
+    let sum = 0;
+    for (let i = 0; i <= n; i++) {
+      const x = a + i * h;
+      const y = fn(x);
+      if (isNaN(y) || !isFinite(y)) return null;
+      if (i === 0 || i === n) sum += y;
+      else if (i % 2 === 1) sum += 4 * y;
+      else sum += 2 * y;
+    }
+    return (h / 3) * sum;
+  }
+
+  // Tính toán chi tiết Diện tích hình phẳng (S) và Thể tích (V)
+  function calculateAreaAndVolumeDetailed(config) {
+    const { funcCount, expr1, expr2, expr3, boundMode, customA, customB, axis } = config;
+    const ax = axis || 'Ox';
+
+    const fn1 = compileMathExpr(expr1);
+    const fn2 = expr2 ? compileMathExpr(expr2) : null;
+    const fn3 = expr3 ? compileMathExpr(expr3) : null;
+
+    if (!fn1) {
+      return { success: false, error: 'Hàm số f(x) không hợp lệ.' };
+    }
+
+    if (funcCount === 1) {
+      let a = parseFloat(customA);
+      let b = parseFloat(customB);
+      if (isNaN(a)) a = 0;
+      if (isNaN(b)) b = 2;
+      if (a > b) { const t = a; a = b; b = t; }
+
+      const areaFn = (x) => Math.abs(fn1(x));
+      const areaVal = integrateSimpson(areaFn, a, b);
+
+      let volVal = null;
+      let volFormula = '';
+      if (ax === 'Ox') {
+        const volFn = (x) => Math.pow(fn1(x), 2);
+        const intVal = integrateSimpson(volFn, a, b);
+        volVal = intVal !== null ? Math.PI * intVal : null;
+        volFormula = `V = &pi; &int;<sub>${a}</sub><sup>${b}</sup> [${expr1}]<sup>2</sup> dx`;
+      } else {
+        const volFn = (x) => Math.abs(x * fn1(x));
+        const intVal = integrateSimpson(volFn, a, b);
+        volVal = intVal !== null ? 2 * Math.PI * intVal : null;
+        volFormula = `V = 2&pi; &int;<sub>${a}</sub><sup>${b}</sup> x &middot; |${expr1}| dx`;
+      }
+
+      return {
+        success: true,
+        funcCount: 1,
+        a: a,
+        b: b,
+        area: areaVal,
+        volume: volVal,
+        areaFormula: `S = &int;<sub>${a}</sub><sup>${b}</sup> |${expr1}| dx`,
+        volumeFormula: volFormula,
+        intersections: [],
+        regions: [{ a: a, b: b, fTop: (x) => Math.max(0, fn1(x)), fBot: (x) => Math.min(0, fn1(x)) }]
+      };
+    } else if (funcCount === 2) {
+      if (!fn2) return { success: false, error: 'Hàm số thứ hai g(x) không hợp lệ.' };
+
+      let a = parseFloat(customA);
+      let b = parseFloat(customB);
+      const inters = findTwoFunctionsIntersections(expr1, expr2);
+
+      if (boundMode === 'auto') {
+        if (inters.length < 2) {
+          return {
+            success: false,
+            intersections: inters,
+            error: `Tìm thấy ${inters.length} giao điểm. Cần ít nhất 2 giao điểm để tạo miền khép kín. Bạn có thể chọn 'Tự nhập 2 cận x = a và x = b'.`
+          };
+        }
+        a = inters[0].x;
+        b = inters[1].x;
+      } else {
+        if (isNaN(a)) a = 0;
+        if (isNaN(b)) b = 2;
+        if (a > b) { const t = a; a = b; b = t; }
+      }
+
+      const areaFn = (x) => Math.abs(fn1(x) - fn2(x));
+      const areaVal = integrateSimpson(areaFn, a, b);
+
+      let volVal = null;
+      let volFormula = '';
+      if (ax === 'Ox') {
+        const volFn = (x) => Math.abs(Math.pow(fn1(x), 2) - Math.pow(fn2(x), 2));
+        const intVal = integrateSimpson(volFn, a, b);
+        volVal = intVal !== null ? Math.PI * intVal : null;
+        volFormula = `V = &pi; &int;<sub>${a}</sub><sup>${b}</sup> |[${expr1}]<sup>2</sup> - [${expr2}]<sup>2</sup>| dx`;
+      } else {
+        const volFn = (x) => Math.abs(x * (fn1(x) - fn2(x)));
+        const intVal = integrateSimpson(volFn, a, b);
+        volVal = intVal !== null ? 2 * Math.PI * intVal : null;
+        volFormula = `V = 2&pi; &int;<sub>${a}</sub><sup>${b}</sup> x &middot; |(${expr1}) - (${expr2})| dx`;
+      }
+
+      return {
+        success: true,
+        funcCount: 2,
+        a: a,
+        b: b,
+        area: areaVal,
+        volume: volVal,
+        areaFormula: `S = &int;<sub>${a}</sub><sup>${b}</sup> |(${expr1}) - (${expr2})| dx`,
+        volumeFormula: volFormula,
+        intersections: inters,
+        regions: [{ a: a, b: b, fTop: (x) => Math.max(fn1(x), fn2(x)), fBot: (x) => Math.min(fn1(x), fn2(x)) }]
+      };
+    } else if (funcCount === 3) {
+      if (!fn2 || !fn3) return { success: false, error: 'Cần đủ 3 hàm số hợp lệ để tính toán.' };
+
+      let a = parseFloat(customA);
+      let b = parseFloat(customB);
+
+      const pts12 = findTwoFunctionsIntersections(expr1, expr2);
+      const pts23 = findTwoFunctionsIntersections(expr2, expr3);
+      const pts31 = findTwoFunctionsIntersections(expr3, expr1);
+      const allPts = [...pts12, ...pts23, ...pts31].sort((p, q) => p.x - q.x);
+
+      let regions = [];
+      let totalArea = 0;
+      let totalVol = 0;
+
+      if (boundMode === 'auto') {
+        if (pts12.length === 0 || pts23.length === 0 || pts31.length === 0) {
+          return {
+            success: false,
+            intersections: allPts,
+            error: 'Không tìm đủ 3 giao điểm tạo thành miền kín tam giác cong. Bạn có thể chọn chế độ \'Tự nhập 2 cận x = a và x = b\'.'
+          };
+        }
+        const p12 = pts12[0];
+        const p23 = pts23[0];
+        const p31 = pts31[0];
+
+        // Gán thông tin cặp hàm cho từng điểm để xác định đường đáy xuyên suốt
+        const triPts = [
+          { pt: p12, pair: [1, 2], other: 3 },
+          { pt: p23, pair: [2, 3], other: 1 },
+          { pt: p31, pair: [3, 1], other: 2 }
+        ].sort((m, n) => m.pt.x - n.pt.x);
+
+        a = triPts[0].pt.x;
+        const midX = triPts[1].pt.x;
+        b = triPts[2].pt.x;
+
+        // Điểm ở giữa là triPts[1], hàm còn lại chạy xuyên suốt từ xA đến xC
+        const baseFuncIndex = triPts[1].other;
+        const fnBase = baseFuncIndex === 1 ? fn1 : (baseFuncIndex === 2 ? fn2 : fn3);
+
+        const seg1OtherIdx = triPts[0].pair.find(idx => idx !== baseFuncIndex) || triPts[0].pair[0];
+        const fnSeg1 = seg1OtherIdx === 1 ? fn1 : (seg1OtherIdx === 2 ? fn2 : fn3);
+
+        const seg2OtherIdx = triPts[2].pair.find(idx => idx !== baseFuncIndex) || triPts[2].pair[0];
+        const fnSeg2 = seg2OtherIdx === 1 ? fn1 : (seg2OtherIdx === 2 ? fn2 : fn3);
+
+        const segments = [
+          { x0: a, x1: midX, fA: fnBase, fB: fnSeg1 },
+          { x0: midX, x1: b, fA: fnBase, fB: fnSeg2 }
+        ];
+
+        for (const seg of segments) {
+          const { x0, x1, fA, fB } = seg;
+          if (Math.abs(x1 - x0) < 0.001) continue;
+
+          const segArea = integrateSimpson((x) => Math.abs(fA(x) - fB(x)), x0, x1);
+          if (segArea !== null) totalArea += segArea;
+
+          if (ax === 'Ox') {
+            const segVol = integrateSimpson((x) => Math.abs(Math.pow(fA(x), 2) - Math.pow(fB(x), 2)), x0, x1);
+            if (segVol !== null) totalVol += Math.PI * segVol;
+          } else {
+            const segVol = integrateSimpson((x) => Math.abs(x * (fA(x) - fB(x))), x0, x1);
+            if (segVol !== null) totalVol += 2 * Math.PI * segVol;
+          }
+
+          regions.push({ a: x0, b: x1, fTop: (x) => Math.max(fA(x), fB(x)), fBot: (x) => Math.min(fA(x), fB(x)) });
+        }
+      } else {
+        if (isNaN(a)) a = 0;
+        if (isNaN(b)) b = 3;
+        if (a > b) { const t = a; a = b; b = t; }
+
+        const segArea = integrateSimpson((x) => {
+          const y1 = fn1(x), y2 = fn2(x), y3 = fn3(x);
+          return Math.max(y1, y2, y3) - Math.min(y1, y2, y3);
+        }, a, b);
+        totalArea = segArea || 0;
+
+        if (ax === 'Ox') {
+          const segVol = integrateSimpson((x) => {
+            const y1 = fn1(x), y2 = fn2(x), y3 = fn3(x);
+            const yMax = Math.max(y1, y2, y3);
+            const yMin = Math.min(y1, y2, y3);
+            return Math.abs(yMax * yMax - yMin * yMin);
+          }, a, b);
+          totalVol = segVol !== null ? Math.PI * segVol : 0;
+        } else {
+          const segVol = integrateSimpson((x) => {
+            const y1 = fn1(x), y2 = fn2(x), y3 = fn3(x);
+            return Math.abs(x * (Math.max(y1, y2, y3) - Math.min(y1, y2, y3)));
+          }, a, b);
+          totalVol = segVol !== null ? 2 * Math.PI * segVol : 0;
+        }
+
+        regions.push({
+          a: a,
+          b: b,
+          fTop: (x) => Math.max(fn1(x), fn2(x), fn3(x)),
+          fBot: (x) => Math.min(fn1(x), fn2(x), fn3(x))
+        });
+      }
+
+      return {
+        success: true,
+        funcCount: 3,
+        a: a,
+        b: b,
+        area: totalArea,
+        volume: totalVol,
+        areaFormula: `S = &int;<sub>${a}</sub><sup>${b}</sup> (y<sub>trên</sub> - y<sub>dưới</sub>) dx`,
+        volumeFormula: ax === 'Ox'
+          ? `V = &pi; &int;<sub>${a}</sub><sup>${b}</sup> |y<sub>trên</sub><sup>2</sup> - y<sub>dưới</sub><sup>2</sup>| dx`
+          : `V = 2&pi; &int;<sub>${a}</sub><sup>${b}</sup> x &middot; (y<sub>trên</sub> - y<sub>dưới</sub>) dx`,
+        intersections: allPts,
+        regions: regions
+      };
+    }
+
+    return { success: false, error: 'Không thể xác định cấu hình.' };
+  }
+
+  // Vẽ vùng diện tích hình phẳng (S), đường dóng các cận và badge kết quả trên Canvas 2D
+  function drawAreaCalculationRegion(ctx, widget) {
+    const areaCalc = widget.areaCalc;
+    if (!areaCalc || !areaCalc.enabled) return;
+
+    const { x, y, width, height, origin, scale } = widget;
+    const { funcCount, func1, func2, func3, boundMode, a, b, axis, drawFill, drawLines, showBadge } = areaCalc;
+
+    const calcRes = calculateAreaAndVolumeDetailed({
+      funcCount: funcCount || 1,
+      expr1: func1 || (widget.functions && widget.functions[0] && widget.functions[0].expr),
+      expr2: func2,
+      expr3: func3,
+      boundMode: boundMode || 'auto',
+      customA: a,
+      customB: b,
+      axis: axis || 'Ox'
+    });
+
+    if (!calcRes || !calcRes.success) return;
+
+    ctx.save();
+
+    // 1. Tô màu các miền diện tích hình phẳng
+    if (drawFill !== false && calcRes.regions && calcRes.regions.length > 0) {
+      for (const reg of calcRes.regions) {
+        const minX = Math.max(reg.a, (x - origin.x) / scale);
+        const maxX = Math.min(reg.b, (x + width - origin.x) / scale);
+        if (minX >= maxX) continue;
+
+        const mathStep = 1.5 / scale;
+        ctx.beginPath();
+
+        let started = false;
+        for (let gx = minX; gx <= maxX + mathStep * 0.5; gx += mathStep) {
+          const gy = reg.fTop(gx);
+          if (isNaN(gy)) continue;
+          const pt = mathToCanvas(gx, gy, widget);
+          if (!started) {
+            ctx.moveTo(pt.x, pt.y);
+            started = true;
+          } else {
+            ctx.lineTo(pt.x, pt.y);
+          }
+        }
+
+        for (let gx = maxX; gx >= minX - mathStep * 0.5; gx -= mathStep) {
+          const gy = reg.fBot(gx);
+          if (isNaN(gy)) continue;
+          const pt = mathToCanvas(gx, gy, widget);
+          ctx.lineTo(pt.x, pt.y);
+        }
+
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+        ctx.lineWidth = 1.0;
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // 2. Kẻ đường dóng các cận thẳng đứng nét đứt tại x = a và x = b
+    if (drawLines !== false) {
+      const boundPoints = [calcRes.a, calcRes.b];
+      ctx.save();
+      ctx.strokeStyle = 'rgba(5, 150, 105, 0.75)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 4]);
+
+      for (const bx of boundPoints) {
+        if (isNaN(bx)) continue;
+        const px = origin.x + bx * scale;
+        if (px >= x && px <= x + width) {
+          ctx.beginPath();
+          ctx.moveTo(px, y + 20);
+          ctx.lineTo(px, y + height - 20);
+          ctx.stroke();
+
+          ctx.font = 'bold 10.5px -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.fillStyle = '#065f46';
+          ctx.textAlign = 'center';
+          ctx.fillText(`x = ${Number(bx.toFixed(2))}`, px, origin.y + 14);
+        }
+      }
+      ctx.restore();
+    }
+
+    // 3. Đánh dấu các giao điểm nếu có
+    if (calcRes.intersections && calcRes.intersections.length > 0) {
+      ctx.save();
+      for (const ip of calcRes.intersections) {
+        const pt = mathToCanvas(ip.x, ip.y, widget);
+        if (pt.x >= x && pt.x <= x + width && pt.y >= y && pt.y <= y + height) {
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#dc2626';
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+
+          ctx.font = 'bold 10px -apple-system, sans-serif';
+          ctx.fillStyle = '#991b1b';
+          ctx.textAlign = 'left';
+          ctx.fillText(`(${Number(ip.x.toFixed(2))}; ${Number(ip.y.toFixed(2))})`, pt.x + 5, pt.y - 4);
+        }
+      }
+      ctx.restore();
+    }
+
+    // 4. Thẻ nhãn kết quả S & V bo góc ở góc đồ thị
+    if (showBadge !== false && calcRes.area !== null) {
+      const areaStr = Number(calcRes.area.toFixed(3));
+      const volStr = calcRes.volume !== null ? Number(calcRes.volume.toFixed(3)) : '---';
+      const badgeText = `📐 S ≈ ${areaStr} đvdt  |  V ≈ ${volStr} đvtt`;
+
+      ctx.save();
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+      const textWidth = ctx.measureText(badgeText).width;
+      const bw = textWidth + 20;
+      const bh = 24;
+      const bx = x + width - bw - 10;
+      const by = y + height - bh - 10;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 6);
+      ctx.fill();
+
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.2;
+      ctx.shadowColor = 'rgba(16, 185, 129, 0.25)';
+      ctx.shadowBlur = 6;
+      ctx.stroke();
+
+      ctx.fillStyle = '#065f46';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, bx + 10, by + bh / 2);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
   // -------------------------------------------------------------
   // VẼ GRAPH WIDGET TRÊN CANVAS 2D
   // -------------------------------------------------------------
@@ -431,6 +938,9 @@
       }
       ctx.restore();
     }
+
+    // Vẽ vùng tính Diện tích hình phẳng (S) và Thể tích (V) (nằm dưới đường cong)
+    drawAreaCalculationRegion(ctx, widget);
 
     // Vẽ các đường đồ thị hàm số
     if (widget.functions && Array.isArray(widget.functions)) {
@@ -1153,22 +1663,34 @@
     ctx.roundRect(x, y - headerH + 2, width, headerH, [6, 6, 0, 0]);
     ctx.fill();
 
+    const isAreaActive = widget.areaCalc && widget.areaCalc.enabled;
+
     // Icon & Tiêu đề
     ctx.font = 'bold 11.5px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.fillStyle = '#ffffff';
     ctx.fillText('📈 Đồ thị hàm số' + (is3D ? ' (3D Tròn xoay)' : ''), x + 10, y - headerH + 18);
 
-    // Nút [⚙️ Sửa hàm]
-    const btnEditX = x + width - 180;
+    // Nút 1: [⚙️ Sửa hàm]
+    const btnEditX = x + width - 275;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.beginPath();
-    ctx.roundRect(btnEditX, y - headerH + 5, 80, 18, 4);
+    ctx.roundRect(btnEditX, y - headerH + 5, 82, 18, 4);
     ctx.fill();
     ctx.font = '10.5px -apple-system, sans-serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText('⚙️ Sửa hàm', btnEditX + 10, y - headerH + 18);
+    ctx.fillText('⚙️ Sửa hàm', btnEditX + 11, y - headerH + 18);
 
-    // Nút [🔄 Xoay 3D / 2D]
+    // Nút 2: [📐 Tính S & V]
+    const btnAreaX = x + width - 188;
+    ctx.fillStyle = isAreaActive ? '#10b981' : 'rgba(255, 255, 255, 0.2)';
+    ctx.beginPath();
+    ctx.roundRect(btnAreaX, y - headerH + 5, 92, 18, 4);
+    ctx.fill();
+    ctx.font = 'bold 10.5px -apple-system, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('📐 Tính S & V', btnAreaX + 10, y - headerH + 18);
+
+    // Nút 3: [🔄 Xoay 3D / 2D]
     const btn3DX = x + width - 92;
     ctx.fillStyle = is3D ? '#f59e0b' : 'rgba(255, 255, 255, 0.2)';
     ctx.beginPath();
@@ -1219,9 +1741,14 @@
     const headerH = 26;
     if (py < y - headerH || py > y) return null;
 
-    const btnEditX = x + width - 180;
-    if (px >= btnEditX && px <= btnEditX + 80) {
+    const btnEditX = x + width - 275;
+    if (px >= btnEditX && px <= btnEditX + 82) {
       return 'edit';
+    }
+
+    const btnAreaX = x + width - 188;
+    if (px >= btnAreaX && px <= btnAreaX + 92) {
+      return 'area_volume';
     }
 
     const btn3DX = x + width - 92;
@@ -1493,6 +2020,84 @@
       });
     }
 
+    // ---------------------------------------------------------
+    // SỰ KIỆN TAB DIỆN TÍCH (S) VÀ THỂ TÍCH (V)
+    // ---------------------------------------------------------
+    const chkAreaEnable = document.getElementById('chk-area-enable');
+    const areaControls = document.getElementById('graph-area-controls');
+    if (chkAreaEnable && areaControls) {
+      chkAreaEnable.addEventListener('change', () => {
+        areaControls.style.opacity = chkAreaEnable.checked ? '1' : '0.5';
+        areaControls.style.pointerEvents = chkAreaEnable.checked ? 'auto' : 'none';
+        updateAreaVolumeTabUI();
+      });
+    }
+
+    // Nút chuyển số hàm: 1 hàm / 2 hàm / 3 hàm
+    const pillBtns = modalEl.querySelectorAll('#group-area-func-count .btn-pill-choice');
+    pillBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        pillBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateAreaVolumeTabUI();
+      });
+    });
+
+    // Lắng nghe thay đổi select các hàm số
+    ['select-area-1f', 'select-area-2f-1', 'select-area-2f-2', 'select-area-3f-1', 'select-area-3f-2', 'select-area-3f-3'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', updateAreaVolumeTabUI);
+    });
+
+    // Lắng nghe thay đổi các ô nhập cận
+    ['input-area-1f-a', 'input-area-1f-b', 'input-area-2f-a', 'input-area-2f-b', 'input-area-3f-a', 'input-area-3f-b'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', updateAreaVolumeTabUI);
+    });
+
+    // Lắng nghe radio cận tự động / cận thủ công
+    modalEl.querySelectorAll('input[name="radio-area-2f-bound"], input[name="radio-area-3f-bound"]').forEach(r => {
+      r.addEventListener('change', updateAreaVolumeTabUI);
+    });
+
+    // Nút [🎯 Giao trục Ox] tự động tìm nghiệm của f(x)=0 làm cận
+    const btnRoots1f = document.getElementById('btn-area-1f-roots');
+    if (btnRoots1f) {
+      btnRoots1f.addEventListener('click', () => {
+        const sel = document.getElementById('select-area-1f');
+        const fIdx = sel ? parseInt(sel.value, 10) || 0 : 0;
+        const fn = currentEditingWidget && currentEditingWidget.functions && currentEditingWidget.functions[fIdx];
+        if (!fn || !fn.expr) return;
+
+        const roots = findFunctionRoots(fn.expr);
+        if (roots.length >= 2) {
+          const inA = document.getElementById('input-area-1f-a');
+          const inB = document.getElementById('input-area-1f-b');
+          if (inA) inA.value = roots[0];
+          if (inB) inB.value = roots[roots.length - 1];
+          updateAreaVolumeTabUI();
+        } else if (roots.length === 1) {
+          const inA = document.getElementById('input-area-1f-a');
+          const inB = document.getElementById('input-area-1f-b');
+          if (inA) inA.value = roots[0];
+          if (inB) inB.value = Number((roots[0] + 2).toFixed(2));
+          updateAreaVolumeTabUI();
+        } else {
+          alert(`Hàm số y = ${fn.expr} không cắt trục Ox trên miền khảo sát [-12; 12].`);
+        }
+      });
+    }
+
+    // Nút chuyển trục quay Thể tích (Ox, Oy)
+    const calcAxisBtns = modalEl.querySelectorAll('.btn-calc-axis');
+    calcAxisBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        calcAxisBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateAreaVolumeTabUI();
+      });
+    });
+
     // Nút Áp dụng vào Đồ thị
     const btnApply = document.getElementById('btn-apply-graph-modal');
     if (btnApply) {
@@ -1681,7 +2286,204 @@
     }
   }
 
-    function openGraphSettingsModal(widget, callback) {
+  // =============================================================
+  // ĐỒNG BỘ VÀ TÍNH TOÁN TAB DIỆN TÍCH (S) & THỂ TÍCH (V)
+  // =============================================================
+  function updateAreaVolumeTabUI() {
+    if (!currentEditingWidget) return;
+    const funcs = currentEditingWidget.functions || [];
+
+    // 1. Đổ danh sách hàm số vào các select
+    const sel1f = document.getElementById('select-area-1f');
+    const sel2f1 = document.getElementById('select-area-2f-1');
+    const sel2f2 = document.getElementById('select-area-2f-2');
+    const sel3f1 = document.getElementById('select-area-3f-1');
+    const sel3f2 = document.getElementById('select-area-3f-2');
+    const sel3f3 = document.getElementById('select-area-3f-3');
+
+    const fillSelect = (sel, defaultIdx) => {
+      if (!sel) return;
+      const prevVal = sel.value;
+      sel.innerHTML = '';
+      funcs.forEach((fn, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `y${idx + 1} = ${fn.expr}`;
+        sel.appendChild(opt);
+      });
+      if (prevVal !== '' && parseInt(prevVal, 10) < funcs.length) {
+        sel.value = prevVal;
+      } else if (defaultIdx !== undefined && defaultIdx < funcs.length) {
+        sel.value = defaultIdx;
+      }
+    };
+
+    fillSelect(sel1f, 0);
+    fillSelect(sel2f1, 0);
+    fillSelect(sel2f2, Math.min(1, funcs.length - 1));
+    fillSelect(sel3f1, 0);
+    fillSelect(sel3f2, Math.min(1, funcs.length - 1));
+    fillSelect(sel3f3, Math.min(2, funcs.length - 1));
+
+    // 2. Xác định số hàm số đang chọn (1, 2, hoặc 3)
+    const activePill = document.querySelector('#group-area-func-count .btn-pill-choice.active');
+    const funcCount = activePill ? parseInt(activePill.getAttribute('data-count'), 10) || 1 : 1;
+
+    // Ẩn hiện các section
+    const sec1 = document.getElementById('area-sec-1func');
+    const sec2 = document.getElementById('area-sec-2funcs');
+    const sec3 = document.getElementById('area-sec-3funcs');
+    if (sec1) sec1.style.display = funcCount === 1 ? 'block' : 'none';
+    if (sec2) sec2.style.display = funcCount === 2 ? 'block' : 'none';
+    if (sec3) sec3.style.display = funcCount === 3 ? 'block' : 'none';
+
+    // 3. Xử lý cận theo từng trường hợp
+    let boundMode = 'auto';
+    let aVal = 0, bVal = 2;
+    let expr1 = '', expr2 = '', expr3 = '';
+
+    if (funcCount === 1) {
+      const fIdx = sel1f ? parseInt(sel1f.value, 10) || 0 : 0;
+      expr1 = funcs[fIdx] ? funcs[fIdx].expr : 'x^2';
+      const inA = document.getElementById('input-area-1f-a');
+      const inB = document.getElementById('input-area-1f-b');
+      aVal = inA ? parseFloat(inA.value) || 0 : 0;
+      bVal = inB ? parseFloat(inB.value) || 2 : 2;
+      boundMode = 'manual';
+    } else if (funcCount === 2) {
+      const f1Idx = sel2f1 ? parseInt(sel2f1.value, 10) || 0 : 0;
+      const f2Idx = sel2f2 ? parseInt(sel2f2.value, 10) || 0 : 0;
+      expr1 = funcs[f1Idx] ? funcs[f1Idx].expr : 'x^2';
+      expr2 = funcs[f2Idx] ? funcs[f2Idx].expr : 'x';
+
+      const radioAuto = document.querySelector('input[name="radio-area-2f-bound"][value="auto"]');
+      const isAuto = radioAuto ? radioAuto.checked : true;
+      boundMode = isAuto ? 'auto' : 'manual';
+
+      const infoBox = document.getElementById('area-2f-auto-info');
+      const manualInputs = document.getElementById('area-2f-manual-inputs');
+      const lblInfo = document.getElementById('label-area-2f-intersections');
+
+      if (isAuto) {
+        if (infoBox) infoBox.style.display = 'flex';
+        if (manualInputs) manualInputs.style.display = 'none';
+
+        const inters = findTwoFunctionsIntersections(expr1, expr2);
+        if (inters.length >= 2) {
+          aVal = inters[0].x;
+          bVal = inters[1].x;
+          if (lblInfo) {
+            lblInfo.innerHTML = `Đã tìm thấy ${inters.length} giao điểm: <b>${inters.map(p => `(${p.x}; ${p.y})`).join(', ')}</b>. Đã lấy cận [x₁ = ${aVal}; x₂ = ${bVal}].`;
+          }
+        } else if (inters.length === 1) {
+          aVal = inters[0].x;
+          bVal = inters[0].x + 2;
+          if (lblInfo) {
+            lblInfo.innerHTML = `⚠️ Chỉ có 1 giao điểm tại (${inters[0].x}; ${inters[0].y}). Không đủ 2 cận khép kín, hãy chọn "Người dùng tự thêm 2 cận" để tính 4 đường.`;
+          }
+        } else {
+          if (lblInfo) {
+            lblInfo.innerHTML = `⚠️ Hai đồ thị không cắt nhau trên miền khảo sát. Hãy chọn "Người dùng tự thêm 2 cận" để tính diện tích hình phẳng giới hạn bởi 4 đường.`;
+          }
+        }
+      } else {
+        if (infoBox) infoBox.style.display = 'none';
+        if (manualInputs) manualInputs.style.display = 'flex';
+        const inA = document.getElementById('input-area-2f-a');
+        const inB = document.getElementById('input-area-2f-b');
+        aVal = inA ? parseFloat(inA.value) || 0 : 0;
+        bVal = inB ? parseFloat(inB.value) || 2 : 2;
+      }
+    } else if (funcCount === 3) {
+      const f1Idx = sel3f1 ? parseInt(sel3f1.value, 10) || 0 : 0;
+      const f2Idx = sel3f2 ? parseInt(sel3f2.value, 10) || 0 : 0;
+      const f3Idx = sel3f3 ? parseInt(sel3f3.value, 10) || 0 : 0;
+      expr1 = funcs[f1Idx] ? funcs[f1Idx].expr : 'x^2';
+      expr2 = funcs[f2Idx] ? funcs[f2Idx].expr : '2-x';
+      expr3 = funcs[f3Idx] ? funcs[f3Idx].expr : '-x';
+
+      const radioAuto = document.querySelector('input[name="radio-area-3f-bound"][value="auto"]');
+      const isAuto = radioAuto ? radioAuto.checked : true;
+      boundMode = isAuto ? 'auto' : 'manual';
+
+      const infoBox = document.getElementById('area-3f-auto-info');
+      const manualInputs = document.getElementById('area-3f-manual-inputs');
+      const lblInfo = document.getElementById('label-area-3f-intersections');
+
+      if (isAuto) {
+        if (infoBox) infoBox.style.display = 'flex';
+        if (manualInputs) manualInputs.style.display = 'none';
+
+        const p12 = findTwoFunctionsIntersections(expr1, expr2);
+        const p23 = findTwoFunctionsIntersections(expr2, expr3);
+        const p31 = findTwoFunctionsIntersections(expr3, expr1);
+        if (p12.length > 0 && p23.length > 0 && p31.length > 0) {
+          const tri = [p12[0], p23[0], p31[0]].sort((u, v) => u.x - v.x);
+          aVal = tri[0].x;
+          bVal = tri[2].x;
+          if (lblInfo) {
+            lblInfo.innerHTML = `Đã tìm thấy 3 đỉnh miền kín: <b>${tri.map(p => `(${p.x}; ${p.y})`).join(', ')}</b> (chia 2 khoảng [${tri[0].x}; ${tri[1].x}] và [${tri[1].x}; ${tri[2].x}]).`;
+          }
+        } else {
+          if (lblInfo) {
+            lblInfo.innerHTML = `⚠️ Không tìm đủ 3 giao điểm tạo thành miền kín tam giác cong. Bạn có thể chọn "Người dùng tự thêm 2 cận".`;
+          }
+        }
+      } else {
+        if (infoBox) infoBox.style.display = 'none';
+        if (manualInputs) manualInputs.style.display = 'flex';
+        const inA = document.getElementById('input-area-3f-a');
+        const inB = document.getElementById('input-area-3f-b');
+        aVal = inA ? parseFloat(inA.value) || 0 : 0;
+        bVal = inB ? parseFloat(inB.value) || 3 : 3;
+      }
+    }
+
+    // 4. Trục quay tính thể tích
+    const activeAxisBtn = document.querySelector('.btn-calc-axis.active');
+    const axis = activeAxisBtn ? activeAxisBtn.getAttribute('data-axis') : 'Ox';
+
+    // 5. Tính toán kết quả & Cập nhật thẻ hiển thị
+    const formulaArea = document.getElementById('area-formula-display');
+    const valArea = document.getElementById('area-value-display');
+    const formulaVol = document.getElementById('volume-formula-display');
+    const valVol = document.getElementById('volume-value-display');
+
+    const res = calculateAreaAndVolumeDetailed({
+      funcCount: funcCount,
+      expr1: expr1,
+      expr2: expr2,
+      expr3: expr3,
+      boundMode: boundMode,
+      customA: aVal,
+      customB: bVal,
+      axis: axis
+    });
+
+    if (res && res.success) {
+      if (formulaArea) formulaArea.innerHTML = res.areaFormula;
+      if (valArea) {
+        valArea.textContent = `S ≈ ${Number(res.area.toFixed(4))} (đơn vị diện tích)`;
+        valArea.style.color = '#047857';
+      }
+      if (formulaVol) formulaVol.innerHTML = res.volumeFormula;
+      if (valVol) {
+        valVol.textContent = res.volume !== null ? `V ≈ ${Number(res.volume.toFixed(4))} (đơn vị thể tích)` : 'Không thể tính trên khoảng này';
+        valVol.style.color = '#047857';
+      }
+    } else {
+      if (valArea) {
+        valArea.textContent = res ? res.error : 'Không thể tính toán';
+        valArea.style.color = '#b91c1c';
+      }
+      if (valVol) {
+        valVol.textContent = '---';
+        valVol.style.color = '#b91c1c';
+      }
+    }
+  }
+
+  function openGraphSettingsModal(widget, callback, initialTab = null) {
     if (!widget) return;
     currentEditingWidget = JSON.parse(JSON.stringify(widget)); // Clone sâu để thao tác an toàn
     onApplyCallback = callback;
@@ -1689,9 +2491,14 @@
     const modalEl = document.getElementById('modal-graph-settings');
     if (!modalEl) return;
 
-    // Reset Tabs
-    modalEl.querySelectorAll('.graph-tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
-    modalEl.querySelectorAll('.graph-tab-content').forEach((c, i) => c.classList.toggle('active', i === 0));
+    // Reset Tabs hoặc chọn initialTab nếu có
+    const targetTab = initialTab || 'tab-graph-funcs';
+    modalEl.querySelectorAll('.graph-tab-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-tab') === targetTab);
+    });
+    modalEl.querySelectorAll('.graph-tab-content').forEach(c => {
+      c.classList.toggle('active', c.id === targetTab);
+    });
 
     // Đổ dữ liệu Tab 1
     renderFuncsList();
@@ -1708,7 +2515,62 @@
     // Đổ dữ liệu Tab 2
     renderSpecialPointsList();
 
-    // Đổ dữ liệu Tab 3 (Revolution 3D)
+    // Đổ dữ liệu Tab 3: Diện tích & Thể tích (S & V)
+    const areaCalc = currentEditingWidget.areaCalc || {};
+    const chkAreaEnable = document.getElementById('chk-area-enable');
+    const areaControls = document.getElementById('graph-area-controls');
+    if (chkAreaEnable) chkAreaEnable.checked = areaCalc.enabled !== false;
+    if (areaControls) {
+      areaControls.style.opacity = (areaCalc.enabled !== false) ? '1' : '0.5';
+      areaControls.style.pointerEvents = (areaCalc.enabled !== false) ? 'auto' : 'none';
+    }
+
+    const targetFuncCount = areaCalc.funcCount || (currentEditingWidget.functions ? Math.min(3, Math.max(1, currentEditingWidget.functions.length)) : 1);
+    const pillBtns = modalEl.querySelectorAll('#group-area-func-count .btn-pill-choice');
+    pillBtns.forEach(b => {
+      const cnt = parseInt(b.getAttribute('data-count'), 10) || 1;
+      b.classList.toggle('active', cnt === targetFuncCount);
+    });
+
+    if (areaCalc.a !== undefined) {
+      const in1a = document.getElementById('input-area-1f-a');
+      const in2a = document.getElementById('input-area-2f-a');
+      const in3a = document.getElementById('input-area-3f-a');
+      if (in1a) in1a.value = areaCalc.a;
+      if (in2a) in2a.value = areaCalc.a;
+      if (in3a) in3a.value = areaCalc.a;
+    }
+    if (areaCalc.b !== undefined) {
+      const in1b = document.getElementById('input-area-1f-b');
+      const in2b = document.getElementById('input-area-2f-b');
+      const in3b = document.getElementById('input-area-3f-b');
+      if (in1b) in1b.value = areaCalc.b;
+      if (in2b) in2b.value = areaCalc.b;
+      if (in3b) in3b.value = areaCalc.b;
+    }
+
+    if (areaCalc.boundMode) {
+      const r2 = modalEl.querySelector(`input[name="radio-area-2f-bound"][value="${areaCalc.boundMode}"]`);
+      if (r2) r2.checked = true;
+      const r3 = modalEl.querySelector(`input[name="radio-area-3f-bound"][value="${areaCalc.boundMode}"]`);
+      if (r3) r3.checked = true;
+    }
+
+    const calcAxisBtns = modalEl.querySelectorAll('.btn-calc-axis');
+    calcAxisBtns.forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-axis') === (areaCalc.axis || 'Ox'));
+    });
+
+    const chkFill = document.getElementById('chk-area-draw-fill');
+    const chkLines = document.getElementById('chk-area-draw-lines');
+    const chkBadge = document.getElementById('chk-area-draw-badge');
+    if (chkFill) chkFill.checked = areaCalc.drawFill !== false;
+    if (chkLines) chkLines.checked = areaCalc.drawLines !== false;
+    if (chkBadge) chkBadge.checked = areaCalc.showBadge !== false;
+
+    updateAreaVolumeTabUI();
+
+    // Đổ dữ liệu Tab 4: Mô phỏng Thể tích 3D
     updateRevolutionFuncSelect();
     const rev = currentEditingWidget.revolution3D || {};
     const chkRev = document.getElementById('chk-rev-enable');
@@ -1777,10 +2639,83 @@
   function applyGraphModalChanges() {
     if (!currentEditingWidget) return;
 
-    // Thu thập các giá trị từ form
+    // 1. Thu thập Tab 1: Cài đặt tỷ lệ & hiển thị trục
     const inputScale = document.getElementById('input-graph-scale');
     const chkGrid = document.getElementById('chk-graph-grid');
     const chkAxes = document.getElementById('chk-graph-axes');
+    if (inputScale) currentEditingWidget.scale = parseInt(inputScale.value, 10) || 36;
+    if (chkGrid) currentEditingWidget.showGrid = chkGrid.checked;
+    if (chkAxes) currentEditingWidget.showAxes = chkAxes.checked;
+
+    // 2. Thu thập Tab 3: Cài đặt Diện tích (S) & Thể tích (V)
+    const chkAreaEnable = document.getElementById('chk-area-enable');
+    const activePill = document.querySelector('#group-area-func-count .btn-pill-choice.active');
+    const funcCount = activePill ? parseInt(activePill.getAttribute('data-count'), 10) || 1 : 1;
+    const activeCalcAxisBtn = document.querySelector('.btn-calc-axis.active');
+    const chkFill = document.getElementById('chk-area-draw-fill');
+    const chkLines = document.getElementById('chk-area-draw-lines');
+    const chkBadge = document.getElementById('chk-area-draw-badge');
+
+    let boundMode = 'auto';
+    let customA = 0, customB = 2;
+    let f1Expr = '', f2Expr = '', f3Expr = '';
+
+    if (funcCount === 1) {
+      const sel1f = document.getElementById('select-area-1f');
+      const idx = sel1f ? parseInt(sel1f.value, 10) || 0 : 0;
+      f1Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx] ? currentEditingWidget.functions[idx].expr : 'x^2';
+      const inA = document.getElementById('input-area-1f-a');
+      const inB = document.getElementById('input-area-1f-b');
+      customA = inA ? parseFloat(inA.value) || 0 : 0;
+      customB = inB ? parseFloat(inB.value) || 2 : 2;
+      boundMode = 'manual';
+    } else if (funcCount === 2) {
+      const sel2f1 = document.getElementById('select-area-2f-1');
+      const sel2f2 = document.getElementById('select-area-2f-2');
+      const idx1 = sel2f1 ? parseInt(sel2f1.value, 10) || 0 : 0;
+      const idx2 = sel2f2 ? parseInt(sel2f2.value, 10) || 0 : 0;
+      f1Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx1] ? currentEditingWidget.functions[idx1].expr : 'x^2';
+      f2Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx2] ? currentEditingWidget.functions[idx2].expr : 'x';
+      const rAuto = document.querySelector('input[name="radio-area-2f-bound"][value="auto"]');
+      boundMode = rAuto && rAuto.checked ? 'auto' : 'manual';
+      const inA = document.getElementById('input-area-2f-a');
+      const inB = document.getElementById('input-area-2f-b');
+      customA = inA ? parseFloat(inA.value) || 0 : 0;
+      customB = inB ? parseFloat(inB.value) || 2 : 2;
+    } else if (funcCount === 3) {
+      const sel3f1 = document.getElementById('select-area-3f-1');
+      const sel3f2 = document.getElementById('select-area-3f-2');
+      const sel3f3 = document.getElementById('select-area-3f-3');
+      const idx1 = sel3f1 ? parseInt(sel3f1.value, 10) || 0 : 0;
+      const idx2 = sel3f2 ? parseInt(sel3f2.value, 10) || 0 : 0;
+      const idx3 = sel3f3 ? parseInt(sel3f3.value, 10) || 0 : 0;
+      f1Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx1] ? currentEditingWidget.functions[idx1].expr : 'x^2';
+      f2Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx2] ? currentEditingWidget.functions[idx2].expr : '2-x';
+      f3Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx3] ? currentEditingWidget.functions[idx3].expr : '-x';
+      const rAuto = document.querySelector('input[name="radio-area-3f-bound"][value="auto"]');
+      boundMode = rAuto && rAuto.checked ? 'auto' : 'manual';
+      const inA = document.getElementById('input-area-3f-a');
+      const inB = document.getElementById('input-area-3f-b');
+      customA = inA ? parseFloat(inA.value) || 0 : 0;
+      customB = inB ? parseFloat(inB.value) || 3 : 3;
+    }
+
+    currentEditingWidget.areaCalc = {
+      enabled: chkAreaEnable ? chkAreaEnable.checked : true,
+      funcCount: funcCount,
+      func1: f1Expr,
+      func2: f2Expr,
+      func3: f3Expr,
+      boundMode: boundMode,
+      a: customA,
+      b: customB,
+      axis: activeCalcAxisBtn ? activeCalcAxisBtn.getAttribute('data-axis') : 'Ox',
+      drawFill: chkFill ? chkFill.checked : true,
+      drawLines: chkLines ? chkLines.checked : true,
+      showBadge: chkBadge ? chkBadge.checked : true
+    };
+
+    // 3. Thu thập Tab 4: Thể tích 3D
     const chkRev = document.getElementById('chk-rev-enable');
     const selRevFunc = document.getElementById('select-rev-func');
     const activeAxisBtn = document.querySelector('.btn-rev-axis.active');
@@ -1791,10 +2726,6 @@
     const inputAngle = document.getElementById('input-rev-angle');
     const activeSpeedBtn = document.querySelector('.btn-rev-speed.active');
     const chkLoop = document.getElementById('chk-rev-loop');
-
-    if (inputScale) currentEditingWidget.scale = parseInt(inputScale.value, 10) || 36;
-    if (chkGrid) currentEditingWidget.showGrid = chkGrid.checked;
-    if (chkAxes) currentEditingWidget.showAxes = chkAxes.checked;
 
     if (!currentEditingWidget.revolution3D) {
       currentEditingWidget.revolution3D = {};
@@ -1837,6 +2768,9 @@
     canvasToMath,
     autoFindSpecialPoints,
     calculateRevolutionVolume,
+    calculateAreaAndVolumeDetailed,
+    findTwoFunctionsIntersections,
+    findFunctionRoots,
     drawGraphWidget,
     hitTestGraphWidget,
     hitTestWidgetHeaderButtons,

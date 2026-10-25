@@ -2,6 +2,92 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Hiển thị góc chuẩn xác theo tia được chọn trong chức năng Chọn góc] - 25/10/2026
+
+- **1. Hoàn thành tác vụ: Góc hiển thị đúng theo tia được chọn:**
+  - Trong chức năng **Chọn góc**, khi hoàn thành tác vụ (người dùng bấm chọn vào 1 trong 2 tia gợi ý nét đứt):
+    + **Tia thứ hai:** Vẽ chính xác theo tọa độ và hướng mở (`direction: -1` hoặc `direction: +1`) của tia mà người dùng đã bấm chọn.
+    + **Cung tròn góc:** Được vẽ chính xác từ tia cơ sở đến đúng tia thứ hai được chọn, không bao giờ bị vẽ ngược chiều hay lệch hướng.
+    + **Nhãn số đo độ (`xx°`):** Luôn tự động tính toán vị trí nằm ở phân giác chính giữa của hai tia tạo góc được chọn, hiển thị rõ ràng và đẹp mắt.
+- **2. Đồng bộ toàn diện trên các tương tác hình học:**
+  - **Tay cầm xoay góc (`second_pt`):** Tọa độ tay cầm điều khiển ở đầu mút tia thứ hai bám sát theo tia đã chọn. Khi người dùng kéo chuột để xoay góc, tay cầm nhận diện phía chuột kéo và tự động cập nhật cả số đo góc lẫn hướng (`direction`), cho phép người dùng kéo lật qua lại giữa 2 phía cực kỳ mượt mà.
+  - **Công cụ Chọn (`Select Tool`):** Hàm `findElementAt` và hiệu ứng hào quang phát sáng `highlightElementShape` bắt trúng chính xác tia thứ hai theo đúng hướng người dùng đã chọn.
+  - **Công cụ Tẩy (`Eraser`):** Hàm `erasePartialAt` xóa chính xác góc khi chạm vào đúng tia thứ hai được chọn.
+  - **Liên kết động (Dynamic Binding):** Khi cạnh cơ sở hoặc đỉnh góc bị di chuyển hay biến dạng, tia thứ hai tự động tính toán lại vị trí bám sát theo hướng tia đã chọn ban đầu.
+- **3. Kiểm thử tự động:**
+  - Bổ sung kịch bản kiểm thử hiển thị góc theo tia chọn, kiểm tra tay cầm điều khiển `second_pt`, kiểm tra bắt trúng `findElementAt` và thao tác kéo đổi hướng mượt mà trong `scratch/test_tangent_angle_options.js`. Tất cả các bài kiểm thử đều đạt 100%.
+
+## [Hiển thị 2 Option nét đứt cho Tiếp tuyến & Chọn góc] - 25/10/2026
+
+- **1. Cơ chế hiển thị 2 đường gợi ý nét đứt (Options) trực quan:**
+  - **Tác vụ Tiếp tuyến (`tangent`):**
+    + Khi người dùng chọn điểm $P$ nằm bên ngoài đường tròn $O$, phần mềm tính toán chính xác cả 2 tiếp tuyến đối xứng đi qua điểm $P$ và 2 tiếp điểm $T_1, T_2$ trên đường tròn.
+    + Không tự ý áp đặt 1 đường duy nhất như trước, hệ thống hiển thị đồng thời **2 đường gợi ý bằng nét đứt** (`[8, 6]`) màu xanh ngọc bích, kèm chấm tròn tiếp điểm và nhãn chỉ báo `🎯 Tiếp tuyến 1 (Bấm chọn)` và `🎯 Tiếp tuyến 2 (Bấm chọn)`.
+    + Nếu điểm đã chọn nằm *trên* đường tròn (khoảng cách bằng bán kính $R$), hệ thống nhận diện chỉ có duy nhất 1 tiếp tuyến vuông góc bán kính và tự động tạo ngay tiếp tuyến đó.
+  - **Tác vụ Chọn góc (`angle`):**
+    + Khi người dùng chọn cạnh cơ sở và đỉnh góc, hệ thống tính toán 2 hướng mở góc khả dĩ so với cạnh cơ sở ($-\alpha$ và $+\alpha$).
+    + Hiển thị **2 tia gợi ý bằng nét đứt** xuất phát từ đỉnh, kèm cung góc nhỏ xem trước và nhãn chỉ báo `🎯 Hướng 1: α° (Bấm chọn)` và `🎯 Hướng 2: α° (Bấm chọn)`.
+    + **Bổ sung ô nhập số đo góc trực tiếp (`floating-angle-box`):** Ngay tại bước này, một khung nhập số đo góc bo tròn mềm mại xuất hiện nổi bật ngay tại đỉnh góc trên trang giấy, đồng thời ô số đo góc trên thanh toolbar cũng hiển thị đồng bộ.
+    + Người dùng có thể **gõ trực tiếp số góc cần vẽ** (như 30°, 45°, 90°, 120°...). 2 đường nét đứt và cung góc lập tức co/giãn xoay theo thời gian thực (real-time preview).
+    + Sau khi nhập số góc mong muốn, người dùng chỉ việc **nhấp chuột chọn vào 1 đường nét đứt** để hoàn tất vẽ góc.
+- **2. Tương tác mượt mà & Chọn đường chuẩn xác:**
+  - *Hiệu ứng rê chuột (Hover):* Khi rê chuột gần đường nét đứt nào ($\le 32\text{px}$), đường đó lập tức phát sáng quầng hào quang ngọc bích êm dịu, nét đứt đậm lên và con trỏ chuột chuyển sang dạng bàn tay trỏ (`pointer`).
+  - *Nhấp chuột chọn đường:* Người dùng chỉ cần nhấp vào đường cần chọn trên bảng vẽ; hệ thống hoàn tất tạo đối tượng chính thức theo đúng nhánh/hướng đã chọn, xóa sạch 2 đường gợi ý và khung nhập nổi, tự động chuyển về chế độ Chọn và chọn đối tượng mới tạo.
+  - *Đổi số đo góc linh hoạt:* Khi người dùng gõ số đo góc trên ô `[ ∡ ... ° ]` (cả trên canvas lẫn toolbar), tia góc xoay mượt mà bám theo đúng hướng mở mà người dùng đã chọn trước đó.
+  - *Dynamic Binding:* Tiếp tuyến và góc tạo ra ghi nhớ chính xác nhánh (`branch`) và hướng (`direction`), tự động biến đổi bám sát khi di chuyển hoặc kéo co giãn hình mẹ.
+  - *Phím Escape:* Nhấn phím `Escape` sẽ hủy bỏ chế độ gợi ý 2 option và khung nhập nổi, giữ bảng vẽ luôn gọn gàng.
+- **3. Bộ kiểm thử tự động chuyên sâu:**
+  - Bổ sung kịch bản kiểm thử độc lập `scratch/test_tangent_angle_options.js` kiểm tra toàn bộ trường hợp điểm ngoài, điểm trên đường tròn, 2 hướng góc, nhập số góc vào ô nổi rồi chọn đường, đổi số đo góc và phím Escape đạt 100%.
+  - Kiểm thử hồi quy toàn bộ quy trình 4 bước dựng hình và chức năng chọn đơn lẻ đều thành công 100%.
+
+## [Chức năng Chọn chỉ chọn đơn lẻ một đối tượng] - 25/10/2026
+
+- **1. Chuẩn hóa hành vi công cụ Chọn (`Select Tool` - phím `V`):**
+  - Khi nhấp chuột vào bất kỳ đối tượng nào (điểm, đường thẳng, tam giác, đường tròn, góc, hình không gian...), hệ thống **chỉ chọn đơn lẻ đúng duy nhất đối tượng đó**, hoàn toàn không tự động gom cả nhóm các hình xung quanh.
+  - Khi hover chỉ làm sáng nhẹ đúng hình đang trỏ tới (loại bỏ hiệu ứng sáng cả chùm hình liên kết), giữ bảng vẽ luôn trong trẻo, tinh tế.
+  - Sau khi vẽ xong một hình mới (`finishGeoTask`), hệ thống chỉ chọn đơn lẻ hình vừa tạo.
+- **2. Lợi ích cho thao tác người dùng:**
+  - Người dùng có thể xóa riêng một đường phân giác, đường cao hay đoạn thẳng bằng phím `Delete` mà không vô tình xóa mất hình tam giác cha.
+  - Kéo chỉnh và tương tác trên từng đối tượng độc lập, rõ ràng và dễ kiểm soát.
+
+## [Quy trình 4 bước cho các tác vụ Dựng hình] - 25/10/2026
+
+- **1. Thiết lập quy trình 4 bước chuẩn mực cho toàn bộ 6 tác vụ Dựng hình (Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc):**
+  - **Bước 1 (Chọn 1 tác vụ):** Khi người dùng nhấp chọn tác vụ từ menu xổ xuống (hoặc click nút Dựng hình), nút chính trên thanh công cụ cập nhật tên và biểu tượng của tác vụ đó.
+  - **Bước 2 (Chuyển sang chế độ "Chọn"):** Hệ thống tự động kích hoạt chế độ Chọn (`Select Tool` - phím `V`), con trỏ chuột chuyển ngay sang con trỏ mũi tên nhọn macOS sắc nét, thanh trạng thái hiển thị thông báo hướng dẫn rõ ràng từng đối tượng cần chọn.
+  - **Bước 3 (Chọn điểm hoặc đường, rồi tiếp tục chọn đối tượng còn lại):**
+    + *Nhấp chọn đối tượng thứ nhất:* Nhận diện chuẩn xác Điểm (điểm rời, đỉnh tam giác/đa giác, đầu mút), Đường thẳng (đoạn thẳng, cạnh tam giác) hoặc Đường tròn. Đối tượng lập tức sáng bừng quầng ngọc bích rực rỡ kèm chỉ báo "✓ Đã chọn" và gợi ý chọn tiếp đối tượng thứ hai.
+    + *Nhấp chọn đối tượng thứ hai:* Hệ thống nhận diện đối tượng còn lại tương thích với tính năng của tác vụ.
+  - **Bước 4 (Thực hiện tác vụ):** Ngay khi chọn đủ 2 đối tượng (hoặc nhấp trực tiếp vào 1 đỉnh tam giác đối với Phân giác), hệ thống tự động dựng hình ngay lập tức (0ms), gộp nhóm đối tượng mới với hình gốc, tự động chọn hình vừa tạo và tiếp tục giữ ở chế độ Chọn để người dùng dễ dàng thao tác tiếp.
+- **2. Hỗ trợ thao tác linh hoạt & An toàn:**
+  - Thứ tự chọn linh hoạt: Có thể chọn Điểm trước -> chọn Đường sau, hoặc chọn Đường trước -> chọn Điểm sau.
+  - Vẫn giữ nguyên khả năng chọn sẵn 2 đối tượng trước (bằng phím `Cmd`/`Ctrl`) rồi bấm nút tác vụ để dựng ngay.
+  - Nhấn phím `Escape` hoặc nhấp công cụ khác tự động dọn sạch trạng thái tác vụ dở dang, đảm bảo bảng vẽ luôn sạch đẹp.
+- **3. Bộ kiểm thử tự động toàn diện:**
+  - Bổ sung kịch bản kiểm thử độc lập `scratch/test_construction_workflow.js` kiểm tra đầy đủ cả 6 tác vụ thành công 100%.
+
+## [Thêm Tính năng Tính Diện tích hình phẳng (S) & Thể tích tròn xoay (V)] - 24/10/2026
+
+- **1. Bổ sung nút [📐 Tính S & V] trực tiếp trên Header Widget Đồ thị:**
+  - Nhấp trực tiếp vào nút `[📐 Tính S & V]` trên thanh điều khiển của widget đồ thị để mở ngay bảng tính toán diện tích & thể tích. Nút tự động sáng ngọc bích khi chế độ đang kích hoạt.
+- **2. Bổ sung Tab chuyên biệt trong Modal: [📐 Tính Diện tích (S) & Thể tích (V)]:**
+  - Hỗ trợ linh hoạt 3 chế độ tính toán toán học chuẩn Giải tích 12:
+    + **1 hàm số ($y = f(x)$):** Hình phẳng giới hạn bởi $y = f(x)$, trục $Ox$ ($y = 0$), và 2 cận $x = a, x = b$. Tích hợp nút `[🎯 Giao trục Ox]` tự động giải nghiệm $f(x)=0$ làm cận.
+    + **2 hàm số ($y = f(x), y = g(x)$):**
+      * Chế độ tự động: Tự động giải phương trình hoành độ giao điểm $f(x) - g(x) = 0$ để tìm các nghiệm làm cận $x_1, x_2$.
+      * Chế độ thủ công: Người dùng tự thêm 2 cận $x = a$ và $x = b$ (hình phẳng giới hạn bởi 4 đường $y = f(x), y = g(x), x = a, x = b$).
+    + **3 hàm số ($y = f_1(x), y = f_2(x), y = f_3(x)$):**
+      * Chế độ tự động: Tự động tìm 3 giao điểm tạo thành miền kín tam giác cong, chia thành 2 tích phân con với hàm đáy chạy suốt từ $x_A$ đến $x_C$.
+      * Chế độ thủ công: Người dùng tự thêm 2 cận $x = a$ và $x = b$.
+- **3. Trực quan hóa hình học trên Canvas 2D:**
+  - Tự động tô màu miền diện tích hình phẳng bán trong suốt (`rgba(16, 185, 129, 0.22)`) nằm dưới đường cong đồ thị.
+  - Kẻ đường dóng các cận thẳng đứng nét đứt tại $x = a$ và $x = b$ kèm nhãn tọa độ cận.
+  - Đánh dấu chấm tròn các giao điểm kèm tọa độ $(x_0; y_0)$.
+  - Hiển thị thẻ nhãn kết quả bo góc mini ngay trên đồ thị: `📐 S ≈ ... đvdt | V ≈ ... đvtt`.
+- **4. Tích phân số học chính xác cao & Nâng cache `net-app-v4`:**
+  - Áp dụng thuật toán Simpson 500 bước cho độ chính xác $< 10^{-6}$, tính toán tức thì cả thể tích quanh $Ox$ và quanh $Oy$ (phương pháp vỏ trụ).
+  - Nâng cache Service Worker lên `net-app-v4`.
+
 ## [Khôi phục Phiên bản Trước cho Chức năng Vẽ Đồ thị] - 24/10/2026
 
 - **1. Trở lại nguyên bản quy trình vẽ đồ thị trực quan:**

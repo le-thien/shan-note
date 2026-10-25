@@ -126,8 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
     midpointHoverPoint: null,
     bisectorHoverEdge: null,
     bisectorHoverVertex: null,
-    // Trạng thái chọn điểm, đường tròn và cạnh để dựng hình (Vuông góc, Song song, Phân giác, Tiếp tuyến)
+    // Trạng thái chọn điểm, đường tròn và cạnh để dựng hình (Vuông góc, Song song, Phân giác, Tiếp tuyến, Chọn góc)
     construction: { point: null, circle: null, line: null, edges: [] },
+    pendingConstruction: null,
+    // 2 tùy chọn gợi ý nét đứt cho Tiếp tuyến và Chọn góc (để người dùng bấm chọn)
+    pendingOptions: null,
+    hoveredOptionIndex: -1,
     // Tiêu đề/tên riêng của từng trang
     pageTitles: {
       1: 'Trang 1',
@@ -221,13 +225,10 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        // Làm sáng nhẹ hình đang hover nhưng chưa chọn để người dùng dễ hình dung trước khi bấm (sáng cả nhóm)
+        // Làm sáng nhẹ hình đang hover nhưng chưa chọn để người dùng dễ hình dung trước khi bấm (chỉ sáng đơn lẻ một đối tượng)
         if (state.hoverElement && elements.includes(state.hoverElement)) {
-          const hoverGroup = getGroupElements(state.hoverElement);
-          for (const hEl of hoverGroup) {
-            if (!selectedList.includes(hEl) && elements.includes(hEl)) {
-              highlightElementShape(targetCtx, hEl, false);
-            }
+          if (!selectedList.includes(state.hoverElement)) {
+            highlightElementShape(targetCtx, state.hoverElement, false);
           }
         }
 
@@ -357,8 +358,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Hiển thị các điểm và cạnh đang được chọn trong quá trình dựng hình
-      if (state.activeTool === 'geo' && state.construction && state.currentPage === p) {
+      if ((state.activeTool === 'geo' || state.activeTool === 'select') && state.construction && (state.pendingConstruction || state.construction.point || state.construction.line || state.construction.circle || (state.construction.edges && state.construction.edges.length > 0)) && state.currentPage === p) {
         drawConstructionHighlights();
+      }
+
+      // Hiển thị 2 tùy chọn nét đứt cho Tiếp tuyến hoặc Chọn góc (để người dùng bấm chọn)
+      if (state.pendingOptions && state.currentPage === p) {
+        drawPendingOptions(targetCtx);
       }
 
       ctx = prevCtx;
@@ -547,9 +553,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const deg = el.angleDeg || 60;
       const rad = (deg * Math.PI) / 180;
       const baseDir = (el.baseDir !== undefined) ? el.baseDir : Math.atan2(el.end.y - el.start.y, el.end.x - el.start.x);
+      const dir = (el.direction !== undefined) ? el.direction : ((el.binding && el.binding.direction !== undefined) ? el.binding.direction : -1);
       const p2 = el.secondPoint || {
-        x: el.start.x + armLen * Math.cos(baseDir - rad),
-        y: el.start.y + armLen * Math.sin(baseDir - rad)
+        x: el.start.x + armLen * Math.cos(baseDir + dir * rad),
+        y: el.start.y + armLen * Math.sin(baseDir + dir * rad)
       };
       handles.push({ id: 'start', x: el.start.x, y: el.start.y, name: 'Đỉnh góc V' });
       handles.push({ id: 'second_pt', x: p2.x, y: p2.y, name: 'Đầu mút đường thứ hai (kéo xoay số đo góc)' });
@@ -1050,9 +1057,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const deg = el.angleDeg || 60;
         const rad = (deg * Math.PI) / 180;
         const baseDir = (el.baseDir !== undefined) ? el.baseDir : Math.atan2(el.end.y - el.start.y, el.end.x - el.start.x);
+        const dir = (el.direction !== undefined) ? el.direction : ((el.binding && el.binding.direction !== undefined) ? el.binding.direction : -1);
         const p2 = el.secondPoint || {
-          x: el.start.x + armLen * Math.cos(baseDir - rad),
-          y: el.start.y + armLen * Math.sin(baseDir - rad)
+          x: el.start.x + armLen * Math.cos(baseDir + dir * rad),
+          y: el.start.y + armLen * Math.sin(baseDir + dir * rad)
         };
         c.beginPath();
         if (!el.onlySecondArm) {
@@ -1684,7 +1692,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (d > R + 2) {
           const ang = Math.atan2(pt.y - O.y, pt.x - O.x);
           const beta = Math.acos(Math.max(-1, Math.min(1, R / d)));
-          const T = { x: O.x + R * Math.cos(ang - beta), y: O.y + R * Math.sin(ang - beta) };
+          const branchSign = (b.branch === 1) ? 1 : -1;
+          const T = { x: O.x + R * Math.cos(ang + branchSign * beta), y: O.y + R * Math.sin(ang + branchSign * beta) };
           child.tangentPoint = T;
           const vx = T.x - pt.x, vy = T.y - pt.y;
           const len = Math.hypot(vx, vy) || 1;
@@ -1883,7 +1892,8 @@ document.addEventListener('DOMContentLoaded', () => {
         child.baseDir = baseDir;
         const armLen = child.armLength || Math.max(90, Math.hypot(B.x - A.x, B.y - A.y));
         const rad = ((child.angleDeg || 60) * Math.PI) / 180;
-        const secondAngle = baseDir - rad;
+        const dir = (b.direction !== undefined) ? b.direction : (child.direction !== undefined ? child.direction : -1);
+        const secondAngle = baseDir + dir * rad;
         child.end = { x: child.start.x + armLen * Math.cos(baseDir), y: child.start.y + armLen * Math.sin(baseDir) };
         child.secondPoint = { x: child.start.x + armLen * Math.cos(secondAngle), y: child.start.y + armLen * Math.sin(secondAngle) };
       }
@@ -2038,7 +2048,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.activeTool !== 'select') return;
     const count = (state.selectedElements || []).length;
     if (count === 0) {
-      statusToolInfo.textContent = 'Công cụ: Chọn đối tượng (Bấm để chọn, giữ ⌘ hoặc Ctrl để chọn 2, 3... đối tượng)';
+      statusToolInfo.textContent = 'Công cụ: Chọn đối tượng (Nhấp để chọn đơn lẻ một đối tượng, kéo để di chuyển, Delete để xóa)';
     } else if (count === 1) {
       const el = state.selectedElements[0];
       if (isSolidShape(el.shape)) {
@@ -2050,7 +2060,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (el.type === 'geo' && el.shape !== 'point') {
         statusToolInfo.textContent = 'Đã chọn hình (Bấm [🔄 Xoay] trên thanh công cụ để hiện tay cầm xoay ngoài hình hoặc bấm ↶ 45° / ↷ 45°)';
       } else {
-        statusToolInfo.textContent = 'Đã chọn 1 đối tượng (Giữ ⌘ hoặc Ctrl để chọn thêm; kéo để di chuyển hoặc nhấn Delete để xóa)';
+        statusToolInfo.textContent = 'Đã chọn đối tượng (Kéo để di chuyển hoặc nhấn Delete để xóa)';
       }
     } else if (count === 2) {
       const isTwoPoints = state.selectedElements.every(el => el.type === 'geo' && el.shape === 'point');
@@ -2082,19 +2092,164 @@ document.addEventListener('DOMContentLoaded', () => {
     ellipseAxisBInput.addEventListener('input', handleEllipseAxisInputChange);
   }
 
+  // Cập nhật số đo góc theo thời gian thực cho 2 tùy chọn nét đứt (options)
+  function updatePendingAngleDegrees(newDeg) {
+    if (!state.pendingOptions || state.pendingOptions.type !== 'angle') return;
+    const deg = Math.max(1, Math.min(359, newDeg || 60));
+    state.pendingOptions.deg = deg;
+    const { V, baseDir, armLen } = state.pendingOptions;
+    const rad = (deg * Math.PI) / 180;
+
+    const secondAngle1 = baseDir - rad;
+    const secondPt1 = {
+      x: V.x + armLen * Math.cos(secondAngle1),
+      y: V.y + armLen * Math.sin(secondAngle1)
+    };
+
+    const secondAngle2 = baseDir + rad;
+    const secondPt2 = {
+      x: V.x + armLen * Math.cos(secondAngle2),
+      y: V.y + armLen * Math.sin(secondAngle2)
+    };
+
+    if (state.pendingOptions.options && state.pendingOptions.options.length === 2) {
+      const opt1 = state.pendingOptions.options[0];
+      opt1.angleDeg = deg;
+      opt1.secondAngle = secondAngle1;
+      opt1.secondPoint = secondPt1;
+      opt1.name = `Góc ${deg}° (Hướng 1)`;
+
+      const opt2 = state.pendingOptions.options[1];
+      opt2.angleDeg = deg;
+      opt2.secondAngle = secondAngle2;
+      opt2.secondPoint = secondPt2;
+      opt2.name = `Góc ${deg}° (Hướng 2)`;
+    }
+
+    statusToolInfo.textContent = `✨ Số đo góc: ${deg}°. Vui lòng nhấp chuột chọn 1 trong 2 đường nét đứt để vẽ góc.`;
+    renderPage();
+  }
+
+  // Hiển thị khung nhập số đo góc nổi trực tiếp trên canvas tại đỉnh góc
+  function showFloatingAngleBox(V, baseDir, currentDeg) {
+    removeFloatingAngleBox();
+    const sheet = (typeof getPaperSheetForPage === 'function' ? getPaperSheetForPage(state.currentPage) : null) ||
+                  document.querySelector(`.paper-sheet[data-page="${state.currentPage}"]`) ||
+                  document.querySelector('.paper-sheet');
+    if (!sheet) return;
+
+    const box = document.createElement('div');
+    box.className = 'floating-angle-box';
+    box.id = 'floating-angle-box';
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'floating-angle-icon';
+    iconSpan.textContent = '∡';
+    box.appendChild(iconSpan);
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'floating-angle-input';
+    input.id = 'input-floating-angle';
+    input.value = currentDeg;
+    input.min = '1';
+    input.max = '359';
+    input.step = '1';
+    input.title = 'Nhập số đo góc cần vẽ';
+    box.appendChild(input);
+    box._inputElement = input;
+
+    const degSpan = document.createElement('span');
+    degSpan.className = 'floating-angle-deg';
+    degSpan.textContent = '°';
+    box.appendChild(degSpan);
+
+    const hintSpan = document.createElement('span');
+    hintSpan.className = 'floating-angle-hint';
+    hintSpan.textContent = 'Nhập số góc rồi bấm vào 1 trong 2 đường nét đứt để vẽ';
+    box.appendChild(hintSpan);
+
+    // Tính vị trí đặt box lệch khỏi đỉnh V theo hướng ngược tia cơ sở khoảng 75px
+    const dirNorm = (baseDir !== undefined) ? baseDir : 0;
+    const offsetDist = 75;
+    let boxX = V.x - offsetDist * Math.cos(dirNorm);
+    let boxY = V.y - offsetDist * Math.sin(dirNorm);
+
+    // Đảm bảo không tràn ra ngoài mép giấy
+    boxX = Math.max(160, Math.min(940, boxX));
+    boxY = Math.max(40, Math.min(1500, boxY));
+
+    box.style.left = `${boxX}px`;
+    box.style.top = `${boxY}px`;
+
+    sheet.appendChild(box);
+
+    input.addEventListener('input', () => {
+      const val = Math.max(1, Math.min(359, parseFloat(input.value) || 60));
+      updatePendingAngleDegrees(val);
+      if (angleDegreesInput) angleDegreesInput.value = val;
+    });
+
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Escape') {
+          finishGeoTask();
+        } else if (e.key === 'Enter') {
+          input.blur();
+        }
+      });
+
+      input.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+
+      input.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+      });
+
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 50);
+  }
+
+  // Xóa khung nhập số đo góc nổi trên canvas
+  function removeFloatingAngleBox() {
+    const box = document.getElementById('floating-angle-box');
+    if (box) {
+      if (typeof box.remove === 'function') {
+        box.remove();
+      } else if (box.parentNode) {
+        box.parentNode.removeChild(box);
+      }
+    }
+  }
+
   // Sự kiện khi người dùng gõ số đo góc trên toolbar
   function handleAngleDegreesInputChange() {
+    const deg = Math.max(1, Math.min(359, parseFloat(angleDegreesInput.value) || 60));
+
+    // Nếu đang trong trạng thái chờ chọn 1 trong 2 hướng mở góc nét đứt
+    if (state.pendingOptions && state.pendingOptions.type === 'angle') {
+      updatePendingAngleDegrees(deg);
+      const floatInp = document.getElementById('input-floating-angle');
+      if (floatInp && floatInp.value !== String(deg)) {
+        floatInp.value = deg;
+      }
+      return;
+    }
+
     if (!state.selectedElements || state.selectedElements.length !== 1) return;
     const el = state.selectedElements[0];
     if (el.shape !== 'angle') return;
-    const deg = Math.max(1, Math.min(359, parseFloat(angleDegreesInput.value) || 60));
     el.angleDeg = deg;
     const armLen = el.armLength || 90;
     const rad = (deg * Math.PI) / 180;
     const baseDir = (el.baseDir !== undefined) ? el.baseDir : Math.atan2(el.end.y - el.start.y, el.end.x - el.start.x);
+    const dir = (el.direction !== undefined) ? el.direction : ((el.binding && el.binding.direction !== undefined) ? el.binding.direction : -1);
     el.secondPoint = {
-      x: el.start.x + armLen * Math.cos(baseDir - rad),
-      y: el.start.y + armLen * Math.sin(baseDir - rad)
+      x: el.start.x + armLen * Math.cos(baseDir + dir * rad),
+      y: el.start.y + armLen * Math.sin(baseDir + dir * rad)
     };
     renderPage();
   }
@@ -2173,9 +2328,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const deg = el.angleDeg || 60;
           const rad = (deg * Math.PI) / 180;
           const baseDir = (el.baseDir !== undefined) ? el.baseDir : Math.atan2(el.end.y - el.start.y, el.end.x - el.start.x);
+          const dir = (el.direction !== undefined) ? el.direction : ((el.binding && el.binding.direction !== undefined) ? el.binding.direction : -1);
           const p2 = el.secondPoint || {
-            x: el.start.x + armLen * Math.cos(baseDir - rad),
-            y: el.start.y + armLen * Math.sin(baseDir - rad)
+            x: el.start.x + armLen * Math.cos(baseDir + dir * rad),
+            y: el.start.y + armLen * Math.sin(baseDir + dir * rad)
           };
           if (Math.hypot(x - el.start.x, y - el.start.y) <= 18) return el;
           if (distToSegment(x, y, el.start.x, el.start.y, p2.x, p2.y) <= 16) return el;
@@ -2533,9 +2689,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const armLength = geo.armLength || Math.max(80, Math.hypot(end.x - start.x, end.y - start.y));
       const baseAngle = (geo.baseDir !== undefined) ? geo.baseDir : Math.atan2(end.y - start.y, end.x - start.x);
       const rad = (angleDeg * Math.PI) / 180;
-      const secondAngle = baseAngle - rad;
+      const dir = (geo.direction !== undefined) ? geo.direction : ((geo.binding && geo.binding.direction !== undefined) ? geo.binding.direction : -1);
 
-      // Cạnh 1: Chỉ vẽ nếu không phải onlySecondArm
+      // Cạnh 1 (Tia cơ sở): Chỉ vẽ nếu không phải onlySecondArm
       if (!geo.onlySecondArm) {
         context.beginPath();
         context.moveTo(start.x, start.y);
@@ -2543,19 +2699,22 @@ document.addEventListener('DOMContentLoaded', () => {
         context.stroke();
       }
 
-      // Cạnh 2 (Đường còn lại theo số đo góc)
+      // Cạnh 2 (Tia được chọn theo số đo góc)
       const p2 = geo.secondPoint || {
-        x: start.x + armLength * Math.cos(secondAngle),
-        y: start.y + armLength * Math.sin(secondAngle)
+        x: start.x + armLength * Math.cos(baseAngle + dir * rad),
+        y: start.y + armLength * Math.sin(baseAngle + dir * rad)
       };
       context.beginPath();
       context.moveTo(start.x, start.y);
       context.lineTo(p2.x, p2.y);
       context.stroke();
 
-      // Cung góc
+      // Hướng thực tế của tia thứ 2 được chọn
+      const actualSecondAngle = Math.atan2(p2.y - start.y, p2.x - start.x);
+
+      // Cung góc từ tia cơ sở đến đúng tia được chọn
       const arcRadius = Math.min(42, armLength * 0.42);
-      let diff = secondAngle - baseAngle;
+      let diff = actualSecondAngle - baseAngle;
       while (diff < -Math.PI) diff += 2 * Math.PI;
       while (diff > Math.PI) diff -= 2 * Math.PI;
 
@@ -2563,7 +2722,7 @@ document.addEventListener('DOMContentLoaded', () => {
       context.arc(start.x, start.y, arcRadius, baseAngle, baseAngle + diff, diff < 0);
       context.stroke();
 
-      // Nhãn số đo góc
+      // Nhãn số đo góc nằm giữa 2 tia
       const midAngle = baseAngle + diff / 2;
       const textX = start.x + (arcRadius + 18) * Math.cos(midAngle);
       const textY = start.y + (arcRadius + 18) * Math.sin(midAngle);
@@ -3116,6 +3275,10 @@ document.addEventListener('DOMContentLoaded', () => {
     state.geoStartPoint = null;
     state.hoverSnapPoint = null;
     state.construction = { point: null, circle: null, line: null, edges: [] };
+    state.pendingConstruction = null;
+    state.pendingOptions = null;
+    state.hoveredOptionIndex = -1;
+    removeFloatingAngleBox();
     closeAllDropdowns();
 
     // 4. Chuyển sang công cụ Chọn (Select tool) để người dùng có thể thao tác với hình vừa tạo
@@ -3125,14 +3288,13 @@ document.addEventListener('DOMContentLoaded', () => {
       toolSelect.classList.add('active');
       state.activeTool = 'select';
       setCanvasCursor(SHARP_ARROW_CURSOR);
-      statusToolInfo.textContent = 'Công cụ: Chọn đối tượng (Bấm để chọn/di chuyển, giữ Shift/⌘ để chọn nhiều, Delete để xóa)';
+      statusToolInfo.textContent = 'Công cụ: Chọn đối tượng (Bấm để chọn đơn lẻ đối tượng, kéo để di chuyển, Delete để xóa)';
       updateContextualToolbar('select');
     }
 
-    // 5. Nếu có đối tượng vừa tạo, tự động chọn nó và hiển thị quầng sáng / điểm điều khiển
+    // 5. Nếu có đối tượng vừa tạo, chỉ chọn đơn lẻ đối tượng đó
     if (createdElement) {
-      const groupEls = (typeof getGroupElements === 'function') ? getGroupElements(createdElement) : [createdElement];
-      setSelectedElements(groupEls.length > 0 ? groupEls : [createdElement]);
+      setSelectedElements([createdElement]);
     }
 
     renderPage();
@@ -3149,66 +3311,145 @@ document.addEventListener('DOMContentLoaded', () => {
     if (d < R - 8) {
       statusToolInfo.textContent = 'Điểm đã chọn nằm bên trong đường tròn, không thể kẻ tiếp tuyến!';
       state.construction = { point: null, circle: null, line: null, edges: [] };
+      state.pendingConstruction = null;
       renderPage();
-      return;
+      return null;
     }
 
-    let p1, p2, T;
     const circleEl = circle.element || (circle.shape === 'circle' ? circle : null);
     const ptEl = (point && point.element) ? point.element : (point && point.shape === 'point' ? point : null);
 
-    if (!bindingInfo && circleEl) {
-      ensureElementId(circleEl);
+    // TRƯỜNG HỢP 1: Điểm nằm TRÊN đường tròn (chỉ có duy nhất 1 tiếp tuyến)
+    if (Math.abs(d - R) <= 15) {
+      if (circleEl) ensureElementId(circleEl);
       if (ptEl) ensureElementId(ptEl);
-      if (Math.abs(d - R) <= 15) {
-        const ang = Math.atan2(py - O.y, px - O.x);
-        bindingInfo = {
-          type: 'circle_tangent',
-          parentId: circleEl.id,
-          pointElId: ptEl ? ptEl.id : null,
-          onCircle: true,
-          angle: ang
-        };
-      } else {
-        bindingInfo = {
-          type: 'circle_tangent',
-          parentId: circleEl.id,
-          pointElId: ptEl ? ptEl.id : null,
-          onCircle: false,
-          offset: { dx: px - O.x, dy: py - O.y }
-        };
-      }
+      const ang = Math.atan2(py - O.y, px - O.x);
+      const T = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
+      const uPerp = { x: -Math.sin(ang), y: Math.cos(ang) };
+      const p1 = { x: T.x - 90 * uPerp.x, y: T.y - 90 * uPerp.y };
+      const p2 = { x: T.x + 90 * uPerp.x, y: T.y + 90 * uPerp.y };
+
+      const bInfo = circleEl ? {
+        type: 'circle_tangent',
+        parentId: circleEl.id,
+        pointElId: ptEl ? ptEl.id : null,
+        onCircle: true,
+        angle: ang
+      } : null;
+
+      const newGeo = {
+        type: 'geo',
+        shape: 'tangent',
+        binding: bInfo,
+        start: p1,
+        end: p2,
+        tangentPoint: T,
+        center: { x: O.x, y: O.y },
+        radius: R,
+        color: state.color,
+        width: state.strokeWidth,
+        dash: state.dashStyle
+      };
+
+      ensureElementId(newGeo);
+      const parentsToLink = [circleEl, ptEl].filter(Boolean);
+      if (parentsToLink.length > 0) linkGroupMulti(parentsToLink, newGeo);
+      pushNewElement(newGeo);
+      finishGeoTask(newGeo);
+      statusToolInfo.textContent = '✨ Đã dựng tiếp tuyến tại điểm trên đường tròn.';
+      return newGeo;
     }
 
-    if (Math.abs(d - R) <= 15) {
-      // Điểm nằm TRÊN đường tròn
-      const ang = Math.atan2(py - O.y, px - O.x);
-      T = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
-      // Vector tiếp tuyến vuông góc bán kính
-      const uPerp = { x: -Math.sin(ang), y: Math.cos(ang) };
-      p1 = { x: T.x - 90 * uPerp.x, y: T.y - 90 * uPerp.y };
-      p2 = { x: T.x + 90 * uPerp.x, y: T.y + 90 * uPerp.y };
-    } else {
-      // Điểm nằm NGOÀI đường tròn
-      const ang = Math.atan2(py - O.y, px - O.x);
-      const beta = Math.acos(Math.max(-1, Math.min(1, R / d)));
-      // Tiếp điểm T
-      T = { x: O.x + R * Math.cos(ang - beta), y: O.y + R * Math.sin(ang - beta) };
-      const vx = T.x - px;
-      const vy = T.y - py;
-      const len = Math.hypot(vx, vy) || 1;
-      const uTan = { x: vx / len, y: vy / len };
-      p1 = { x: px - 20 * uTan.x, y: py - 20 * uTan.y };
-      p2 = { x: T.x + 35 * uTan.x, y: T.y + 35 * uTan.y };
+    // TRƯỜNG HỢP 2: Điểm nằm NGOÀI đường tròn (có 2 tiếp tuyến) -> HIỂN THỊ 2 OPTION NÉT ĐỨT ĐỂ NGƯỜI DÙNG BẤM CHỌN
+    const ang = Math.atan2(py - O.y, px - O.x);
+    const beta = Math.acos(Math.max(-1, Math.min(1, R / d)));
+
+    // Nhánh 0: ang - beta
+    const T1 = { x: O.x + R * Math.cos(ang - beta), y: O.y + R * Math.sin(ang - beta) };
+    const vx1 = T1.x - px, vy1 = T1.y - py;
+    const len1 = Math.hypot(vx1, vy1) || 1;
+    const uTan1 = { x: vx1 / len1, y: vy1 / len1 };
+    const p1_1 = { x: px - 25 * uTan1.x, y: py - 25 * uTan1.y };
+    const p2_1 = { x: T1.x + 45 * uTan1.x, y: T1.y + 45 * uTan1.y };
+
+    // Nhánh 1: ang + beta
+    const T2 = { x: O.x + R * Math.cos(ang + beta), y: O.y + R * Math.sin(ang + beta) };
+    const vx2 = T2.x - px, vy2 = T2.y - py;
+    const len2 = Math.hypot(vx2, vy2) || 1;
+    const uTan2 = { x: vx2 / len2, y: vy2 / len2 };
+    const p1_2 = { x: px - 25 * uTan2.x, y: py - 25 * uTan2.y };
+    const p2_2 = { x: T2.x + 45 * uTan2.x, y: T2.y + 45 * uTan2.y };
+
+    state.pendingOptions = {
+      type: 'tangent',
+      point: point,
+      circle: circle,
+      options: [
+        {
+          id: 1,
+          name: 'Tiếp tuyến 1',
+          branch: 0,
+          start: p1_1,
+          end: p2_1,
+          tangentPoint: T1
+        },
+        {
+          id: 2,
+          name: 'Tiếp tuyến 2',
+          branch: 1,
+          start: p1_2,
+          end: p2_2,
+          tangentPoint: T2
+        }
+      ]
+    };
+
+    state.hoveredOptionIndex = -1;
+    state.construction = { point: null, circle: null, line: null, edges: [] };
+    state.pendingConstruction = null;
+    state.activeTool = 'select';
+    toolButtons.forEach(b => b.classList.toggle('active', b.getAttribute('data-tool') === 'select'));
+    setCanvasCursor(SHARP_ARROW_CURSOR);
+    updateContextualToolbar('select');
+
+    statusToolInfo.textContent = '✨ Có 2 đường tiếp tuyến gợi ý (nét đứt). Bấm vào đường cần chọn trên bảng vẽ.';
+    renderPage();
+    return null;
+  }
+
+  // Hoàn tất dựng tiếp tuyến khi người dùng đã bấm chọn 1 trong 2 đường gợi ý
+  function finalizeChosenTangent(opt) {
+    if (!state.pendingOptions || state.pendingOptions.type !== 'tangent') return null;
+    const { point, circle } = state.pendingOptions;
+    const O = circle.center || (circle.start ? { x: circle.start.x, y: circle.start.y } : { x: 0, y: 0 });
+    const R = circle.radius || (circle.end ? Math.hypot(circle.end.x - circle.start.x, circle.end.y - circle.start.y) : 50);
+    const px = (point.x !== undefined) ? point.x : (point.start ? point.start.x : 0);
+    const py = (point.y !== undefined) ? point.y : (point.start ? point.start.y : 0);
+
+    const circleEl = circle.element || (circle.shape === 'circle' ? circle : null);
+    const ptEl = (point && point.element) ? point.element : (point && point.shape === 'point' ? point : null);
+
+    let bindingInfo = null;
+    if (circleEl) {
+      ensureElementId(circleEl);
+      if (ptEl) ensureElementId(ptEl);
+      bindingInfo = {
+        type: 'circle_tangent',
+        parentId: circleEl.id,
+        pointElId: ptEl ? ptEl.id : null,
+        onCircle: false,
+        branch: opt.branch,
+        offset: { dx: px - O.x, dy: py - O.y }
+      };
     }
 
     const newGeo = {
       type: 'geo',
       shape: 'tangent',
       binding: bindingInfo,
-      start: p1,
-      end: p2,
-      tangentPoint: T,
+      start: opt.start,
+      end: opt.end,
+      tangentPoint: opt.tangentPoint,
       center: { x: O.x, y: O.y },
       radius: R,
       color: state.color,
@@ -3222,8 +3463,12 @@ document.addEventListener('DOMContentLoaded', () => {
       linkGroupMulti(parentsToLink, newGeo);
     }
     pushNewElement(newGeo);
+    state.pendingOptions = null;
+    state.hoveredOptionIndex = -1;
     finishGeoTask(newGeo);
-    statusToolInfo.textContent = '✨ Đã dựng tiếp tuyến (tự động gắn kết thành 1 nhóm với đường tròn).';
+    statusToolInfo.textContent = '✨ Đã hoàn tất dựng tiếp tuyến (tự động gắn kết thành 1 nhóm với đường tròn).';
+    renderPage();
+    return newGeo;
   }
 
   // Dựng 2 tiếp tuyến cắt nhau cho đường tròn từ 1 điểm ngoài đường tròn
@@ -3733,14 +3978,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const armLen = Math.max(90, Math.hypot(B.x - A.x, B.y - A.y));
-    const deg = parseFloat(angleDegreesInput.value) || 60;
+    const deg = parseFloat(angleDegreesInput ? angleDegreesInput.value : 60) || 60;
     const rad = (deg * Math.PI) / 180;
-    const secondAngle = baseDir - rad;
-    const secondPt = {
-      x: V.x + armLen * Math.cos(secondAngle),
-      y: V.y + armLen * Math.sin(secondAngle)
+
+    // Hướng mở 1: baseDir - rad (direction: -1)
+    const secondAngle1 = baseDir - rad;
+    const secondPt1 = {
+      x: V.x + armLen * Math.cos(secondAngle1),
+      y: V.y + armLen * Math.sin(secondAngle1)
     };
 
+    // Hướng mở 2: baseDir + rad (direction: 1)
+    const secondAngle2 = baseDir + rad;
+    const secondPt2 = {
+      x: V.x + armLen * Math.cos(secondAngle2),
+      y: V.y + armLen * Math.sin(secondAngle2)
+    };
+
+    state.pendingOptions = {
+      type: 'angle',
+      edge: edge,
+      point: point,
+      V: V,
+      baseDir: baseDir,
+      armLen: armLen,
+      deg: deg,
+      options: [
+        {
+          id: 1,
+          name: `Góc ${deg}° (Hướng 1)`,
+          direction: -1,
+          start: { x: V.x, y: V.y },
+          end: { x: V.x + armLen * Math.cos(baseDir), y: V.y + armLen * Math.sin(baseDir) },
+          secondPoint: secondPt1,
+          secondAngle: secondAngle1,
+          angleDeg: deg
+        },
+        {
+          id: 2,
+          name: `Góc ${deg}° (Hướng 2)`,
+          direction: 1,
+          start: { x: V.x, y: V.y },
+          end: { x: V.x + armLen * Math.cos(baseDir), y: V.y + armLen * Math.sin(baseDir) },
+          secondPoint: secondPt2,
+          secondAngle: secondAngle2,
+          angleDeg: deg
+        }
+      ]
+    };
+
+    state.hoveredOptionIndex = -1;
+    state.construction = { point: null, circle: null, line: null, edges: [] };
+    state.pendingConstruction = null;
+    state.activeTool = 'select';
+    // Hiện ô số đo góc trên toolbar và đồng bộ giá trị
+    if (angleInputContainer) {
+      angleInputContainer.style.display = 'inline-flex';
+    }
+    if (angleDegreesInput) {
+      angleDegreesInput.value = deg;
+    }
+
+    // Hiển thị khung nhập số đo góc nổi trực tiếp trên canvas tại đỉnh góc
+    showFloatingAngleBox(V, baseDir, deg);
+
+    statusToolInfo.textContent = `✨ Số đo góc: ${deg}°. Nhập số góc vào ô rồi bấm chọn 1 trong 2 đường nét đứt để vẽ.`;
+    renderPage();
+    return null;
+  }
+
+  // Hoàn tất dựng góc khi người dùng bấm chọn 1 trong 2 hướng mở gợi ý
+  function finalizeChosenAngle(opt) {
+    if (!state.pendingOptions || state.pendingOptions.type !== 'angle') return null;
+    const { edge, point, V, baseDir, armLen, deg } = state.pendingOptions;
     const ptEl = (point && point.element) ? point.element : (point && point.shape === 'point' ? point : null);
     if (edge.element) ensureElementId(edge.element);
     if (ptEl) ensureElementId(ptEl);
@@ -3751,9 +4061,10 @@ document.addEventListener('DOMContentLoaded', () => {
       start: { x: V.x, y: V.y },
       baseDir: baseDir,
       end: { x: V.x + armLen * Math.cos(baseDir), y: V.y + armLen * Math.sin(baseDir) },
-      secondPoint: secondPt,
+      secondPoint: opt.secondPoint,
       armLength: armLen,
       angleDeg: deg,
+      direction: opt.direction,
       color: state.color,
       width: state.strokeWidth,
       dash: state.dashStyle,
@@ -3767,7 +4078,8 @@ document.addEventListener('DOMContentLoaded', () => {
         v1Index: edge.v1Index,
         v2Index: edge.v2Index,
         baseDir: baseDir,
-        angleDeg: deg
+        angleDeg: deg,
+        direction: opt.direction
       } : null
     };
 
@@ -3778,18 +4090,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     pushNewElement(newAngle);
+    state.pendingOptions = null;
+    state.hoveredOptionIndex = -1;
     finishGeoTask(newAngle);
 
     // Tự động chuyển sang công cụ Chọn với con trỏ Chọn
     state.activeTool = 'select';
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === 'select'));
+    toolButtons.forEach(b => b.classList.toggle('active', b.getAttribute('data-tool') === 'select'));
     setCanvasCursor(SHARP_ARROW_CURSOR);
     updateContextualToolbar('select');
 
     // Tự động chọn góc vừa tạo để người dùng thấy quầng sáng và điều khiển
     setSelectedElements([newAngle]);
 
-    // LÚC NÀY Ô SỐ ĐO MỚI HIỆN LÊN ĐỂ ĐIỀU CHỈNH
+    // Hiện ô số đo độ để người dùng có thể điều chỉnh
     if (angleInputContainer) {
       angleInputContainer.style.display = 'inline-flex';
     }
@@ -3800,9 +4114,21 @@ document.addEventListener('DOMContentLoaded', () => {
         angleDegreesInput.select();
       }, 50);
     }
-    statusToolInfo.textContent = `✨ Đã vẽ đường còn lại tạo góc ${deg}°. Nhập số đo trên ô [ ∡ ${deg} ° ] để điều chỉnh.`;
+    statusToolInfo.textContent = `✨ Đã vẽ đường theo hướng góc ${deg}°. Nhập số đo trên ô [ ∡ ${deg} ° ] để điều chỉnh.`;
     renderPage();
     return newAngle;
+  }
+
+  // Chọn 1 trong 2 tùy chọn nét đứt (Tiếp tuyến hoặc Chọn góc)
+  function applyChosenOption(index) {
+    if (!state.pendingOptions || !state.pendingOptions.options || !state.pendingOptions.options[index]) return null;
+    const opt = state.pendingOptions.options[index];
+    if (state.pendingOptions.type === 'tangent') {
+      return finalizeChosenTangent(opt);
+    } else if (state.pendingOptions.type === 'angle') {
+      return finalizeChosenAngle(opt);
+    }
+    return null;
   }
 
   // Trích xuất tọa độ điểm từ một phần tử
@@ -4091,6 +4417,256 @@ document.addEventListener('DOMContentLoaded', () => {
           return true;
         }
       }
+    }
+
+    return false;
+  }
+
+  // Xử lý chọn đối tượng và tự động thực hiện tác vụ dựng hình khi đang ở chế độ Chọn (Select Tool)
+  function handleConstructionSelectionClick(point, e) {
+    if (!state.pendingConstruction) return false;
+    const task = state.pendingConstruction;
+
+    // 1. Tìm Điểm: điểm rời, hoặc đỉnh tam giác/đa giác, hoặc đầu mút handle
+    let hitPoint = null;
+    const directPointEl = findElementAt(point.x, point.y);
+    if (directPointEl && directPointEl.type === 'geo' && directPointEl.shape === 'point') {
+      hitPoint = { x: directPointEl.start.x, y: directPointEl.start.y, element: directPointEl };
+    }
+    if (!hitPoint) {
+      const v = findPointAt(point.x, point.y, 26);
+      if (v) {
+        hitPoint = { x: v.x, y: v.y, element: v.element, vertexIndex: (v.vIndex !== undefined ? v.vIndex : v.vertexIndex) };
+      }
+    }
+    if (!hitPoint) {
+      const h = findHandleAt(point.x, point.y, 28);
+      if (h && h.handle) {
+        hitPoint = { x: h.handle.x, y: h.handle.y, element: h.element };
+      }
+    }
+
+    // 2. Tìm Cạnh / Đoạn thẳng
+    const hitEdge = findEdgeAt(point.x, point.y, 26);
+
+    // 3. Tìm Đường tròn
+    const hitCircle = findCircleAt(point.x, point.y, 26);
+
+    // ==========================================================
+    // TÁC VỤ 1 & 2: VUÔNG GÓC & SONG SONG (1 điểm + 1 đường)
+    // ==========================================================
+    if (task === 'perpendicular' || task === 'parallel') {
+      const taskName = task === 'perpendicular' ? 'vuông góc' : 'song song';
+
+      // Trường hợp 1: Chưa chọn đối tượng nào
+      if (!state.construction.point && !state.construction.line) {
+        if (hitEdge && (!hitPoint || hitPoint.element !== hitEdge.element)) {
+          state.construction.line = hitEdge;
+          statusToolInfo.textContent = `✓ Đã chọn Đường thẳng. Tiếp tục chọn 1 điểm để thực hiện tác vụ ${taskName}.`;
+          showPageToast(`✓ Đã nhận đường thẳng. Chọn tiếp điểm!`);
+          renderPage();
+          return true;
+        } else if (hitPoint) {
+          state.construction.point = hitPoint;
+          statusToolInfo.textContent = `✓ Đã chọn Điểm. Tiếp tục chọn 1 đường thẳng (hoặc cạnh) để thực hiện tác vụ ${taskName}.`;
+          showPageToast(`✓ Đã nhận điểm. Chọn tiếp đường thẳng!`);
+          renderPage();
+          return true;
+        } else {
+          // Người dùng bấm ra khoảng trống: lấy ngay điểm tại tọa độ click
+          state.construction.point = { x: point.x, y: point.y };
+          statusToolInfo.textContent = `✓ Đã chọn Điểm tại vị trí bấm. Tiếp tục chọn 1 đường thẳng để thực hiện tác vụ ${taskName}.`;
+          showPageToast(`✓ Đã nhận điểm. Chọn tiếp đường thẳng!`);
+          renderPage();
+          return true;
+        }
+      }
+
+      // Trường hợp 2: Đã có đường thẳng, tiếp tục chọn điểm -> Thực hiện tác vụ
+      if (state.construction.line && !state.construction.point) {
+        const pt = hitPoint || { x: point.x, y: point.y };
+        if (task === 'perpendicular') {
+          constructPerpendicular(pt, state.construction.line);
+        } else {
+          constructParallel(pt, state.construction.line);
+        }
+        state.pendingConstruction = null;
+        return true;
+      }
+
+      // Trường hợp 3: Đã có điểm, tiếp tục chọn đường thẳng -> Thực hiện tác vụ
+      if (state.construction.point && !state.construction.line) {
+        if (hitEdge) {
+          if (task === 'perpendicular') {
+            constructPerpendicular(state.construction.point, hitEdge);
+          } else {
+            constructParallel(state.construction.point, hitEdge);
+          }
+          state.pendingConstruction = null;
+          return true;
+        } else if (hitPoint) {
+          // Bấm sang điểm khác: đổi điểm đã chọn
+          state.construction.point = hitPoint;
+          statusToolInfo.textContent = `✓ Đã đổi sang Điểm mới. Tiếp tục chọn 1 đường thẳng để thực hiện tác vụ ${taskName}.`;
+          renderPage();
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // ==========================================================
+    // TÁC VỤ 3: PHÂN GIÁC (1 đỉnh tam giác hoặc 2 cạnh)
+    // ==========================================================
+    if (task === 'bisector') {
+      // 1. Tiện ích siêu nhanh: Nhấp trực tiếp vào 1 đỉnh tam giác -> Dựng ngay tia phân giác!
+      if (hitPoint && hitPoint.element && hitPoint.element.points && hitPoint.element.points.length === 3) {
+        let vIdx = hitPoint.vertexIndex;
+        if (vIdx === undefined) {
+          vIdx = hitPoint.element.points.findIndex(p => Math.hypot(p.x - hitPoint.x, p.y - hitPoint.y) < 10);
+        }
+        if (vIdx !== -1 && vIdx !== undefined) {
+          constructBisectorFromTriangleVertex(hitPoint.element, vIdx);
+          state.pendingConstruction = null;
+          return true;
+        }
+      }
+
+      // 2. Chọn lần lượt 2 cạnh
+      if (hitEdge) {
+        if (!state.construction.edges || state.construction.edges.length === 0) {
+          state.construction.edges = [hitEdge];
+          statusToolInfo.textContent = '✓ Đã chọn Cạnh thứ nhất. Tiếp tục chọn Cạnh thứ 2 để thực hiện tác vụ phân giác.';
+          showPageToast('✓ Đã chọn Cạnh 1. Chọn tiếp Cạnh 2!');
+          renderPage();
+          return true;
+        } else {
+          const edge1 = state.construction.edges[0];
+          if (edge1.element === hitEdge.element && edge1.edgeId === hitEdge.edgeId) {
+            statusToolInfo.textContent = 'Bạn vừa bấm lại cạnh cũ. Hãy chọn một cạnh khác để tạo thành góc!';
+            return true;
+          }
+          // Đã có đủ 2 cạnh -> Thực hiện tác vụ!
+          constructBisector(edge1, hitEdge);
+          state.pendingConstruction = null;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // ==========================================================
+    // TÁC VỤ 4 & 5: TIẾP TUYẾN & 2 TIẾP TUYẾN (1 điểm + 1 đường tròn)
+    // ==========================================================
+    if (task === 'tangent' || task === 'two-tangents') {
+      const isTwo = task === 'two-tangents';
+      const taskName = isTwo ? '2 tiếp tuyến' : 'tiếp tuyến';
+
+      // Trường hợp 1: Chưa chọn gì
+      if (!state.construction.point && !state.construction.circle) {
+        if (hitCircle) {
+          state.construction.circle = hitCircle;
+          statusToolInfo.textContent = `✓ Đã chọn Đường tròn. Tiếp tục chọn 1 điểm (${isTwo ? 'ngoài đường tròn' : 'trên hoặc ngoài đường tròn'}) để thực hiện tác vụ ${taskName}.`;
+          showPageToast('✓ Đã nhận đường tròn. Chọn tiếp điểm!');
+          renderPage();
+          return true;
+        } else if (hitPoint) {
+          state.construction.point = hitPoint;
+          statusToolInfo.textContent = `✓ Đã chọn Điểm. Tiếp tục chọn Đường tròn để thực hiện tác vụ ${taskName}.`;
+          showPageToast('✓ Đã nhận điểm. Chọn tiếp đường tròn!');
+          renderPage();
+          return true;
+        } else {
+          // Bấm khoảng trống: lấy điểm tại vị trí bấm
+          state.construction.point = { x: point.x, y: point.y };
+          statusToolInfo.textContent = `✓ Đã chọn Điểm tại vị trí bấm. Tiếp tục chọn Đường tròn để thực hiện tác vụ ${taskName}.`;
+          showPageToast('✓ Đã nhận điểm. Chọn tiếp đường tròn!');
+          renderPage();
+          return true;
+        }
+      }
+
+      // Trường hợp 2: Đã có đường tròn, tiếp tục chọn điểm -> Thực hiện tác vụ
+      if (state.construction.circle && !state.construction.point) {
+        const pt = hitPoint || { x: point.x, y: point.y };
+        if (isTwo) {
+          constructTwoTangents(pt, state.construction.circle);
+        } else {
+          constructTangent(pt, state.construction.circle);
+        }
+        state.pendingConstruction = null;
+        return true;
+      }
+
+      // Trường hợp 3: Đã có điểm, tiếp tục chọn đường tròn -> Thực hiện tác vụ
+      if (state.construction.point && !state.construction.circle) {
+        if (hitCircle) {
+          if (isTwo) {
+            constructTwoTangents(state.construction.point, hitCircle);
+          } else {
+            constructTangent(state.construction.point, hitCircle);
+          }
+          state.pendingConstruction = null;
+          return true;
+        } else if (hitPoint) {
+          state.construction.point = hitPoint;
+          statusToolInfo.textContent = `✓ Đã đổi sang Điểm mới. Tiếp tục chọn Đường tròn để thực hiện tác vụ ${taskName}.`;
+          renderPage();
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // ==========================================================
+    // TÁC VỤ 6: CHỌN GÓC (1 đường + 1 điểm đỉnh)
+    // ==========================================================
+    if (task === 'angle') {
+      // Trường hợp 1: Chưa chọn gì
+      if (!state.construction.point && !state.construction.line) {
+        if (hitEdge && (!hitPoint || hitPoint.element !== hitEdge.element)) {
+          state.construction.line = hitEdge;
+          statusToolInfo.textContent = '✓ Đã chọn Đường thẳng. Tiếp tục chọn 1 Điểm đỉnh để dựng góc theo số đo.';
+          showPageToast('✓ Đã chọn Đường. Chọn tiếp Điểm đỉnh!');
+          renderPage();
+          return true;
+        } else if (hitPoint) {
+          state.construction.point = hitPoint;
+          statusToolInfo.textContent = '✓ Đã chọn Điểm đỉnh. Tiếp tục chọn 1 Đường thẳng để dựng góc theo số đo.';
+          showPageToast('✓ Đã chọn Điểm đỉnh. Chọn tiếp Đường thẳng!');
+          renderPage();
+          return true;
+        } else {
+          state.construction.point = { x: point.x, y: point.y };
+          statusToolInfo.textContent = '✓ Đã chọn Điểm đỉnh tại vị trí bấm. Tiếp tục chọn 1 Đường thẳng để dựng góc.';
+          showPageToast('✓ Đã chọn Điểm đỉnh. Chọn tiếp Đường thẳng!');
+          renderPage();
+          return true;
+        }
+      }
+
+      // Trường hợp 2: Đã có đường, tiếp tục chọn điểm đỉnh -> Thực hiện tác vụ
+      if (state.construction.line && !state.construction.point) {
+        const pt = hitPoint || { x: point.x, y: point.y };
+        constructAngleFromLineAndPoint(state.construction.line, pt);
+        state.pendingConstruction = null;
+        return true;
+      }
+
+      // Trường hợp 3: Đã có điểm đỉnh, tiếp tục chọn đường -> Thực hiện tác vụ
+      if (state.construction.point && !state.construction.line) {
+        if (hitEdge) {
+          constructAngleFromLineAndPoint(hitEdge, state.construction.point);
+          state.pendingConstruction = null;
+          return true;
+        } else if (hitPoint) {
+          state.construction.point = hitPoint;
+          statusToolInfo.textContent = '✓ Đã đổi sang Điểm đỉnh mới. Tiếp tục chọn 1 Đường thẳng để dựng góc.';
+          renderPage();
+          return true;
+        }
+      }
+      return false;
     }
 
     return false;
@@ -4420,17 +4996,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.construction.point) {
       const p = state.construction.point;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
+      ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
       ctx.fill();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#28634e';
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#16a34a';
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = '#28634e';
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#184e3a';
       ctx.fill();
+
+      drawSharpArrowIndicator(ctx, p.x, p.y, '✓ Đã chọn: Điểm', true);
     }
 
     // 2. Vẽ đường thẳng đã chọn
@@ -4439,9 +5017,21 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.beginPath();
       ctx.moveTo(l.start.x, l.start.y);
       ctx.lineTo(l.end.x, l.end.y);
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(40, 99, 78, 0.55)';
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)';
+      ctx.lineCap = 'round';
       ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(l.start.x, l.start.y);
+      ctx.lineTo(l.end.x, l.end.y);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#184e3a';
+      ctx.stroke();
+
+      const midX = (l.start.x + l.end.x) / 2;
+      const midY = (l.start.y + l.end.y) / 2;
+      drawSharpArrowIndicator(ctx, midX, midY, '✓ Đã chọn: Đường thẳng', true);
     }
 
     // 3. Vẽ đường tròn đã chọn (cho Tiếp tuyến)
@@ -4449,13 +5039,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const c = state.construction.circle;
       ctx.beginPath();
       ctx.arc(c.center.x, c.center.y, c.radius, 0, Math.PI * 2);
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(40, 99, 78, 0.55)';
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)';
       ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(c.center.x, c.center.y, c.radius, 0, Math.PI * 2);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#184e3a';
+      ctx.stroke();
+
+      drawSharpArrowIndicator(ctx, c.center.x, c.center.y - c.radius, '✓ Đã chọn: Đường tròn', true);
     }
 
     // 4. Vẽ các cạnh đã chọn và hiệu ứng xem trước cho phân giác
-    if (state.activeTool === 'geo' && state.activeGeo === 'bisector') {
+    if ((state.activeTool === 'geo' || state.activeTool === 'select') && (state.activeGeo === 'bisector' || state.pendingConstruction === 'bisector')) {
       // 4.1. Xem trước khi rê chuột vào đỉnh tam giác
       if (state.bisectorHoverVertex && state.bisectorHoverVertex.element) {
         const hv = state.bisectorHoverVertex;
@@ -4622,6 +5220,143 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
+  // Vẽ 2 tùy chọn nét đứt (Tiếp tuyến hoặc Chọn góc) để người dùng bấm chọn
+  function drawPendingOptions(c) {
+    if (!state.pendingOptions || !state.pendingOptions.options) return;
+    const po = state.pendingOptions;
+    const targetCtx = c || ctx;
+    if (!targetCtx) return;
+
+    targetCtx.save();
+
+    if (po.type === 'tangent') {
+      const opts = po.options;
+      for (let i = 0; i < opts.length; i++) {
+        const opt = opts[i];
+        const isHovered = (state.hoveredOptionIndex === i);
+
+        // 1. Quầng sáng phát quang (glow) khi rê chuột vào gần
+        if (isHovered) {
+          targetCtx.save();
+          targetCtx.beginPath();
+          targetCtx.moveTo(opt.start.x, opt.start.y);
+          targetCtx.lineTo(opt.end.x, opt.end.y);
+          targetCtx.lineWidth = 14;
+          targetCtx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+          targetCtx.lineCap = 'round';
+          targetCtx.stroke();
+          targetCtx.restore();
+        }
+
+        // 2. Đường tiếp tuyến nét đứt chính
+        targetCtx.save();
+        targetCtx.beginPath();
+        targetCtx.moveTo(opt.start.x, opt.start.y);
+        targetCtx.lineTo(opt.end.x, opt.end.y);
+        targetCtx.setLineDash([8, 6]);
+        targetCtx.lineWidth = isHovered ? 3.5 : 2.5;
+        targetCtx.strokeStyle = isHovered ? '#059669' : '#10b981';
+        targetCtx.lineCap = 'round';
+        targetCtx.stroke();
+        targetCtx.restore();
+
+        // 3. Vòng tròn tiếp điểm T
+        if (opt.tangentPoint) {
+          targetCtx.save();
+          targetCtx.beginPath();
+          targetCtx.arc(opt.tangentPoint.x, opt.tangentPoint.y, isHovered ? 6 : 4.5, 0, Math.PI * 2);
+          targetCtx.fillStyle = isHovered ? '#059669' : '#10b981';
+          targetCtx.fill();
+          targetCtx.lineWidth = 2;
+          targetCtx.strokeStyle = '#ffffff';
+          targetCtx.stroke();
+          targetCtx.restore();
+        }
+
+        // 4. Nhãn chỉ báo (Badge)
+        const midX = (opt.start.x + opt.end.x) / 2;
+        const midY = (opt.start.y + opt.end.y) / 2;
+        const dx = opt.end.x - opt.start.x;
+        const dy = opt.end.y - opt.start.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+        const sign = (i === 0) ? 1 : -1;
+        const badgeX = midX + sign * 24 * nx;
+        const badgeY = midY + sign * 24 * ny;
+
+        const labelText = `🎯 Tiếp tuyến ${i + 1} (Bấm chọn)`;
+        drawSharpArrowIndicator(targetCtx, badgeX, badgeY, labelText, isHovered);
+      }
+    } else if (po.type === 'angle') {
+      const opts = po.options;
+      const V = po.V;
+      const armLen = po.armLen || 90;
+      const baseDir = po.baseDir || 0;
+
+      // 1. Làm nổi bật cạnh cơ sở làm mốc
+      targetCtx.save();
+      targetCtx.beginPath();
+      targetCtx.moveTo(V.x, V.y);
+      targetCtx.lineTo(V.x + armLen * Math.cos(baseDir), V.y + armLen * Math.sin(baseDir));
+      targetCtx.lineWidth = 4;
+      targetCtx.strokeStyle = 'rgba(24, 78, 58, 0.4)';
+      targetCtx.stroke();
+      targetCtx.restore();
+
+      for (let i = 0; i < opts.length; i++) {
+        const opt = opts[i];
+        const isHovered = (state.hoveredOptionIndex === i);
+        const secondPt = opt.secondPoint;
+
+        // 2. Quầng sáng phát quang khi rê chuột
+        if (isHovered) {
+          targetCtx.save();
+          targetCtx.beginPath();
+          targetCtx.moveTo(V.x, V.y);
+          targetCtx.lineTo(secondPt.x, secondPt.y);
+          targetCtx.lineWidth = 14;
+          targetCtx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+          targetCtx.lineCap = 'round';
+          targetCtx.stroke();
+          targetCtx.restore();
+        }
+
+        // 3. Tia góc nét đứt
+        targetCtx.save();
+        targetCtx.beginPath();
+        targetCtx.moveTo(V.x, V.y);
+        targetCtx.lineTo(secondPt.x, secondPt.y);
+        targetCtx.setLineDash([8, 6]);
+        targetCtx.lineWidth = isHovered ? 3.5 : 2.5;
+        targetCtx.strokeStyle = isHovered ? '#059669' : '#10b981';
+        targetCtx.lineCap = 'round';
+        targetCtx.stroke();
+        targetCtx.restore();
+
+        // 4. Cung góc nhỏ xem trước ở đỉnh V
+        targetCtx.save();
+        targetCtx.beginPath();
+        const arcR = 36;
+        const anticlockwise = (opt.direction === -1);
+        targetCtx.arc(V.x, V.y, arcR, baseDir, opt.secondAngle, anticlockwise);
+        targetCtx.setLineDash([4, 3]);
+        targetCtx.lineWidth = 2;
+        targetCtx.strokeStyle = isHovered ? '#059669' : '#10b981';
+        targetCtx.stroke();
+        targetCtx.restore();
+
+        // 5. Nhãn chỉ báo (Badge) ở trung điểm tia
+        const midX = (V.x + secondPt.x) / 2;
+        const midY = (V.y + secondPt.y) / 2;
+        const labelText = `🎯 Hướng ${i + 1}: ${opt.angleDeg}° (Bấm chọn)`;
+        drawSharpArrowIndicator(targetCtx, midX, midY, labelText, isHovered);
+      }
+    }
+
+    targetCtx.restore();
+  }
+
   // Đặt con trỏ chuột đồng bộ cho tất cả các trang
   function setCanvasCursor(cursorStyle) {
     if (document.body && document.body.classList) {
@@ -4656,10 +5391,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const point = getCanvasCoordinates(e);
 
     // Cập nhật trạng thái lực nhấn
-    statusPressureInfo.textContent = `Lực nhấn bút: ${(point.pressure * 100).toFixed(0)}% (${point.pointerType})`;
+    // Nếu người dùng đang nhấp vào khung nhập số đo góc nổi trên canvas
+    if (e.target && e.target.closest && e.target.closest('.floating-angle-box')) {
+      return;
+    }
+
+    // Nếu có 2 tùy chọn nét đứt (Tiếp tuyến hoặc Chọn góc) đang chờ người dùng bấm chọn
+    if (state.pendingOptions && state.pendingOptions.options) {
+      let chosenIdx = -1;
+      let minDist = Infinity;
+      const opts = state.pendingOptions.options;
+      for (let i = 0; i < opts.length; i++) {
+        const opt = opts[i];
+        const p1 = opt.start;
+        const p2 = (state.pendingOptions.type === 'tangent') ? opt.end : opt.secondPoint;
+        if (p1 && p2) {
+          const d = distToSegment(point.x, point.y, p1.x, p1.y, p2.x, p2.y);
+          if (d < minDist) {
+            minDist = d;
+            if (d <= 32) chosenIdx = i;
+          }
+        }
+      }
+      if (chosenIdx !== -1) {
+        applyChosenOption(chosenIdx);
+        return;
+      } else {
+        statusToolInfo.textContent = '✨ Vui lòng bấm chuột chọn 1 trong 2 đường nét đứt gợi ý (hoặc nhấn phím Escape để hủy).';
+        return;
+      }
+    }
 
     // Xử lý công cụ Chọn đối tượng (hỗ trợ chọn cạnh, giữ Cmd chọn đỉnh, kéo handle, di chuyển nhóm)
     if (state.activeTool === 'select') {
+      // Nếu có tác vụ dựng hình đang chờ (Bước 3 & Bước 4 theo yêu cầu)
+      if (state.pendingConstruction) {
+        const handled = handleConstructionSelectionClick(point, e);
+        if (handled) return;
+      }
+
       const isMultiKey = e.metaKey || e.ctrlKey || e.shiftKey;
 
       if (isMultiKey) {
@@ -4739,21 +5509,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Kiểm tra trúng điểm hình học rời
         const hitPoint = findElementAt(point.x, point.y);
         if (hitPoint && hitPoint.type === 'geo' && hitPoint.shape === 'point') {
-          if (isElementSelected(hitPoint)) {
-            state.isDrawing = true;
-            state.dragLast = { x: point.x, y: point.y };
-            state.totalMoved = { dx: 0, dy: 0 };
-            state.pendingSingleSelect = hitPoint;
-            canvas.style.cursor = 'grabbing';
-          } else {
-            const toSelect = getGroupElements(hitPoint);
-            setSelectedElements(toSelect);
-            state.isDrawing = true;
-            state.dragLast = { x: point.x, y: point.y };
-            state.totalMoved = { dx: 0, dy: 0 };
-            state.pendingSingleSelect = null;
-            canvas.style.cursor = 'grabbing';
-          }
+          setSelectedElements([hitPoint]);
+          state.isDrawing = true;
+          state.dragLast = { x: point.x, y: point.y };
+          state.totalMoved = { dx: 0, dy: 0 };
+          state.pendingSingleSelect = hitPoint;
+          canvas.style.cursor = 'grabbing';
           renderPage();
           return;
         }
@@ -4803,6 +5564,23 @@ document.addEventListener('DOMContentLoaded', () => {
               state.isDrawing = false;
               renderPage();
               return;
+            } else if (headerBtn === 'area_volume') {
+              window.__GraphWidget.openGraphSettingsModal(el, (updated) => {
+                const before = JSON.parse(JSON.stringify(el));
+                Object.assign(el, updated);
+                pushCommand({
+                  type: 'modify-element',
+                  element: el,
+                  before: before,
+                  after: JSON.parse(JSON.stringify(el))
+                });
+                renderPage();
+                showPageToast('📐 Đã cập nhật Diện tích (S) & Thể tích (V)!');
+              }, 'tab-graph-area-volume');
+              setSelectedElements([el]);
+              state.isDrawing = false;
+              renderPage();
+              return;
             } else if (headerBtn === 'toggle3d') {
               if (!el.revolution3D) el.revolution3D = { enabled: false };
               el.revolution3D.enabled = !el.revolution3D.enabled;
@@ -4844,21 +5622,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
-          if (isElementSelected(el)) {
-            state.isDrawing = true;
-            state.dragLast = { x: point.x, y: point.y };
-            state.totalMoved = { dx: 0, dy: 0 };
-            state.pendingSingleSelect = el;
-            canvas.style.cursor = 'grabbing';
-          } else {
-            const toSelect = getGroupElements(el);
-            setSelectedElements(toSelect);
-            state.isDrawing = true;
-            state.dragLast = { x: point.x, y: point.y };
-            state.totalMoved = { dx: 0, dy: 0 };
-            state.pendingSingleSelect = null;
-            canvas.style.cursor = 'grabbing';
-          }
+          setSelectedElements([el]);
+          state.isDrawing = true;
+          state.dragLast = { x: point.x, y: point.y };
+          state.totalMoved = { dx: 0, dy: 0 };
+          state.pendingSingleSelect = el;
+          canvas.style.cursor = 'grabbing';
         } else {
           // Bấm ra ngoài khoảng trống canvas: xóa chọn
           setSelectedElements([]);
@@ -5302,17 +6071,19 @@ document.addEventListener('DOMContentLoaded', () => {
           const dy = point.y - el.start.y;
           translateElement(el, dx, dy);
         } else if (h.id === 'second_pt') {
+          const base = (el.baseDir !== undefined ? el.baseDir : 0);
           const curDir = Math.atan2(point.y - el.start.y, point.x - el.start.x);
-          let diffRad = (el.baseDir !== undefined ? el.baseDir : 0) - curDir;
-          while (diffRad < 0) diffRad += Math.PI * 2;
-          while (diffRad >= Math.PI * 2) diffRad -= Math.PI * 2;
-          let deg = Math.round((diffRad * 180) / Math.PI);
-          if (deg > 180) deg = 360 - deg;
-          deg = Math.max(5, Math.min(180, deg));
+          let diffRad = curDir - base;
+          while (diffRad < -Math.PI) diffRad += Math.PI * 2;
+          while (diffRad > Math.PI) diffRad -= Math.PI * 2;
+          let deg = Math.round((Math.abs(diffRad) * 180) / Math.PI);
+          deg = Math.max(1, Math.min(180, deg));
           el.angleDeg = deg;
+          el.direction = diffRad >= 0 ? 1 : -1;
+          if (el.binding) el.binding.direction = el.direction;
           const armLen = Math.hypot(point.x - el.start.x, point.y - el.start.y);
           el.armLength = Math.max(30, Math.round(armLen));
-          const rad = (el.baseDir !== undefined ? el.baseDir : 0) - (deg * Math.PI / 180);
+          const rad = base + el.direction * (deg * Math.PI / 180);
           el.secondPoint = {
             x: Math.round(el.start.x + el.armLength * Math.cos(rad)),
             y: Math.round(el.start.y + el.armLength * Math.sin(rad))
@@ -5576,6 +6347,35 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Cập nhật hover cho 2 tùy chọn nét đứt (Tiếp tuyến hoặc Chọn góc)
+    if (!state.isDrawing && state.pendingOptions && state.pendingOptions.options) {
+      let closestIdx = -1;
+      let minDist = Infinity;
+      const opts = state.pendingOptions.options;
+      for (let i = 0; i < opts.length; i++) {
+        const opt = opts[i];
+        const p1 = opt.start;
+        const p2 = (state.pendingOptions.type === 'tangent') ? opt.end : opt.secondPoint;
+        if (p1 && p2) {
+          const d = distToSegment(point.x, point.y, p1.x, p1.y, p2.x, p2.y);
+          if (d < minDist) {
+            minDist = d;
+            if (d <= 32) closestIdx = i;
+          }
+        }
+      }
+      if (state.hoveredOptionIndex !== closestIdx) {
+        state.hoveredOptionIndex = closestIdx;
+        renderPage();
+      }
+      if (closestIdx !== -1) {
+        canvas.style.cursor = 'pointer';
+        return;
+      } else {
+        setCanvasCursor(SHARP_ARROW_CURSOR);
+      }
+    }
+
     if (!state.isDrawing) return;
 
     statusPressureInfo.textContent = `Lực nhấn bút: ${(point.pressure * 100).toFixed(0)}%`;
@@ -5811,8 +6611,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         state.pendingSingleSelect = null;
       } else if (state.pendingSingleSelect) {
-        // Người dùng nhấp (không kéo) vào 1 hình trong nhóm -> chọn trọn nhóm để hiển thị gắn kết
-        setSelectedElements(getGroupElements(state.pendingSingleSelect));
+        // Chỉ chọn đơn lẻ một đối tượng duy nhất theo yêu cầu
+        setSelectedElements([state.pendingSingleSelect]);
         state.pendingSingleSelect = null;
       }
       state.isDrawing = false;
@@ -6289,9 +7089,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const rad = ((el.angleDeg || 60) * Math.PI) / 180;
         const armLen = el.armLength || 65;
         const baseDir = (el.baseDir !== undefined) ? el.baseDir : Math.atan2(el.end.y - el.start.y, el.end.x - el.start.x);
+        const dir = (el.direction !== undefined) ? el.direction : ((el.binding && el.binding.direction !== undefined) ? el.binding.direction : -1);
         const p2 = el.secondPoint || {
-          x: el.start.x + armLen * Math.cos(baseDir - rad),
-          y: el.start.y + armLen * Math.sin(baseDir - rad)
+          x: el.start.x + armLen * Math.cos(baseDir + dir * rad),
+          y: el.start.y + armLen * Math.sin(baseDir + dir * rad)
         };
         const hitArm1 = !el.onlySecondArm && distToSegment(x, y, el.start.x, el.start.y, el.end.x, el.end.y) <= radius + 3;
         const hitArm2 = distToSegment(x, y, el.start.x, el.start.y, p2.x, p2.y) <= radius + 3;
@@ -6559,6 +7360,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       state.hoverPointTarget = null;
       state.construction = { point: null, circle: null, line: null, edges: [] };
+      state.pendingConstruction = null;
 
       const toolNames = {
         pen: 'Bút viết',
@@ -6572,7 +7374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (state.activeTool === 'select') {
         setCanvasCursor(SHARP_ARROW_CURSOR);
-        statusToolInfo.textContent = 'Công cụ: Chọn đối tượng (Bấm để chọn/di chuyển, giữ Shift/⌘ để chọn nhiều, Delete để xóa)';
+        statusToolInfo.textContent = 'Công cụ: Chọn đối tượng (Nhấp để chọn đơn lẻ một đối tượng, kéo để di chuyển, Delete để xóa)';
       } else if (state.activeTool === 'eraser') {
         setCanvasCursor('crosshair');
         state.selectedElement = null;
@@ -6719,10 +7521,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function activateGeoTool(geoName, targetGroupBtn, targetItemBtn) {
     if (!geoName) return;
 
+    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'angle'].includes(geoName);
+
     // 1. Tắt trạng thái active ở các công cụ khác
     toolButtons.forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.geo-group-btn').forEach(gb => gb.classList.remove('active'));
-    if (targetGroupBtn) targetGroupBtn.classList.add('active');
 
     if (targetItemBtn) {
       const parentMenu = targetItemBtn.closest('.geo-dropdown-menu');
@@ -6741,34 +7544,57 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 2. Kích hoạt trạng thái hình học
+    // NẾU LÀ CÁC TÁC VỤ DỰNG HÌNH: PHÂN GIÁC, VUÔNG GÓC, SONG SONG, TIẾP TUYẾN, 2 TIẾP TUYẾN, CHỌN GÓC
+    // Thực hiện đúng quy trình 4 bước theo yêu cầu:
+    // 1. Chọn 1 tác vụ -> 2. Chuyển sang chế độ "Chọn" -> 3. Chọn điểm/đường rồi chọn đối tượng còn lại -> 4. Thực hiện tác vụ
+    if (isConstructionTask) {
+      const toolSelect = document.getElementById('tool-select');
+      if (toolSelect) toolSelect.classList.add('active');
+      state.activeTool = 'select';
+      state.activeGeo = geoName;
+      state.pendingConstruction = geoName;
+      state.hoverPointTarget = null;
+      state.construction = { point: null, circle: null, line: null, edges: [] };
+      setCanvasCursor(SHARP_ARROW_CURSOR);
+
+      if (state.activeGeo === 'perpendicular') {
+        statusToolInfo.textContent = 'Vuông góc: Bấm chọn 1 điểm (hoặc đường), rồi tiếp tục chọn đối tượng còn lại để thực hiện tác vụ';
+      } else if (state.activeGeo === 'parallel') {
+        statusToolInfo.textContent = 'Song song: Bấm chọn 1 điểm (hoặc đường), rồi tiếp tục chọn đối tượng còn lại để thực hiện tác vụ';
+      } else if (state.activeGeo === 'bisector') {
+        statusToolInfo.textContent = 'Phân giác: Bấm chọn cạnh thứ nhất (hoặc 1 đỉnh tam giác), rồi chọn tiếp cạnh thứ 2 để thực hiện tác vụ';
+      } else if (state.activeGeo === 'angle') {
+        statusToolInfo.textContent = 'Chọn góc: Bấm chọn 1 đường (hoặc đỉnh), rồi chọn đối tượng còn lại để thực hiện tác vụ';
+      } else if (state.activeGeo === 'tangent') {
+        statusToolInfo.textContent = 'Tiếp tuyến: Bấm chọn 1 điểm (trên hoặc ngoài đường tròn), rồi chọn đường tròn để thực hiện tác vụ';
+      } else if (state.activeGeo === 'two-tangents') {
+        statusToolInfo.textContent = '2 tiếp tuyến: Bấm chọn 1 điểm ngoài đường tròn, rồi chọn đường tròn để thực hiện tác vụ';
+      }
+
+      showPageToast('🎯 Đã chuyển sang chế độ Chọn: Bấm chọn các đối tượng trên bảng vẽ');
+      updateContextualToolbar('select');
+      renderPage();
+      return;
+    }
+
+    if (targetGroupBtn) targetGroupBtn.classList.add('active');
+
+    // 2. Kích hoạt trạng thái hình học vẽ tự do thông thường
     state.activeTool = 'geo';
     state.activeGeo = geoName;
+    state.pendingConstruction = null;
     state.hoverPointTarget = null;
     state.construction = { point: null, circle: null, line: null, edges: [] };
 
     // 3. Con trỏ chuột phù hợp
-    if (state.activeGeo === 'midpoint' || state.activeGeo === 'angle') {
+    if (state.activeGeo === 'midpoint') {
       setCanvasCursor(SHARP_ARROW_CURSOR);
     } else {
       setCanvasCursor('crosshair');
     }
 
     // 4. Hướng dẫn chi tiết trên thanh trạng thái
-    if (state.activeGeo === 'perpendicular') {
-      statusToolInfo.textContent = 'Vuông góc: Bấm chọn 1 điểm và 1 đường thẳng (hoặc cạnh)';
-    } else if (state.activeGeo === 'parallel') {
-      statusToolInfo.textContent = 'Song song: Bấm chọn 1 điểm và 1 đường thẳng (hoặc cạnh)';
-    } else if (state.activeGeo === 'bisector') {
-      statusToolInfo.textContent = 'Phân giác: Bấm vào 1 đỉnh tam giác để vẽ ngay, hoặc nhấp lần lượt 2 cạnh của góc';
-    } else if (state.activeGeo === 'angle') {
-      if (angleInputContainer) angleInputContainer.style.display = 'none';
-      statusToolInfo.textContent = 'Chọn góc: Bấm chọn 1 đường thẳng (hoặc cạnh) rồi chọn 1 điểm đỉnh để vẽ đường còn lại theo số đo';
-    } else if (state.activeGeo === 'tangent') {
-      statusToolInfo.textContent = 'Tiếp tuyến: Bấm chọn 1 điểm và 1 đường tròn';
-    } else if (state.activeGeo === 'two-tangents') {
-      statusToolInfo.textContent = '2 Tiếp tuyến: Bấm chọn 1 điểm ngoài đường tròn và 1 đường tròn';
-    } else if (state.activeGeo === 'midpoint') {
+    if (state.activeGeo === 'midpoint') {
       statusToolInfo.textContent = 'Trung điểm: Bấm chọn điểm thứ 1, sau đó chọn điểm thứ 2 (hoặc điểm Cmd điểm) để hiển thị trung điểm';
     } else if (state.activeGeo === 'point') {
       statusToolInfo.textContent = 'Điểm: Nhấp vào vị trí bất kỳ để tạo điểm hình học';
@@ -8314,7 +9140,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btnMidpoint) btnMidpoint.click();
     } else if (e.key === 'Escape') {
       closeAllDropdowns();
-      if (state.activeTool === 'geo' || state.activeTool === 'graph' || (state.construction && (state.construction.point || state.construction.line || state.construction.circle || (state.construction.edges && state.construction.edges.length > 0)))) {
+      if (state.activeTool === 'geo' || state.activeTool === 'graph' || state.pendingConstruction || state.pendingOptions || (state.construction && (state.construction.point || state.construction.line || state.construction.circle || (state.construction.edges && state.construction.edges.length > 0)))) {
         finishGeoTask();
       }
     } else if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -8743,6 +9569,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof window !== 'undefined') {
     window.__netInternal = {
       state,
+      getCanvasCoordinates,
+      getControlHandles,
+      handlePointerMove,
       findHandleAt,
       findElementAt,
       findEdgeAt,
@@ -8785,7 +9614,16 @@ document.addEventListener('DOMContentLoaded', () => {
       switchPage,
       smoothScrollTo,
       createNewPage,
-      ensurePageInDOM
+      ensurePageInDOM,
+      handleConstructionSelectionClick,
+      activateGeoTool,
+      applyChosenOption,
+      finalizeChosenTangent,
+      finalizeChosenAngle,
+      finishGeoTask,
+      updatePendingAngleDegrees,
+      showFloatingAngleBox,
+      removeFloatingAngleBox
     };
     window.__netRotate2D = rotateElement2D;
     window.__netAnimateSmoothRotation3D = animateSmoothRotation3D;
