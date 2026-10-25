@@ -1,7 +1,7 @@
 {
-  "name": "Nét — Bảng viết và Dựng hình học cho Mac",
+  "name": "Nét — Một khoảng trống cho mọi ý tưởng",
   "short_name": "Nét",
-  "description": "Ứng dụng viết tay, ghi chú tài liệu, dựng hình học tương tác và vẽ đồ thị toán học",
+  "description": "Nét — Một khoảng trống cho mọi ý tưởng. Bảng viết tay, dựng hình học tương tác và vẽ đồ thị toán học",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

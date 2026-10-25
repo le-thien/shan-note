@@ -2,6 +2,14 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Đổi Slogan: Nét — Một khoảng trống cho mọi ý tưởng] - 25/10/2026
+
+- **Cập nhật nhận diện và slogan ứng dụng:**
+  - Đổi tiêu đề `<title>` trong `web/index.html` thành: `Nét — Một khoảng trống cho mọi ý tưởng`.
+  - Bổ sung thẻ `<meta name="description">` chuẩn SEO và nhận diện ứng dụng.
+  - Cập nhật tên ứng dụng và mô tả trong `web/manifest.json`.
+  - Nâng phiên bản cache Service Worker lên `net-app-v5` trong `web/sw.js` để tự động làm mới bộ nhớ đệm trình duyệt cho người dùng.
+
 ## [Xuất bản Web App lên GitHub Pages] - 25/10/2026
 
 - **1. Đẩy toàn bộ mã nguồn lên GitHub:**

@@ -28,6 +28,7 @@
     + Tô màu miền diện tích $S$ bán trong suốt trên đồ thị, kẻ đường dóng các cận nét đứt, đánh dấu giao điểm và hiển thị thẻ kết quả $S$ & $V$ trên đồ thị.
   - **Chuẩn bị và hoàn thiện nền tảng xuất bản Web App (Progressive Web App - PWA):** Đã tạo bộ nhận diện SVG vector (`favicon.svg`), tệp khai báo chuẩn PWA (`manifest.json`), tích hợp Service Worker (`sw.js` cache `net-app-v4`) hỗ trợ hoạt động ngoại tuyến và lưu đệm siêu tốc, sẵn sàng đưa lên mạng Internet (Netlify, Vercel, GitHub Pages) hoặc cài đặt trực tiếp thành ứng dụng riêng trên máy.
   - **Xuất bản thành công Web App trực tuyến qua GitHub Pages:** Mã nguồn đã được tải lên kho GitHub `le-thien/shan-note` tại nhánh `main`, cấu hình tự động kích hoạt GitHub Actions Workflow và xuất bản trang web hoạt động hoàn hảo 100% tại địa chỉ: `https://le-thien.github.io/shan-note/`.
+  - **Đổi slogan và định danh thương hiệu:** Cập nhật tiêu đề trang web, thẻ meta và manifest PWA sang slogan chính thức: **"Nét — Một khoảng trống cho mọi ý tưởng"**.
 - **Sẵn sàng chuyển tiếp:** Đóng gói ứng dụng macOS `.app`.
 
 ## 2. Các chức năng đã thực hiện
