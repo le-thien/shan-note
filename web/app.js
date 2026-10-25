@@ -4,6 +4,9 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Đảm bảo tiêu đề luôn bám sát slogan mới
+  document.title = "Nét — Một khoảng trống cho mọi ý tưởng";
+
   // 1. Tham chiếu phần tử DOM
   const canvas = document.getElementById('main-canvas') || document.querySelector('.main-canvas');
   let ctx = canvas ? canvas.getContext('2d') : null;

@@ -1,5 +1,5 @@
 // Service Worker cho ứng dụng Nét (Hỗ trợ chạy Offline & Cài đặt PWA)
-const CACHE_NAME = 'net-app-v5';
+const CACHE_NAME = 'net-app-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -34,10 +34,24 @@ self.addEventListener('fetch', (event) => {
   // Chỉ xử lý các yêu cầu GET trong cùng nguồn gốc
   if (event.request.method !== 'GET') return;
 
+  // Với trang HTML chính (navigation): luôn ưu tiên mạng (Network-First) để người dùng lập tức thấy bản mới
+  if (event.request.mode === 'navigate' || event.request.destination === 'document' || event.request.url.endsWith('index.html')) {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const resClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        }
+        return networkResponse;
+      }).catch(() => caches.match(event.request) || caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // Với các tài nguyên tĩnh khác: Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Trả về từ cache trước, đồng thời cập nhật ngầm nếu có mạng
         fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
