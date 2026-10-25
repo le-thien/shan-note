@@ -8376,9 +8376,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Định nghĩa hàm cập nhật đồng bộ các thanh phân trang và thumbnail
+  function updatePageListBar() {
+    if (typeof renderAllTabs === 'function') renderAllTabs();
+    if (typeof updatePageTabsActive === 'function') updatePageTabsActive(state.currentPage || 1, true);
+    if (typeof renderThumbnails === 'function') renderThumbnails();
+    if (typeof updateScrollBanner === 'function') updateScrollBanner();
+    if (typeof updateSidebarCount === 'function') updateSidebarCount();
+  }
+
   function doResetToNew() {
+    // 1. Reset toàn bộ dữ liệu trang trong state
     state.pages = { 1: [] };
     state.currentPage = 1;
+    state.pageTitles = { 1: 'Trang 1' };
     state.undoStacks = { 1: [] };
     state.redoStacks = { 1: [] };
     state.selectedElement = null;
@@ -8390,32 +8401,60 @@ document.addEventListener('DOMContentLoaded', () => {
     state.hoverHandle = null;
     state.hoverElement = null;
 
+    // 2. Dọn sạch DOM: Xóa các trang phụ (trang 2, 3, 4...) chỉ giữ lại duy nhất trang 1
+    if (pagesContainer) {
+      const wrappers = Array.from(pagesContainer.querySelectorAll('.paper-wrapper'));
+      wrappers.forEach(w => {
+        const p = parseInt(w.dataset.page, 10);
+        if (p > 1) {
+          w.remove();
+        }
+      });
+    }
+
+    // 3. Xóa sạch mọi nét vẽ và các hộp nhập nổi trên canvas trang 1
+    document.querySelectorAll('.floating-angle-box').forEach(b => b.remove());
+    const canvas1 = getCanvasForPage(1) || canvas;
+    if (canvas1) {
+      const targetCtx = canvas1.getContext('2d');
+      targetCtx.setTransform(1, 0, 0, 1, 0, 0);
+      targetCtx.clearRect(0, 0, canvas1.width, canvas1.height);
+      const dpr = window.devicePixelRatio || 1;
+      targetCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    // 4. Đặt lại tiêu đề tài liệu về "Ghi chú mới"
     if (docTitleInput) {
       docTitleInput.value = 'Ghi chú mới';
     }
 
+    // 5. Ẩn widget đồ thị nếu đang mở
     const graphWidget = document.getElementById('graph-widget');
     if (graphWidget) {
       graphWidget.style.display = 'none';
     }
 
+    // 6. Đưa thanh cuộn về vị trí đầu tiên
+    if (canvasContainer) {
+      canvasContainer.scrollTop = 0;
+      canvasContainer.scrollLeft = 0;
+    }
+
+    // 7. Cập nhật danh sách trang, thumbnails và renderer
     updatePageListBar();
-    renderPage();
+    renderPage(1);
     updateUndoState();
+
+    // 8. Tự động lưu trạng thái trang trắng
     saveProject(false);
+
+    // 9. Hiển thị thông báo toast
     showPageToast('✨ Đã tạo tài liệu mới!');
   }
 
   function createNewProject() {
-    const totalElements = Object.values(state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0);
-    // Nếu trang hiện tại đã có nét vẽ hoặc bài làm, hiện hộp thoại xác nhận đồng thời hỗ trợ lưu
-    if (totalElements > 0) {
-      openNewConfirmModal();
-      return;
-    }
-
-    // Nếu trang đang trống, trực tiếp làm mới
-    doResetToNew();
+    // Luôn luôn hiển thị hộp thoại xác nhận ở mọi lần bấm (lần 1, 2, 3, 4...)
+    openNewConfirmModal();
   }
 
   if (btnCloseNewModal) btnCloseNewModal.addEventListener('click', closeNewConfirmModal);
