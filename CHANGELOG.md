@@ -2,6 +2,20 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Tối ưu hóa Giao điểm: Kéo dài đoạn thẳng & Nhận biết đường chéo nhau HHKG 3D] - 26/10/2026
+
+- **1. Tự động kéo dài 2 đoạn thẳng để cắt nhau tại Giao điểm:**
+  - Nếu giao điểm $M$ nằm ngoài chiều dài đoạn thẳng ban đầu, hệ thống tự động:
+    + Kéo dài trực tiếp đầu mút đoạn thẳng tới giao điểm $M$ (đối với các đoạn thẳng tự do).
+    + Vẽ đường dóng nối dài nét đứt chuẩn SGK từ đỉnh cạnh tới giao điểm $M$ (đối với cạnh tam giác, đa giác hoặc cạnh HHKG để không làm méo hình mẹ).
+- **2. Tự động nhận diện môi trường 3D & Cảnh báo hai đường chéo nhau (Skew lines):**
+  - Không cần nút bấm 2D/3D thủ công gây rườm rà; hệ thống tự động phân tích cấu trúc khối HHKG khi người dùng nhấp chọn cạnh.
+  - Tự động kiểm tra tính đồng phẳng (coplanar) qua các mặt phẳng (`faces`) và thiết diện đối xứng.
+  - Nếu 2 cạnh chéo nhau trong không gian 3D (ví dụ: $SA$ và $BC$ trong hình chóp/tứ diện), hệ thống ngăn chặn việc chấm giao điểm 2D giả và hiển thị cảnh báo sư phạm rõ ràng:
+    `"⚠️ Cạnh SA và BC chéo nhau trong không gian 3D, không có giao điểm!"`.
+- **3. Cập nhật Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v16` trong `web/sw.js`.
+
 ## [Bổ sung tính năng Giao điểm của 2 hình trong menu Dựng hình ▾] - 26/10/2026
 
 - **1. Thêm mục "Giao điểm" vào menu Dựng hình ▾:**

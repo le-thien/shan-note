@@ -57,11 +57,13 @@
     + Loại bỏ hoàn toàn nút dropdown `[ Cơ bản ▾ ]`, tinh gọn thanh Header giúp giao diện trực quan và phân loại chức năng rõ ràng hơn.
     + **Nút `[ 📐 Hình ▾ ]`:** Đảm nhận toàn bộ các thực thể hình học: `Đoạn thẳng` (mặc định), `Điểm`, `Đường tròn`, `Elip`, các loại Tam giác và Tứ giác với đường phân cách trang nhã.
     + **Nút `[ 🛠️ Dựng hình ▾ ]`:** Đảm nhận toàn bộ các tác vụ dựng hình tương tác: `Trung điểm` (mặc định được đưa lên đầu), `Giao điểm`, `Phân giác`, `Vuông góc`, `Song song`, `Tiếp tuyến`, `2 tiếp tuyến`, `Chọn góc`.
-  - **Bổ sung tính năng "Giao điểm của 2 hình" trong menu Dựng hình ▾:**
+  - **Bổ sung tính năng "Giao điểm của 2 hình" trong menu Dựng hình ▾ & Tối ưu hóa nâng cao:**
     + *Quy trình tương tác chuẩn mực:* Bấm `[ Dựng hình ▾ ] -> [ Giao điểm ]` chuyển sang chế độ Chọn với con trỏ macOS nhọn; nhấp chọn hình 1 (sáng quầng ngọc bích kèm chỉ báo *"✓ Đã nhận: Đường 1"* hoặc *"✓ Đã nhận: Đường tròn 1"*); nhấp tiếp hình 2 để hệ thống tính toán và chấm chính xác giao điểm.
     + *Hỗ trợ chọn trước 0ms:* Chọn sẵn 2 hình trên canvas rồi bấm `Giao điểm` sẽ lập tức sinh ra các điểm giao nhau.
     + *Thuật toán hình học giải tích chuẩn xác 100%:* Đường thẳng cắt Đường thẳng / Đoạn thẳng (1 điểm hoặc báo song song/trùng nhau); Đường thẳng cắt Đường tròn (1 điểm tiếp xúc hoặc 2 điểm cắt); Hai đường tròn cắt nhau (1 điểm tiếp xúc hoặc 2 điểm cắt).
-    + Tự động gắn kết nhóm (`group link`) với các hình mẹ, lưu lịch sử hoàn tác `⌘Z` (Undo/Redo) và nâng cache Service Worker lên `net-app-v15`.
+    + *Tự động kéo dài 2 đoạn thẳng:* Nếu giao điểm nằm ngoài đoạn thẳng ban đầu, hệ thống tự động kéo dài đầu mút đoạn thẳng tới giao điểm (với đường tự do) hoặc vẽ thêm đường dóng nét đứt chuẩn SGK (với cạnh đa giác, tam giác hoặc HHKG) để 2 đường gặp nhau trực quan tại giao điểm.
+    + *Tự động nhận biết môi trường HHKG 3D & Cảnh báo hai đường chéo nhau:* Không cần nút bấm 2D/3D thủ công; hệ thống tự động phân tích cấu trúc đa diện 3D. Nếu 2 cạnh chéo nhau trong không gian (không đồng phẳng, ví dụ $SA$ và $BC$), hệ thống ngăn việc chấm điểm giao 2D giả và hiển thị cảnh báo sư phạm: *"⚠️ Cạnh SA và BC chéo nhau trong không gian 3D, không có giao điểm!"*.
+    + Tự động gắn kết nhóm (`group link`) với các hình mẹ, lưu lịch sử hoàn tác `⌘Z` (Undo/Redo) và nâng cache Service Worker lên `net-app-v16`.
 - **Sẵn sàng chuyển tiếp:** Đóng gói ứng dụng macOS `.app`.
 
 ## 2. Các chức năng đã thực hiện

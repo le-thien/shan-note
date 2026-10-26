@@ -3668,13 +3668,127 @@ document.addEventListener('DOMContentLoaded', () => {
       return { type: 'circle', center: obj.center, radius: obj.radius, element: obj.element || obj };
     }
     if (obj.start && obj.end) {
-      return { type: 'line', start: obj.start, end: obj.end, element: obj.element || obj };
+      return {
+        type: 'line',
+        start: obj.start,
+        end: obj.end,
+        element: obj.element || obj,
+        v1Index: obj.v1Index,
+        v2Index: obj.v2Index,
+        isSolidEdge: !!obj.isSolidEdge,
+        isPolygonEdge: !!obj.isPolygonEdge
+      };
     }
     const circ = getCircleFromElement(obj);
     if (circ) return { type: 'circle', center: circ.center, radius: circ.radius, element: circ.element || obj };
     const line = getLineOrEdgeFromElement(obj);
-    if (line) return { type: 'line', start: line.start, end: line.end, element: line.element || obj };
+    if (line) {
+      return {
+        type: 'line',
+        start: line.start,
+        end: line.end,
+        element: line.element || obj,
+        v1Index: line.v1Index,
+        v2Index: line.v2Index,
+        isSolidEdge: !!line.isSolidEdge,
+        isPolygonEdge: !!line.isPolygonEdge
+      };
+    }
     return null;
+  }
+
+  // Kiểm tra 2 cạnh của khối HHKG 3D có chéo nhau trong không gian hay không
+  function areSolidEdgesSkew(el, v1A, v2A, v1B, v2B) {
+    if (v1A === undefined || v2A === undefined || v1B === undefined || v2B === undefined) {
+      return false;
+    }
+    // 1. Có chung đỉnh -> Cắt nhau tại đỉnh chung (không chéo nhau)
+    if (v1A === v1B || v1A === v2B || v2A === v1B || v2A === v2B) {
+      return false;
+    }
+
+    const model = (window.__hhkg3d && window.__hhkg3d.MODELS_3D) ? window.__hhkg3d.MODELS_3D[el.shape] : null;
+    if (!model || !model.faces) {
+      return false;
+    }
+
+    const allFour = [v1A, v2A, v1B, v2B];
+
+    // 2. Kiểm tra xem có mặt nào trong model chứa cả 4 đỉnh hay không
+    for (const face of model.faces) {
+      if (allFour.every(v => face.includes(v))) {
+        return false; // Cùng thuộc 1 mặt phẳng -> Đồng phẳng!
+      }
+    }
+
+    // 3. Kiểm tra các mặt phẳng chéo / thiết diện đối xứng đặc biệt
+    if (el.shape === 'pyramid-regular' || el.shape === 'pyramid-quad' || el.shape === 'pyramid-parallelogram' || el.shape === 'pyramid-trapezoid') {
+      const diagPlanes = [
+        [0, 1, 3], // Mặt đối xứng qua đường chéo AC
+        [0, 2, 4]  // Mặt đối xứng qua đường chéo BD
+      ];
+      for (const plane of diagPlanes) {
+        if (allFour.every(v => plane.includes(v))) {
+          return false;
+        }
+      }
+    }
+
+    // Không có mặt phẳng nào chứa cả 4 đỉnh -> 2 đường CHÉO NHAU!
+    return true;
+  }
+
+  // Tự động kéo dài đoạn thẳng hoặc vẽ nét dóng đến giao điểm M nếu M nằm ngoài
+  function extendSegmentToPoint(geoObj, M) {
+    if (!geoObj || !geoObj.start || !geoObj.end || !M) return null;
+    const p1 = geoObj.start;
+    const p2 = geoObj.end;
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq < 1e-6) return null;
+
+    // Chiếu M lên đường thẳng chứa đoạn: p(t) = p1 + t * (p2 - p1)
+    const t = ((M.x - p1.x) * dx + (M.y - p1.y) * dy) / lenSq;
+
+    // Nếu M đã nằm trong đoạn thẳng [0, 1] (hoặc cách đầu mút < 1px): không cần kéo dài
+    if (t >= -0.01 && t <= 1.01) {
+      return null;
+    }
+
+    const closerToP2 = (t > 1);
+    const closerPt = closerToP2 ? p2 : p1;
+
+    // Trường hợp 1: Nếu là đoạn thẳng rời tự do (line, perpendicular, parallel...)
+    // Kéo dài trực tiếp đầu mút của đoạn thẳng tới điểm giao M
+    if (geoObj.element && geoObj.element.shape === 'line' && !geoObj.isSolidEdge && !geoObj.isPolygonEdge) {
+      if (closerToP2) {
+        geoObj.element.end = { x: M.x, y: M.y };
+      } else {
+        geoObj.element.start = { x: M.x, y: M.y };
+      }
+      return geoObj.element;
+    }
+
+    // Trường hợp 2: Cạnh của tam giác, đa giác hoặc cạnh của khối HHKG 3D
+    // Vẽ thêm 1 đoạn nét dóng nối từ đỉnh/đầu mút gần M tới điểm giao M
+    const isSolid = geoObj.isSolidEdge || (geoObj.element && isSolidShape(geoObj.element.shape));
+    const extLine = {
+      type: 'geo',
+      shape: 'line',
+      start: { x: closerPt.x, y: closerPt.y },
+      end: { x: M.x, y: M.y },
+      color: (geoObj.element && geoObj.element.color) ? geoObj.element.color : (state.color || '#184e3a'),
+      width: (geoObj.element && geoObj.element.width) ? geoObj.element.width : (state.strokeWidth || 2),
+      dash: isSolid ? 'dashed' : 'dashed' // Chuẩn nét dóng hình học SGK
+    };
+    ensureElementId(extLine);
+    if (geoObj.element) {
+      ensureElementId(geoObj.element);
+      linkGroup(geoObj.element, extLine);
+    }
+    pushNewElement(extLine);
+    return extLine;
   }
 
   // Dựng giao điểm giữa 2 đối tượng hình học
@@ -3685,6 +3799,26 @@ document.addEventListener('DOMContentLoaded', () => {
       showPageToast('⚠️ Vui lòng nhấp chọn 2 đường thẳng hoặc đường tròn hợp lệ!');
       statusToolInfo.textContent = 'Vui lòng chọn 2 đường thẳng, đoạn thẳng hoặc đường tròn để tìm giao điểm.';
       return false;
+    }
+
+    // 1. KIỂM TRA ĐẶC BIỆT CHO HÌNH HỌC KHÔNG GIAN (HHKG 3D)
+    // Nếu cả 2 cạnh cùng thuộc một khối HHKG 3D: kiểm tra chéo nhau vs đồng phẳng
+    if (gA.type === 'line' && gB.type === 'line' && gA.element && gB.element && gA.element === gB.element && isSolidShape(gA.element.shape)) {
+      if (gA.v1Index !== undefined && gB.v1Index !== undefined) {
+        const isSkew = areSolidEdgesSkew(gA.element, gA.v1Index, gA.v2Index, gB.v1Index, gB.v2Index);
+        if (isSkew) {
+          const model = (window.__hhkg3d && window.__hhkg3d.MODELS_3D) ? window.__hhkg3d.MODELS_3D[gA.element.shape] : null;
+          let nameA = 'cạnh 1';
+          let nameB = 'cạnh 2';
+          if (model && model.vertexNames) {
+            nameA = `${model.vertexNames[gA.v1Index]}${model.vertexNames[gA.v2Index]}`;
+            nameB = `${model.vertexNames[gB.v1Index]}${model.vertexNames[gB.v2Index]}`;
+          }
+          showPageToast(`⚠️ Cạnh ${nameA} và ${nameB} chéo nhau trong không gian 3D, không có giao điểm!`);
+          statusToolInfo.textContent = `⚠️ Cạnh ${nameA} và ${nameB} là hai đường thẳng chéo nhau trong không gian 3D (không cùng thuộc mặt phẳng nào), nên không thể có giao điểm.`;
+          return false;
+        }
+      }
     }
 
     let pts = [];
@@ -3710,9 +3844,21 @@ document.addEventListener('DOMContentLoaded', () => {
       return false;
     }
 
+    // 2. TỰ ĐỘNG KÉO DÀI ĐOẠN THẲNG NẾU GIAO ĐIỂM NẰM NGOÀI
+    let extendedA = null;
+    let extendedB = null;
+    if (pts.length === 1 && gA.type === 'line') {
+      extendedA = extendSegmentToPoint(gA, pts[0]);
+    }
+    if (pts.length === 1 && gB.type === 'line') {
+      extendedB = extendSegmentToPoint(gB, pts[0]);
+    }
+
     const parentElements = [];
     if (gA.element) parentElements.push(gA.element);
     if (gB.element && gB.element !== gA.element) parentElements.push(gB.element);
+    if (extendedA && !parentElements.includes(extendedA)) parentElements.push(extendedA);
+    if (extendedB && !parentElements.includes(extendedB)) parentElements.push(extendedB);
 
     const createdPoints = [];
     pts.forEach(pt => {
@@ -3736,11 +3882,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setSelectedElements(createdPoints);
     finishGeoTask(createdPoints[0]);
 
+    const hasExtension = (extendedA || extendedB);
+    const extNote = hasExtension ? ' (và tự động kéo dài đoạn thẳng)' : '';
+
     if (pts.length === 1) {
-      showPageToast('✨ Đã xác định 1 giao điểm chính xác!');
-      statusToolInfo.textContent = `✨ Đã xác định 1 giao điểm tại (${Math.round(pts[0].x)}, ${Math.round(pts[0].y)}) (tự động gắn kết thành 1 nhóm với hình).`;
+      showPageToast(`✨ Đã xác định giao điểm${extNote}!`);
+      statusToolInfo.textContent = `✨ Đã xác định giao điểm tại (${Math.round(pts[0].x)}, ${Math.round(pts[0].y)})${extNote} (tự động gắn kết thành 1 nhóm với hình).`;
     } else {
-      showPageToast(`✨ Đã xác định ${pts.length} giao điểm chính xác!`);
+      showPageToast(`✨ Đã xác định ${pts.length} giao điểm cắt nhau!`);
       statusToolInfo.textContent = `✨ Đã xác định ${pts.length} giao điểm cắt nhau (tự động gắn kết thành 1 nhóm với hình).`;
     }
     renderPage();
