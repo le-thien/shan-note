@@ -1,12 +1,20 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 25/10/2026
+**Cập nhật lần cuối:** 26/10/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Bổ sung tính năng "Đường trung trực" trong menu Dựng hình ▾ (Chuẩn ký hiệu SGK & Liên kết động 100%):**
+    + Thêm mục *Đường trung trực* (`perpendicular-bisector`) với biểu tượng đường thẳng đứng cắt ngang kèm ký hiệu góc vuông và 2 vạch bằng nhau trên 2 nửa đoạn thẳng.
+    + *Quy trình dựng hình linh hoạt:*
+      * Chọn trước 1 đoạn thẳng (hoặc chọn 2 điểm) rồi bấm `[Dựng hình ▾] -> [Đường trung trực]`: Hệ thống tạo ngay đường trung trực tức thì (0ms).
+      * Bấm chọn `Đường trung trực` khi chưa chọn hình: Chuyển sang chế độ Chọn, con trỏ mũi tên nhọn; nhấp chọn 1 đoạn thẳng (hoặc nhấp lần lượt 2 điểm) để tự động hoàn thành dựng hình.
+    + *Ký hiệu chuẩn SGK Toán học:* Tự động vẽ chấm tròn trung điểm $M$ thanh mảnh ở giữa, ký hiệu vuông góc $\llcorner$ tại $M$, và hai vạch gạch bằng nhau ($||$) đối xứng trên hai nửa đoạn thẳng $AM$ và $MB$.
+    + *Liên kết động (Dynamic BFS binding):* Đường trung trực tự động cập nhật đối xứng, cân bằng khi kéo di chuyển hoặc thay đổi vị trí các điểm/đoạn thẳng sinh ra nó.
+    + *Tương thích hoàn hảo:* Hỗ trợ 2 tay cầm co giãn chiều dài đường trung trực, hoàn tác `⌘Z` / `⌘⇧Z`, tẩy nét mịn và xuất bản PWA.
   - **Chức năng "Chọn" chỉ chọn đơn lẻ một đối tượng:** Bấm vào bất kỳ đối tượng nào chỉ chọn duy nhất đối tượng đó (không tự động gom cả nhóm các hình xung quanh), giúp người dùng dễ dàng chỉnh sửa, di chuyển hoặc xóa riêng từng đối tượng độc lập. Khi hover chỉ sáng nhẹ hình đang trỏ vào, giữ bảng vẽ luôn gọn gàng và chính xác.
   - **Quy trình 4 bước chuẩn mực cho nhóm tác vụ Dựng hình (Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc):**
     + *Bước 1 - Chọn 1 tác vụ:* Người dùng nhấp chọn bất kỳ tác vụ nào trong menu xổ xuống; nút Dựng hình cập nhật biểu tượng và tên tác vụ tương ứng.

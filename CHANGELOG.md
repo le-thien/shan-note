@@ -2,6 +2,24 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Bổ sung tính năng Đường trung trực trong menu Dựng hình ▾] - 26/10/2026
+
+- **1. Thêm mục "Đường trung trực" vào menu Dựng hình ▾:**
+  - Nằm ngay dưới mục *Trung điểm* với biểu tượng trục vuông góc cắt ngang đoạn thẳng kèm vạch ký hiệu đối xứng.
+  - Hỗ trợ đầy đủ các quy trình dựng hình:
+    + *Dựng tức thì (0ms):* Chọn trước 1 đoạn thẳng (hoặc 2 điểm) rồi bấm `[Dựng hình ▾] -> [Đường trung trực]`.
+    + *Quy trình 4 bước tương tác:* Bấm chọn `Đường trung trực`, hệ thống chuyển sang chế độ Chọn (`Select tool`) với con trỏ mũi tên nhọn; nhấp chọn 1 đoạn thẳng hoặc nhấp lần lượt 2 điểm để tạo ngay đường trung trực.
+- **2. Ký hiệu hình học chuẩn sách giáo khoa (SGK):**
+  - Chấm tròn trung điểm $M$ thanh mảnh ở chính giữa đoạn thẳng.
+  - Ký hiệu góc vuông $\llcorner$ tại chân đường vuông góc $M$.
+  - Hai vạch gạch bằng nhau ($||$) đối xứng trên hai nửa đoạn thẳng $AM$ và $MB$.
+- **3. Liên kết động (Dynamic BFS binding) & Tương tác:**
+  - Đường trung trực tự động cập nhật vị trí, hướng và ký hiệu khi các điểm hoặc đoạn thẳng ban đầu bị dịch chuyển hoặc thay đổi kích thước.
+  - Hỗ trợ 2 tay cầm ở hai đầu mút để người dùng co giãn độ dài đường trung trực theo ý muốn.
+  - Tương thích hoàn toàn với hoàn tác `⌘Z` / `⌘⇧Z`, tẩy nét cắt gọt và xuất bản PWA.
+- **4. Cập nhật Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v17` trong `web/sw.js`.
+
 ## [Tối ưu hóa Giao điểm: Kéo dài đoạn thẳng & Nhận biết đường chéo nhau HHKG 3D] - 26/10/2026
 
 - **1. Tự động kéo dài 2 đoạn thẳng để cắt nhau tại Giao điểm:**

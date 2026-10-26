@@ -544,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // 2 Tiếp tuyến: tâm O, điểm ngoài M
       handles.push({ id: 'center', x: el.start.x, y: el.start.y, name: 'Tâm O' });
       handles.push({ id: 'ext_point', x: el.end.x, y: el.end.y, name: 'Điểm giao nhau M (kéo 2 tiếp tuyến)' });
-    } else if (el.shape === 'perpendicular') {
+    } else if (el.shape === 'perpendicular' || el.shape === 'perpendicular-bisector') {
       handles.push({ id: 'start', x: el.start.x, y: el.start.y, name: 'Đầu mút 1 (kéo thu hẹp/mở rộng)' });
       handles.push({ id: 'end', x: el.end.x, y: el.end.y, name: 'Đầu mút 2 (kéo thu hẹp/mở rộng)' });
     } else if (el.shape === 'parallel') {
@@ -912,7 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
         c.strokeStyle = coreColor;
         c.stroke();
         drawSharpArrowIndicator(c, el.start.x, el.start.y, isSelected ? 'Điểm đã chọn' : 'Điểm', isSelected);
-      } else if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent' || el.shape === 'bisector') {
+      } else if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent' || el.shape === 'bisector' || el.shape === 'perpendicular-bisector') {
         // Đoạn thẳng: phát sáng toàn bộ chiều dài đoạn thẳng
         c.beginPath();
         c.moveTo(el.start.x, el.start.y);
@@ -1741,6 +1741,40 @@ document.addEventListener('DOMContentLoaded', () => {
           child.start = { x: P.x - 90 * uNorm.x, y: P.y - 90 * uNorm.y };
           child.end = { x: P.x + 90 * uNorm.x, y: P.y + 90 * uNorm.y };
         }
+      }
+    }
+
+    // 4b. Đường trung trực (Perpendicular Bisector)
+    else if (b.type === 'perpendicular_bisector') {
+      let A = null, B = null;
+      if (b.ptAId && b.ptBId) {
+        const ptAEl = findElementById(b.ptAId);
+        const ptBEl = findElementById(b.ptBId);
+        if (ptAEl && ptBEl) {
+          A = (ptAEl.start) ? ptAEl.start : ptAEl;
+          B = (ptBEl.start) ? ptBEl.start : ptBEl;
+        }
+      } else if (parentEl.shape === 'line' || parentEl.shape === 'perpendicular' || parentEl.shape === 'parallel' || parentEl.shape === 'perpendicular-bisector') {
+        A = parentEl.start; B = parentEl.end;
+      } else if (parentEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
+        A = parentEl.points[b.v1Index]; B = parentEl.points[b.v2Index];
+      }
+      if (A && B) {
+        const vx = B.x - A.x, vy = B.y - A.y;
+        const lenV = Math.hypot(vx, vy) || 1;
+        const uBase = { x: vx / lenV, y: vy / lenV };
+        const uNorm = { x: -uBase.y, y: uBase.x };
+        const Mx = (A.x + B.x) / 2;
+        const My = (A.y + B.y) / 2;
+        const M = { x: Mx, y: My };
+        const halfL = child.halfLength || Math.max(75, lenV * 0.65);
+        child.midpoint = M;
+        child.baseDir = uBase;
+        child.normDir = uNorm;
+        child.segStart = { x: A.x, y: A.y };
+        child.segEnd = { x: B.x, y: B.y };
+        child.start = { x: M.x - halfL * uNorm.x, y: M.y - halfL * uNorm.y };
+        child.end = { x: M.x + halfL * uNorm.x, y: M.y + halfL * uNorm.y };
       }
     }
 
@@ -2987,6 +3021,64 @@ document.addEventListener('DOMContentLoaded', () => {
         context.lineTo(geo.foot.x + v.x * s, geo.foot.y + v.y * s);
         context.stroke();
       }
+    } else if (shape === 'perpendicular-bisector') {
+      // 1. Kẻ đường thẳng trung trực xuyên suốt từ start đến end
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y);
+      context.stroke();
+
+      const M = geo.midpoint || { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      const lenPerp = Math.hypot(end.x - start.x, end.y - start.y) || 1;
+      const v = { x: (end.x - start.x) / lenPerp, y: (end.y - start.y) / lenPerp }; // Hướng đường trung trực
+      let u = geo.baseDir;
+      if (!u && geo.segStart && geo.segEnd) {
+        const segLen = Math.hypot(geo.segEnd.x - geo.segStart.x, geo.segEnd.y - geo.segStart.y) || 1;
+        u = { x: (geo.segEnd.x - geo.segStart.x) / segLen, y: (geo.segEnd.y - geo.segStart.y) / segLen };
+      }
+      if (!u) {
+        u = { x: -v.y, y: v.x };
+      }
+
+      // 2. Ký hiệu góc vuông chuẩn SGK tại trung điểm M
+      const s = 12;
+      context.beginPath();
+      context.moveTo(M.x + u.x * s, M.y + u.y * s);
+      context.lineTo(M.x + u.x * s + v.x * s, M.y + u.y * s + v.y * s);
+      context.lineTo(M.x + v.x * s, M.y + v.y * s);
+      context.stroke();
+
+      // 3. Ký hiệu đoạn thẳng bằng nhau (2 gạch đôi) trên 2 nửa đoạn thẳng AM và MB
+      if (geo.segStart && geo.segEnd) {
+        const A = geo.segStart;
+        const B = geo.segEnd;
+        const M1 = { x: (A.x + M.x) / 2, y: (A.y + M.y) / 2 };
+        const M2 = { x: (M.x + B.x) / 2, y: (M.y + B.y) / 2 };
+        const tickLen = 5.5;
+        const tickSpacing = 2.4;
+
+        // Vẽ 2 vạch song song trên nửa AM
+        context.beginPath();
+        context.moveTo(M1.x - v.x * tickLen - u.x * tickSpacing, M1.y - v.y * tickLen - u.y * tickSpacing);
+        context.lineTo(M1.x + v.x * tickLen - u.x * tickSpacing, M1.y + v.y * tickLen - u.y * tickSpacing);
+        context.moveTo(M1.x - v.x * tickLen + u.x * tickSpacing, M1.y - v.y * tickLen + u.y * tickSpacing);
+        context.lineTo(M1.x + v.x * tickLen + u.x * tickSpacing, M1.y + v.y * tickLen + u.y * tickSpacing);
+        context.stroke();
+
+        // Vẽ 2 vạch song song trên nửa MB
+        context.beginPath();
+        context.moveTo(M2.x - v.x * tickLen - u.x * tickSpacing, M2.y - v.y * tickLen - u.y * tickSpacing);
+        context.lineTo(M2.x + v.x * tickLen - u.x * tickSpacing, M2.y + v.y * tickLen - u.y * tickSpacing);
+        context.moveTo(M2.x - v.x * tickLen + u.x * tickSpacing, M2.y - v.y * tickLen + u.y * tickSpacing);
+        context.lineTo(M2.x + v.x * tickLen + u.x * tickSpacing, M2.y + v.y * tickLen + u.y * tickSpacing);
+        context.stroke();
+      }
+
+      // 4. Chấm điểm trung điểm M tròn nhỏ thanh lịch
+      context.beginPath();
+      context.arc(M.x, M.y, 2.5, 0, Math.PI * 2);
+      context.fillStyle = geo.color || state.color;
+      context.fill();
     } else if (shape === 'parallel') {
       // Đường thẳng song song đi qua điểm đã chọn (thuần nét thẳng, không vẽ mũi tên)
       context.beginPath();
@@ -3108,7 +3200,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const el = list[i];
       if (el.type !== 'geo') continue;
 
-      if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'bisector') {
+      if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'bisector' || el.shape === 'perpendicular-bisector') {
         checkEdge(el, el.start, el.end, 'main', { isLine: true });
       } else if (isSolidShape(el.shape) && el.edges && el.points) {
         el.edges.forEach((edge, eIdx) => {
@@ -4031,6 +4123,89 @@ document.addEventListener('DOMContentLoaded', () => {
     return newGeo;
   }
 
+  // Dựng đường trung trực của đoạn thẳng (hoặc 2 điểm)
+  function constructPerpendicularBisector(ptA, ptB, bindingInfo = null, parentEl = null) {
+    const Ax = (ptA.x !== undefined) ? ptA.x : (ptA.start ? ptA.start.x : 0);
+    const Ay = (ptA.y !== undefined) ? ptA.y : (ptA.start ? ptA.start.y : 0);
+    const Bx = (ptB.x !== undefined) ? ptB.x : (ptB.start ? ptB.start.x : 0);
+    const By = (ptB.y !== undefined) ? ptB.y : (ptB.start ? ptB.start.y : 0);
+
+    const vx = Bx - Ax;
+    const vy = By - Ay;
+    const lenV = Math.hypot(vx, vy) || 1;
+    const uBase = { x: vx / lenV, y: vy / lenV };
+    const uNorm = { x: -uBase.y, y: uBase.x };
+
+    const Mx = (Ax + Bx) / 2;
+    const My = (Ay + By) / 2;
+    const M = { x: Mx, y: My };
+
+    // Chiều dài đường trung trực đối xứng 2 phía qua trung điểm M
+    const halfL = Math.max(75, lenV * 0.65);
+    const p1 = { x: Mx - halfL * uNorm.x, y: My - halfL * uNorm.y };
+    const p2 = { x: Mx + halfL * uNorm.x, y: My + halfL * uNorm.y };
+
+    if (!bindingInfo && parentEl && !Array.isArray(parentEl)) {
+      ensureElementId(parentEl);
+      bindingInfo = {
+        type: 'perpendicular_bisector',
+        parentId: parentEl.id
+      };
+    }
+
+    const newGeo = {
+      type: 'geo',
+      shape: 'perpendicular-bisector',
+      binding: bindingInfo,
+      start: p1,
+      end: p2,
+      halfLength: halfL,
+      midpoint: M,
+      baseDir: uBase,
+      normDir: uNorm,
+      segStart: { x: Ax, y: Ay },
+      segEnd: { x: Bx, y: By },
+      color: state.color,
+      width: state.strokeWidth,
+      dash: state.dashStyle
+    };
+
+    ensureElementId(newGeo);
+
+    if (parentEl) {
+      if (Array.isArray(parentEl)) {
+        linkGroupMulti(parentEl, newGeo);
+      } else {
+        linkGroup(parentEl, newGeo);
+      }
+    }
+
+    pushNewElement(newGeo);
+    finishGeoTask(newGeo);
+    statusToolInfo.textContent = '✨ Đã dựng đường trung trực (vuông góc tại trung điểm kèm ký hiệu bằng nhau chuẩn SGK). Kéo 2 đầu mút để thu hẹp hoặc mở rộng.';
+    showPageToast('✨ Đã dựng đường trung trực chuẩn SGK!');
+    return newGeo;
+  }
+
+  function constructPerpendicularBisectorFromEdge(edge) {
+    if (!edge) return null;
+    const start = edge.start || edge.p1;
+    const end = edge.end || edge.p2;
+    if (!start || !end) return null;
+    const parent = edge.element || edge.parentEl;
+    if (parent) ensureElementId(parent);
+    let bindingInfo = null;
+    if (parent) {
+      bindingInfo = {
+        type: 'perpendicular_bisector',
+        parentId: parent.id,
+        v1Index: edge.v1Index,
+        v2Index: edge.v2Index
+      };
+    }
+    return constructPerpendicularBisector(start, end, bindingInfo, parent);
+  }
+
   // Tìm giao điểm của tia (V, dir) với đoạn thẳng (p1, p2)
   function rayIntersectSegment(V, dir, p1, p2) {
     const dx = p2.x - p1.x;
@@ -4456,7 +4631,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Trích xuất đường thẳng hoặc cạnh từ một phần tử
   function getLineOrEdgeFromElement(el, nearPoint = null) {
     if (!el || el.type !== 'geo') return null;
-    if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent' || el.shape === 'bisector') {
+    if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent' || el.shape === 'bisector' || el.shape === 'perpendicular-bisector') {
       return { start: { x: el.start.x, y: el.start.y }, end: { x: el.end.x, y: el.end.y }, element: el, isLine: true };
     }
     if (el.points && el.points.length >= 2) {
@@ -4636,6 +4811,20 @@ document.addEventListener('DOMContentLoaded', () => {
           triggerMidpointWithHighlight(ptA, ptB, bindingInfo, parentEl);
           return true;
         }
+      } else if (geoShape === 'perpendicular-bisector') {
+        const ptA = getPointFromElement(elA) || (elA.shape === 'point' ? elA.start : null) || elA.start;
+        const ptB = getPointFromElement(elB) || (elB.shape === 'point' ? elB.start : null) || elB.start;
+        if (ptA && ptB) {
+          ensureElementId(elA);
+          ensureElementId(elB);
+          let bindingInfo = null;
+          let parentEl = [elA, elB];
+          if (elA.shape === 'point' && elB.shape === 'point') {
+            bindingInfo = { type: 'perpendicular_bisector', ptAId: elA.id, ptBId: elB.id };
+          }
+          constructPerpendicularBisector(ptA, ptB, bindingInfo, parentEl);
+          return true;
+        }
       } else if (geoShape === 'angle') {
         const ptA = getPointFromElement(elA);
         const ptB = getPointFromElement(elB);
@@ -4695,6 +4884,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pt) {
           state.construction = { point: pt, circle: null, line: null, edges: [] };
           statusToolInfo.textContent = 'Trung điểm: Đã nhận 1 điểm. Hãy bấm chọn tiếp điểm thứ 2 trên bảng vẽ.';
+          renderPage();
+          return true;
+        }
+      }
+
+      if (geoShape === 'perpendicular-bisector') {
+        if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel') {
+          ensureElementId(el);
+          constructPerpendicularBisector(el.start, el.end, { type: 'perpendicular_bisector', parentId: el.id }, el);
+          return true;
+        }
+        if (el.points && el.points.length >= 2) {
+          ensureElementId(el);
+          constructPerpendicularBisector(el.points[0], el.points[1], {
+            type: 'perpendicular_bisector',
+            parentId: el.id,
+            v1Index: 0,
+            v2Index: 1
+          }, el);
+          return true;
+        }
+        if (line) {
+          constructPerpendicularBisectorFromEdge(line);
+          return true;
+        }
+        if (pt) {
+          state.construction = { point: pt, circle: null, line: null, edges: [], point1El: el };
+          statusToolInfo.textContent = 'Đường trung trực: Đã nhận 1 điểm. Hãy bấm chọn tiếp điểm thứ 2 (hoặc đoạn thẳng) trên bảng vẽ.';
           renderPage();
           return true;
         }
@@ -4782,6 +4999,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3. Tìm Đường tròn
     const hitCircle = findCircleAt(point.x, point.y, 26);
+
+    // ==========================================================
+    // TÁC VỤ: ĐƯỜNG TRUNG TRỰC (1 đoạn thẳng hoặc 2 điểm)
+    // ==========================================================
+    if (task === 'perpendicular-bisector') {
+      // 1. Tiện ích siêu nhanh: Nhấp trực tiếp vào cạnh hoặc đoạn thẳng -> Dựng ngay đường trung trực!
+      if (hitEdge && (!hitPoint || hitPoint.element !== hitEdge.element)) {
+        constructPerpendicularBisectorFromEdge(hitEdge);
+        state.pendingConstruction = null;
+        return true;
+      }
+
+      const directEl = findElementAt(point.x, point.y);
+      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel')) {
+        constructPerpendicularBisector(directEl.start, directEl.end, { type: 'perpendicular_bisector', parentId: directEl.id }, directEl);
+        state.pendingConstruction = null;
+        return true;
+      }
+
+      // 2. Chọn lần lượt 2 điểm
+      if (!state.construction.point) {
+        state.construction.point = hitPoint || { x: point.x, y: point.y };
+        state.construction.point1El = hitPoint ? hitPoint.element : null;
+        statusToolInfo.textContent = '✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm thứ 2 (hoặc đoạn thẳng) để dựng đường trung trực.';
+        showPageToast('✓ Đã nhận Điểm 1. Chọn tiếp Điểm 2!');
+        renderPage();
+        return true;
+      } else {
+        const pt1 = state.construction.point;
+        const pt2 = hitPoint || { x: point.x, y: point.y };
+        if (Math.hypot(pt2.x - pt1.x, pt2.y - pt1.y) < 6) return true;
+
+        const el1 = state.construction.point1El;
+        const el2 = hitPoint ? hitPoint.element : null;
+        let bindingInfo = null;
+        let parentEl = null;
+
+        if (el1 && el2 && el1.shape === 'point' && el2.shape === 'point') {
+          ensureElementId(el1);
+          ensureElementId(el2);
+          bindingInfo = { type: 'perpendicular_bisector', ptAId: el1.id, ptBId: el2.id };
+          parentEl = [el1, el2];
+        } else if (el1 && el2 && el1 === el2 && el1.points && el1.points.length >= 2) {
+          ensureElementId(el1);
+          let idx1 = -1, idx2 = -1;
+          for (let i = 0; i < el1.points.length; i++) {
+            if (Math.hypot(el1.points[i].x - pt1.x, el1.points[i].y - pt1.y) < 14) idx1 = i;
+            if (Math.hypot(el1.points[i].x - pt2.x, el1.points[i].y - pt2.y) < 14) idx2 = i;
+          }
+          if (idx1 !== -1 && idx2 !== -1) {
+            bindingInfo = { type: 'perpendicular_bisector', parentId: el1.id, v1Index: idx1, v2Index: idx2 };
+            parentEl = el1;
+          }
+        } else if (el1) {
+          parentEl = el1;
+        } else if (el2) {
+          parentEl = el2;
+        }
+
+        constructPerpendicularBisector(pt1, pt2, bindingInfo, parentEl);
+        state.pendingConstruction = null;
+        return true;
+      }
+    }
 
     // ==========================================================
     // TÁC VỤ 1 & 2: VUÔNG GÓC & SONG SONG (1 điểm + 1 đường)
@@ -5051,6 +5332,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Xử lý thao tác nhấp chuột/bút khi đang ở chế độ dựng hình (Vuông góc, Song song, Phân giác)
   function handleConstructionClick(point) {
+    if (state.activeGeo === 'perpendicular-bisector') {
+      const edge = findEdgeAt(point.x, point.y, 28);
+      if (edge && (!state.construction.point)) {
+        constructPerpendicularBisectorFromEdge(edge);
+        return;
+      }
+
+      const directEl = findElementAt(point.x, point.y);
+      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel') && !state.construction.point) {
+        constructPerpendicularBisector(directEl.start, directEl.end, { type: 'perpendicular_bisector', parentId: directEl.id }, directEl);
+        return;
+      }
+
+      const vertex = findPointAt(point.x, point.y, 25);
+      const clickedPt = vertex || { x: point.x, y: point.y };
+      const clickedEl = vertex ? vertex.element : (directEl && directEl.shape === 'point' ? directEl : null);
+
+      if (!state.construction.point) {
+        state.construction.point = clickedPt;
+        state.construction.point1El = clickedEl;
+        statusToolInfo.textContent = 'Đường trung trực: Đã chọn điểm 1. Hãy nhấp tiếp điểm thứ 2 (hoặc đoạn thẳng) để vẽ đường trung trực.';
+        renderPage();
+        return;
+      } else {
+        const pt1 = state.construction.point;
+        const pt2 = clickedPt;
+        if (Math.hypot(pt2.x - pt1.x, pt2.y - pt1.y) < 6) return;
+
+        const el1 = state.construction.point1El;
+        const el2 = clickedEl;
+        let bindingInfo = null;
+        let parentEl = null;
+
+        if (el1 && el2 && el1.shape === 'point' && el2.shape === 'point') {
+          ensureElementId(el1);
+          ensureElementId(el2);
+          bindingInfo = { type: 'perpendicular_bisector', ptAId: el1.id, ptBId: el2.id };
+          parentEl = [el1, el2];
+        } else if (el1) {
+          parentEl = el1;
+        } else if (el2) {
+          parentEl = el2;
+        }
+
+        constructPerpendicularBisector(pt1, pt2, bindingInfo, parentEl);
+        return;
+      }
+    }
+
     if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel') {
       const mode = state.activeGeo;
       const modeName = mode === 'perpendicular' ? 'vuông góc' : 'song song';
@@ -6503,7 +6833,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (angleDegreesInput) angleDegreesInput.value = deg;
           if (angleInputContainer) angleInputContainer.style.display = 'inline-flex';
         }
-      } else if (el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent') {
+      } else if (el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent' || el.shape === 'perpendicular-bisector') {
         const dx = el.end.x - el.start.x;
         const dy = el.end.y - el.start.y;
         const len = Math.hypot(dx, dy) || 1;
@@ -6815,7 +7145,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     } else if (state.activeTool === 'geo' && state.geoStartPoint) {
-      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection') {
+      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector') {
         return;
       }
       let previewEnd = point;
@@ -7060,7 +7390,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.isDrawing = false;
 
     if (state.activeTool === 'geo') {
-      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection') {
+      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector') {
         const d = state.geoStartPoint ? Math.hypot(point.x - state.geoStartPoint.x, point.y - state.geoStartPoint.y) : 0;
         state.geoStartPoint = null;
         if (d < 25) {
@@ -7483,7 +7813,7 @@ document.addEventListener('DOMContentLoaded', () => {
           modified = true;
           state.eraserDragModified = true;
         }
-      } else if (el.type === 'geo' && (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'bisector' || el.shape === 'tangent')) {
+      } else if (el.type === 'geo' && (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'bisector' || el.shape === 'tangent' || el.shape === 'perpendicular-bisector')) {
         // Hỗ trợ cắt gọt phân đoạn cho đoạn thẳng và các đường hình học
         const hitR = radius + Math.min(0.5, (el.width || 2) / 4);
         if (distToSegment(x, y, el.start.x, el.start.y, el.end.x, el.end.y) <= hitR) {
@@ -8059,7 +8389,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function activateGeoTool(geoName, targetGroupBtn, targetItemBtn) {
     if (!geoName) return;
 
-    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'angle', 'intersection'].includes(geoName);
+    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'angle', 'intersection', 'perpendicular-bisector'].includes(geoName);
 
     // 1. Tắt trạng thái active ở các công cụ khác
     toolButtons.forEach(b => b.classList.remove('active'));
@@ -8082,7 +8412,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // NẾU LÀ CÁC TÁC VỤ DỰNG HÌNH: PHÂN GIÁC, VUÔNG GÓC, SONG SONG, TIẾP TUYẾN, 2 TIẾP TUYẾN, CHỌN GÓC, GIAO ĐIỂM
+    // NẾU LÀ CÁC TÁC VỤ DỰNG HÌNH: PHÂN GIÁC, VUÔNG GÓC, SONG SONG, TIẾP TUYẾN, 2 TIẾP TUYẾN, CHỌN GÓC, GIAO ĐIỂM, TRUNG TRỰC
     // Thực hiện đúng quy trình 4 bước theo yêu cầu:
     // 1. Chọn 1 tác vụ -> 2. Chuyển sang chế độ "Chọn" -> 3. Chọn điểm/đường rồi chọn đối tượng còn lại -> 4. Thực hiện tác vụ
     if (isConstructionTask) {
@@ -8097,6 +8427,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (state.activeGeo === 'perpendicular') {
         statusToolInfo.textContent = 'Vuông góc: Bấm chọn 1 điểm (hoặc đường), rồi tiếp tục chọn đối tượng còn lại để thực hiện tác vụ';
+      } else if (state.activeGeo === 'perpendicular-bisector') {
+        statusToolInfo.textContent = 'Đường trung trực: Bấm chọn 1 đoạn thẳng (hoặc chọn 2 điểm) để dựng đường trung trực';
       } else if (state.activeGeo === 'parallel') {
         statusToolInfo.textContent = 'Song song: Bấm chọn 1 điểm (hoặc đường), rồi tiếp tục chọn đối tượng còn lại để thực hiện tác vụ';
       } else if (state.activeGeo === 'bisector') {
@@ -10497,6 +10829,9 @@ document.addEventListener('DOMContentLoaded', () => {
       constructTwoTangents,
       constructPerpendicular,
       constructParallel,
+      constructPerpendicularBisector,
+      constructPerpendicularBisectorFromEdge,
+      updateSingleBinding,
       translateElement,
       SOLID_SHAPES,
       isSolidShape,
