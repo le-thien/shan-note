@@ -1707,8 +1707,24 @@ class CasioDisplay {
       this.statusBar.style.display = (viewName === 'MENU' || viewName === 'LIST') ? 'none' : 'flex';
     }
     if (this.viewNormal) this.viewNormal.style.display = viewName === 'NORMAL' ? 'flex' : 'none';
-    if (this.viewMenu) this.viewMenu.classList.toggle('active', viewName === 'MENU');
-    if (this.viewList) this.viewList.classList.toggle('active', viewName === 'LIST');
+    if (this.viewMenu && this.viewMenu.classList) {
+      if (typeof this.viewMenu.classList.toggle === 'function') {
+        this.viewMenu.classList.toggle('active', viewName === 'MENU');
+      } else if (viewName === 'MENU') {
+        this.viewMenu.classList.add('active');
+      } else {
+        this.viewMenu.classList.remove('active');
+      }
+    }
+    if (this.viewList && this.viewList.classList) {
+      if (typeof this.viewList.classList.toggle === 'function') {
+        this.viewList.classList.toggle('active', viewName === 'LIST');
+      } else if (viewName === 'LIST') {
+        this.viewList.classList.add('active');
+      } else {
+        this.viewList.classList.remove('active');
+      }
+    }
     if (this.viewCustom) this.viewCustom.style.display = (viewName === 'CUSTOM' || viewName === 'SOLVE') ? 'flex' : 'none';
   }
 
@@ -2191,6 +2207,7 @@ class CasioApp {
     this.keyRepeatTimer = null;
     this.keyRepeatInterval = null;
     this.activeRepeatKey = null;
+    this.setupLcdAutoResize();
 
     // Menu variables
     this.menuPage = 1;
@@ -2420,6 +2437,34 @@ class CasioApp {
       this.keyRepeatInterval = null;
     }
     this.activeRepeatKey = null;
+  }
+
+  setupLcdAutoResize() {
+    const lcd = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('lcd-screen') : null;
+    if (!lcd) return;
+    const updateScale = () => {
+      if (!lcd || typeof lcd.getBoundingClientRect !== 'function') return;
+      const rect = lcd.getBoundingClientRect();
+      if (rect && rect.width > 0 && lcd.style && typeof lcd.style.setProperty === 'function') {
+        const scale = rect.width / 240;
+        lcd.style.setProperty('--lcd-scale', scale.toFixed(4));
+      }
+    };
+    updateScale();
+    if (typeof window !== 'undefined' && window.ResizeObserver && !this.lcdResizeObserver) {
+      try {
+        this.lcdResizeObserver = new ResizeObserver(() => {
+          updateScale();
+        });
+        this.lcdResizeObserver.observe(lcd);
+      } catch (e) {}
+    }
+    if (typeof window !== 'undefined' && !this._resizeAttached && window.addEventListener) {
+      try {
+        window.addEventListener('resize', updateScale);
+        this._resizeAttached = true;
+      } catch (e) {}
+    }
   }
 
   bindEvents() {
@@ -7953,7 +7998,7 @@ function initCasioWithParams() {
       var winEl = document.getElementById ? document.getElementById('fx580-calculator-window') : null;
       if (winEl) {
         fxState.isOpen = winEl.style.display !== 'none';
-        fxState.isMinimized = winEl.classList.contains('minimized');
+        fxState.isMinimized = (winEl.classList && winEl.classList.contains) ? winEl.classList.contains('minimized') : false;
       }
       return fxState;
     },
@@ -7971,11 +8016,16 @@ function initCasioWithParams() {
         winEl.classList.remove('minimized');
       }
       if (btn) btn.classList.add('active');
-      if (window.emulatorUI && typeof window.emulatorUI.setupLcdAutoResize === 'function') {
-        window.emulatorUI.setupLcdAutoResize();
-      }
-      if (window.casioApp && typeof window.casioApp.renderCurrentView === 'function') {
-        window.casioApp.renderCurrentView();
+      if (window.casioApp) {
+        if (typeof window.casioApp.setupLcdAutoResize === 'function') {
+          window.casioApp.setupLcdAutoResize();
+        }
+        if (typeof window.casioApp.bindEvents === 'function') {
+          window.casioApp.bindEvents();
+        }
+        if (typeof window.casioApp.renderCurrentView === 'function') {
+          window.casioApp.renderCurrentView();
+        }
       }
     },
 
@@ -8000,7 +8050,7 @@ function initCasioWithParams() {
       var winEl = document.getElementById ? document.getElementById('fx580-calculator-window') : null;
       if (winEl) {
         winEl.classList.toggle('minimized');
-        fxState.isMinimized = winEl.classList.contains('minimized');
+        fxState.isMinimized = (winEl.classList && winEl.classList.contains) ? winEl.classList.contains('minimized') : false;
       }
     },
 

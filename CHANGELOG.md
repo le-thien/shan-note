@@ -30,8 +30,10 @@ Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đâ
     + Nút chụp ảnh màn hình LCD (`📷`) lưu ảnh PNG hoặc sao chép vào Clipboard.
     + Xem lịch sử phím bấm Key Log (`📋`).
     + Thu nhỏ / Phóng to cửa sổ máy tính.
-- **4. Cập nhật Service Worker:**
-  - Tích hợp bộ font ClassWiz vào đệm ngoại tuyến và nâng phiên bản cache lên `net-app-v18` trong `web/sw.js`.
+- **4. Sửa lỗi hiển thị UI và Tối ưu hoá Tỷ lệ hiển thị (Aspect Ratio & Cache):**
+  - Sửa lỗi tỷ lệ khung hình: cố định chiều cao `.fx580-window` và sử dụng `inset: 0` trên `.calculator-outer` để đảm bảo vỏ máy Casio và màn hình LCD luôn hiển thị đầy đủ 100% tỷ lệ chuẩn mà không bị co rút thành 0px trên trình duyệt màn hình rộng.
+  - Sửa lỗi thẻ Menu / Setup overlay: sửa selector CSS bị khuyết và bảo đảm menu 2x4 ẩn/hiện chính xác theo trạng thái máy tính.
+  - Cập nhật bộ đệm Service Worker lên `net-app-v19` và nâng phiên bản query string `?v=20261026_1520` để trình duyệt người dùng tự động làm mới ngay lập tức.
 
 ## [Bổ sung tính năng Đường trung trực trong menu Dựng hình ▾] - 26/10/2026
 
