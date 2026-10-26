@@ -2468,6 +2468,9 @@ class CasioApp {
   }
 
   bindEvents() {
+    if (this._eventsBound) return;
+    this._eventsBound = true;
+
     const repeatableKeys = ['LEFT', 'RIGHT', 'UP', 'DOWN', 'DEL'];
 
     document.querySelectorAll('.calc-btn, .casio-key, .key, .dpad-btn').forEach(btn => {
@@ -2519,6 +2522,43 @@ class CasioApp {
     window.addEventListener('pointercancel', () => this.stopKeyRepeat());
 
     window.addEventListener('keydown', (e) => {
+      // 1. Kiểm tra máy tính có đang mở trên màn hình không
+      const win = document.getElementById('fx580-calculator-window');
+      if (!win || win.style.display === 'none' || win.classList.contains('minimized')) {
+        return; // Máy tính đóng -> tuyệt đối không can thiệp phím của trang ghi chú
+      }
+
+      // 2. Kiểm tra nếu con trỏ đang ở trong ô nhập liệu văn bản (input, textarea, modal...)
+      const activeEl = document.activeElement;
+      const activeTag = (activeEl && activeEl.tagName) ? activeEl.tagName.toUpperCase() : '';
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || (activeEl && activeEl.isContentEditable)) {
+        return; // Đang gõ chữ -> nhường quyền hoàn toàn cho ô nhập liệu
+      }
+
+      // 3. Phím tắt Bật/Tắt âm thanh (Ctrl+B / Cmd+B)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        const enabled = this.toggleSound();
+        if (window.emulatorUI && typeof window.emulatorUI.updateSoundButtonUI === 'function') {
+          window.emulatorUI.updateSoundButtonUI(enabled);
+        }
+        if (typeof window.showPageToast === 'function') {
+          window.showPageToast(enabled ? '🔊 Âm thanh phím: BẬT' : '🔇 Âm thanh phím: TẮT');
+        }
+        return;
+      }
+
+      // 4. Phím tắt Chụp ảnh màn hình LCD (Ctrl+S / Cmd+S khi chuột trong Casio)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        if (win.matches(':hover') || (activeEl && win.contains(activeEl))) {
+          e.preventDefault();
+          if (window.emulatorUI && typeof window.emulatorUI.captureLcd === 'function') {
+            window.emulatorUI.captureLcd();
+          }
+          return;
+        }
+      }
+
       if (['0','1','2','3','4','5','6','7','8','9'].includes(e.key)) {
         this.playClickSound();
         this.handleKey(e.key);
@@ -2682,6 +2722,14 @@ class CasioApp {
     else if (key === '-') key = 'sub';
     else if (key === '*' || key === '×') key = 'mul';
     else if (key === '/' || key === '÷') key = 'div';
+
+    // Ghi nhận lịch sử phím bấm Key Log
+    if (!this.keyLog) this.keyLog = [];
+    this.keyLog.push(key);
+    if (this.keyLog.length > 200) this.keyLog.shift();
+    if (window.emulatorUI && typeof window.emulatorUI.updateKeyLogUI === 'function') {
+      window.emulatorUI.updateKeyLogUI();
+    }
 
     // Powered-off check: only ON button turns it back on
     if (this.state.isPoweredOff) {
@@ -6049,6 +6097,9 @@ class CasioApp {
       this.display.setResult(this.displayResult);
       this.display.setScrollArrows(this.historyIndex > 0, this.historyIndex < this.history.length - 1);
     }
+    if (window.emulatorUI && typeof window.emulatorUI.updatePopupDisplay === 'function') {
+      window.emulatorUI.updatePopupDisplay();
+    }
   }
 
   insert(token) {
@@ -7924,8 +7975,373 @@ function initCasioWithParams() {
     try { window.casioApp = new CasioApp(); } catch (e) {}
   }
 
+  // =========================================================
+  // Net Note - Casio fx-580VN X EmulatorUI Engine
+  // =========================================================
+  class EmulatorUI {
+    constructor() {
+      this.init();
+    }
+
+    init() {
+      var self = this;
+      var btnSound = document.getElementById('tb-btn-sound');
+      var btnPopup = document.getElementById('tb-btn-popup');
+      var btnCapture = document.getElementById('tb-btn-capture');
+      var btnKeylog = document.getElementById('tb-btn-keylog');
+
+      // 1. Âm thanh phím
+      if (btnSound && !btnSound._hasBound) {
+        btnSound._hasBound = true;
+        btnSound.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (window.casioApp) {
+            var enabled = window.casioApp.toggleSound();
+            self.updateSoundButtonUI(enabled);
+            if (typeof window.showPageToast === 'function') {
+              window.showPageToast(enabled ? '🔊 Âm thanh phím: BẬT' : '🔇 Âm thanh phím: TẮT');
+            }
+          }
+        });
+      }
+
+      // 2. Mở Pop-up Display
+      if (btnPopup && !btnPopup._hasBound) {
+        btnPopup._hasBound = true;
+        btnPopup.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          self.togglePopupDisplay();
+        });
+      }
+
+      // 3. Chụp ảnh màn hình LCD
+      if (btnCapture && !btnCapture._hasBound) {
+        btnCapture._hasBound = true;
+        btnCapture.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          self.captureLcd();
+        });
+      }
+
+      // 4. Xem lịch sử phím bấm
+      if (btnKeylog && !btnKeylog._hasBound) {
+        btnKeylog._hasBound = true;
+        btnKeylog.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          self.toggleKeyLog();
+        });
+      }
+
+      this.setupPopupEvents();
+      this.setupKeylogEvents();
+
+      if (window.casioApp) {
+        this.updateSoundButtonUI(window.casioApp.soundEnabled !== false);
+      }
+    }
+
+    updateSoundButtonUI(enabled) {
+      var btn = document.getElementById('tb-btn-sound');
+      if (!btn) return;
+      var iconOn = btn.querySelector('.icon-sound-on');
+      var iconOff = btn.querySelector('.icon-sound-off');
+      if (iconOn && iconOff) {
+        iconOn.style.display = enabled ? 'inline-block' : 'none';
+        iconOff.style.display = enabled ? 'none' : 'inline-block';
+      }
+      btn.title = enabled ? 'Tắt âm thanh phím bấm (Ctrl+B)' : 'Bật âm thanh phím bấm (Ctrl+B)';
+      btn.classList.toggle('active', enabled);
+    }
+
+    togglePopupDisplay() {
+      var popup = document.getElementById('fx580-popup-window');
+      if (!popup) return;
+      var isHidden = (popup.style.display === 'none' || !popup.style.display);
+      popup.style.display = isHidden ? 'flex' : 'none';
+      if (isHidden) {
+        this.updatePopupDisplay();
+      }
+    }
+
+    setupPopupEvents() {
+      var self = this;
+      var popup = document.getElementById('fx580-popup-window');
+      var titlebar = document.getElementById('fx580-popup-titlebar');
+      var closeBtn = document.getElementById('fx580-popup-close');
+      var capBtn = document.getElementById('popup-btn-capture');
+      var insBtn = document.getElementById('popup-btn-insert');
+      var zoom1 = document.getElementById('popup-btn-zoom-1');
+      var zoom2 = document.getElementById('popup-btn-zoom-2');
+      var zoom3 = document.getElementById('popup-btn-zoom-3');
+
+      if (closeBtn && !closeBtn._bound) {
+        closeBtn._bound = true;
+        closeBtn.addEventListener('click', function () {
+          if (popup) popup.style.display = 'none';
+        });
+      }
+
+      if (capBtn && !capBtn._bound) {
+        capBtn._bound = true;
+        capBtn.addEventListener('click', function () {
+          self.captureLcd();
+        });
+      }
+
+      if (insBtn && !insBtn._bound) {
+        insBtn._bound = true;
+        insBtn.addEventListener('click', function () {
+          if (window.__fx580) window.__fx580.insertResultToCanvas();
+        });
+      }
+
+      function setPopupZoom(scale, activeBtn) {
+        var wrapper = document.getElementById('fx580-popup-lcd-wrapper');
+        if (wrapper) {
+          wrapper.style.transform = 'scale(' + scale + ')';
+          wrapper.style.transformOrigin = 'center center';
+        }
+        [zoom1, zoom2, zoom3].forEach(function(b) { if (b) b.classList.remove('active'); });
+        if (activeBtn) activeBtn.classList.add('active');
+      }
+
+      if (zoom1 && !zoom1._bound) {
+        zoom1._bound = true;
+        zoom1.addEventListener('click', function () { setPopupZoom(1.25, zoom1); });
+      }
+      if (zoom2 && !zoom2._bound) {
+        zoom2._bound = true;
+        zoom2.addEventListener('click', function () { setPopupZoom(1.6, zoom2); });
+      }
+      if (zoom3 && !zoom3._bound) {
+        zoom3._bound = true;
+        zoom3.addEventListener('click', function () { setPopupZoom(2.0, zoom3); });
+      }
+
+      if (popup && titlebar && !titlebar._dragBound) {
+        titlebar._dragBound = true;
+        var isDragging = false, startX = 0, startY = 0, initLeft = 0, initTop = 0;
+        titlebar.addEventListener('pointerdown', function (e) {
+          if (e.target.closest('button')) return;
+          isDragging = true;
+          startX = e.clientX;
+          startY = e.clientY;
+          var rect = popup.getBoundingClientRect();
+          initLeft = rect.left;
+          initTop = rect.top;
+          titlebar.setPointerCapture(e.pointerId);
+          e.preventDefault();
+        });
+        titlebar.addEventListener('pointermove', function (e) {
+          if (!isDragging) return;
+          var dx = e.clientX - startX;
+          var dy = e.clientY - startY;
+          popup.style.left = Math.max(10, Math.min(window.innerWidth - popup.offsetWidth - 10, initLeft + dx)) + 'px';
+          popup.style.top = Math.max(50, Math.min(window.innerHeight - 80, initTop + dy)) + 'px';
+        });
+        var stopDrag = function (e) {
+          if (!isDragging) return;
+          isDragging = false;
+          try { titlebar.releasePointerCapture(e.pointerId); } catch (err) {}
+        };
+        titlebar.addEventListener('pointerup', stopDrag);
+        titlebar.addEventListener('pointercancel', stopDrag);
+      }
+    }
+
+    updatePopupDisplay() {
+      var popup = document.getElementById('fx580-popup-window');
+      var popupLcd = document.getElementById('fx580-popup-lcd');
+      var realLcd = document.getElementById('lcd-screen');
+      if (!popup || popup.style.display === 'none' || !popupLcd || !realLcd) return;
+      popupLcd.innerHTML = realLcd.innerHTML;
+    }
+
+    toggleKeyLog() {
+      var panel = document.getElementById('fx580-keylog-panel');
+      if (!panel) return;
+      var isHidden = (panel.style.display === 'none' || !panel.style.display);
+      panel.style.display = isHidden ? 'flex' : 'none';
+      if (isHidden) {
+        this.updateKeyLogUI();
+      }
+    }
+
+    setupKeylogEvents() {
+      var self = this;
+      var panel = document.getElementById('fx580-keylog-panel');
+      var btnClose = document.getElementById('keylog-btn-close');
+      var btnClear = document.getElementById('keylog-btn-clear');
+      var btnCopy = document.getElementById('keylog-btn-copy');
+
+      if (btnClose && !btnClose._bound) {
+        btnClose._bound = true;
+        btnClose.addEventListener('click', function () {
+          if (panel) panel.style.display = 'none';
+        });
+      }
+
+      if (btnClear && !btnClear._bound) {
+        btnClear._bound = true;
+        btnClear.addEventListener('click', function () {
+          if (window.casioApp) window.casioApp.keyLog = [];
+          self.updateKeyLogUI();
+          if (typeof window.showPageToast === 'function') {
+            window.showPageToast('🗑️ Đã xóa lịch sử phím bấm!');
+          }
+        });
+      }
+
+      if (btnCopy && !btnCopy._bound) {
+        btnCopy._bound = true;
+        btnCopy.addEventListener('click', function () {
+          var log = (window.casioApp && window.casioApp.keyLog) ? window.casioApp.keyLog : [];
+          var text = log.join(' ');
+          if (!text) return;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text);
+          }
+          if (typeof window.showPageToast === 'function') {
+            window.showPageToast('📋 Đã sao chép chuỗi phím vào Clipboard!');
+          }
+        });
+      }
+    }
+
+    updateKeyLogUI() {
+      var body = document.getElementById('keylog-body');
+      if (!body) return;
+      var log = (window.casioApp && window.casioApp.keyLog) ? window.casioApp.keyLog : [];
+      if (!log || log.length === 0) {
+        body.innerHTML = '<div class="keylog-empty">Chưa có phím bấm nào</div>';
+        return;
+      }
+      var html = '';
+      log.forEach(function (k) {
+        var cls = 'key-badge';
+        if (k === 'SHIFT') cls += ' key-SHIFT';
+        else if (k === 'ALPHA') cls += ' key-ALPHA';
+        else if (['OPTN','CALC','MENU'].indexOf(k) >= 0) cls += ' key-MENU';
+        else if (['DEL','AC'].indexOf(k) >= 0) cls += ' key-DEL';
+        else if (k === 'EQUALS' || k === '=') cls += ' key-EQUALS';
+        
+        var displayLabel = k;
+        if (k === 'add') displayLabel = '+';
+        else if (k === 'sub') displayLabel = '−';
+        else if (k === 'mul') displayLabel = '×';
+        else if (k === 'div') displayLabel = '÷';
+        else if (k === 'EQUALS') displayLabel = '=';
+        else if (k === 'open_paren') displayLabel = '(';
+        else if (k === 'close_paren') displayLabel = ')';
+        else if (k === 'x_var') displayLabel = 'x';
+        else if (k === 'sqr') displayLabel = 'x²';
+        else if (k === 'sqrt') displayLabel = '√';
+
+        html += '<span class="' + cls + '">' + displayLabel + '</span> ';
+      });
+      body.innerHTML = html;
+      body.scrollTop = body.scrollHeight;
+    }
+
+    captureLcd() {
+      var realLcd = document.getElementById('lcd-screen');
+      if (!realLcd) return;
+
+      var width = 384;
+      var height = 145;
+      var canvas = document.createElement('canvas');
+      canvas.width = width * 2;
+      canvas.height = height * 2;
+      var ctx = canvas.getContext('2d');
+      ctx.scale(2, 2);
+
+      // 1. Vẽ nền LCD chuẩn ClassWiz dot-matrix
+      ctx.fillStyle = '#c5d5bd';
+      ctx.fillRect(0, 0, width, height);
+
+      // Hiệu ứng lưới pixel LCD
+      ctx.fillStyle = 'rgba(0,0,0,0.03)';
+      for (var y = 0; y < height; y += 3) {
+        ctx.fillRect(0, y, width, 1.5);
+      }
+      for (var x = 0; x < width; x += 3) {
+        ctx.fillRect(x, 0, 1.5, height);
+      }
+
+      // 2. Vẽ Status Bar
+      ctx.fillStyle = '#1e2023';
+      ctx.font = 'bold 9px "CasioClassWiz", monospace, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      var app = window.casioApp;
+      var st = (app && app.state) ? app.state : {};
+      var statusText = '';
+      if (st.shift) statusText += ' [S]';
+      if (st.alpha) statusText += ' [A]';
+      if (st.hasMemory) statusText += ' [M]';
+      if (st.sto) statusText += ' [STO]';
+      statusText += '  ' + (st.angleMode || 'DEG') + '  MATH';
+      if (st.modeName && st.modeName !== 'COMP') statusText += '  [' + st.modeName + ']';
+
+      ctx.fillText(statusText, 8, 12);
+      ctx.strokeStyle = 'rgba(30, 32, 35, 0.2)';
+      ctx.beginPath();
+      ctx.moveTo(4, 20);
+      ctx.lineTo(width - 4, 20);
+      ctx.stroke();
+
+      // 3. Vẽ biểu thức và kết quả
+      var expr = app ? (app.expression || '') : '';
+      var result = app ? (app.displayResult || '0') : '0';
+
+      ctx.fillStyle = '#18191a';
+      ctx.font = '16px "CasioClassWiz", monospace, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(expr || '0', 10, 48);
+
+      ctx.font = 'bold 22px "CasioClassWiz", monospace, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(result !== undefined ? String(result) : '0', width - 12, height - 24);
+
+      // 4. Xuất ảnh PNG và sao chép vào Clipboard
+      canvas.toBlob(function (blob) {
+        if (!blob) return;
+        if (navigator.clipboard && window.ClipboardItem) {
+          try {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+              if (typeof window.showPageToast === 'function') {
+                window.showPageToast('📸 Đã sao chép ảnh LCD vào Clipboard!');
+              }
+            }).catch(function () {
+              downloadLcdCanvas(canvas);
+            });
+          } catch (err) {
+            downloadLcdCanvas(canvas);
+          }
+        } else {
+          downloadLcdCanvas(canvas);
+        }
+      }, 'image/png');
+
+      function downloadLcdCanvas(canv) {
+        var a = document.createElement('a');
+        a.download = 'casio-fx580-lcd-' + Date.now() + '.png';
+        a.href = canv.toDataURL('image/png');
+        a.click();
+        if (typeof window.showPageToast === 'function') {
+          window.showPageToast('📸 Đã lưu ảnh màn hình LCD về máy!');
+        }
+      }
+    }
+  }
+
   // Khởi tạo EmulatorUI nếu DOM đã có sẵn
-  if (typeof EmulatorUI !== 'undefined' && typeof document !== 'undefined' && document.getElementById) {
+  if (typeof document !== 'undefined' && document.getElementById) {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function () {
         try { window.emulatorUI = new EmulatorUI(); } catch (e) {}
@@ -8016,12 +8432,10 @@ function initCasioWithParams() {
         winEl.classList.remove('minimized');
       }
       if (btn) btn.classList.add('active');
+      restoreFx580WindowPosition();
       if (window.casioApp) {
         if (typeof window.casioApp.setupLcdAutoResize === 'function') {
           window.casioApp.setupLcdAutoResize();
-        }
-        if (typeof window.casioApp.bindEvents === 'function') {
-          window.casioApp.bindEvents();
         }
         if (typeof window.casioApp.renderCurrentView === 'function') {
           window.casioApp.renderCurrentView();
@@ -8360,11 +8774,93 @@ function initCasioWithParams() {
           if (!isDragging) return;
           isDragging = false;
           try { titleBar.releasePointerCapture(e.pointerId); } catch (err) {}
+          try {
+            localStorage.setItem('fx580_window_pos', JSON.stringify({
+              left: win.style.left,
+              top: win.style.top
+            }));
+          } catch (err) {}
         };
         titleBar.addEventListener('pointerup', stopDrag);
         titleBar.addEventListener('pointercancel', stopDrag);
+
+        // Kéo co giãn kích thước máy tính
+        var resizeHandle = document.getElementById('fx580-calc-resize');
+        if (resizeHandle) {
+          var isResizing = false;
+          var startResizeX = 0;
+          var startWidth = 0;
+
+          resizeHandle.addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            isResizing = true;
+            startResizeX = e.clientX;
+            startWidth = win.offsetWidth;
+            win.style.transition = 'none';
+            resizeHandle.setPointerCapture(e.pointerId);
+          });
+
+          resizeHandle.addEventListener('pointermove', function (e) {
+            if (!isResizing) return;
+            var dx = e.clientX - startResizeX;
+            var newW = Math.max(260, Math.min(480, startWidth + dx));
+            win.style.width = newW + 'px';
+            var calcH = Math.round(newW / (644 / 1250) + 42);
+            win.style.height = Math.min(calcH, window.innerHeight - 40) + 'px';
+            if (window.casioApp && typeof window.casioApp.setupLcdAutoResize === 'function') {
+              window.casioApp.setupLcdAutoResize();
+            }
+          });
+
+          var stopResize = function (e) {
+            if (!isResizing) return;
+            isResizing = false;
+            try { resizeHandle.releasePointerCapture(e.pointerId); } catch (err) {}
+            try {
+              localStorage.setItem('fx580_window_width', String(win.offsetWidth));
+            } catch (err) {}
+          };
+          resizeHandle.addEventListener('pointerup', stopResize);
+          resizeHandle.addEventListener('pointercancel', stopResize);
+        }
+
+        // Phục hồi kích thước và vị trí ban đầu
+        restoreFx580WindowPosition();
       }
     });
+  }
+
+  function restoreFx580WindowPosition() {
+    var win = document.getElementById('fx580-calculator-window');
+    if (!win) return;
+    try {
+      var savedPos = localStorage.getItem('fx580_window_pos');
+      if (savedPos) {
+        var pos = JSON.parse(savedPos);
+        var left = parseFloat(pos.left);
+        var top = parseFloat(pos.top);
+        var maxW = window.innerWidth;
+        var maxH = window.innerHeight;
+        var winW = win.offsetWidth || 348;
+        if (!isNaN(left) && !isNaN(top)) {
+          left = Math.max(8, Math.min(maxW - winW - 8, left));
+          top = Math.max(48, Math.min(maxH - 60, top));
+          win.style.left = left + 'px';
+          win.style.top = top + 'px';
+          win.style.right = 'auto';
+        }
+      }
+      var savedWidth = localStorage.getItem('fx580_window_width');
+      if (savedWidth) {
+        var w = parseFloat(savedWidth);
+        if (!isNaN(w) && w >= 260 && w <= 480) {
+          win.style.width = w + 'px';
+          var calcH = Math.round(w / (644 / 1250) + 42);
+          win.style.height = Math.min(calcH, window.innerHeight - 40) + 'px';
+        }
+      }
+    } catch (err) {}
   }
 
 })(typeof window !== 'undefined' ? window : this, typeof document !== 'undefined' ? document : (this.document || {}));

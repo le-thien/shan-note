@@ -1081,6 +1081,47 @@
     </div>
   </div>
     </div>
+    <!-- Tay cầm co giãn kích thước máy tính fx-580 -->
+    <div class="window-resize-handle" id="fx580-calc-resize" title="Kéo để phóng to/thu nhỏ máy tính"></div>
+  </div>
+
+  <!-- Cửa sổ Pop-up Display phóng to màn hình LCD (ClassWiz) -->
+  <div id="fx580-popup-window" class="emulator-window" style="display: none; width: 440px; height: 220px; top: 80px; left: 100px;">
+    <div class="window-titlebar" id="fx580-popup-titlebar">
+      <span>Màn hình LCD Phóng to (Casio fx-580VN X)</span>
+      <div class="window-controls">
+        <button class="win-btn win-close" id="fx580-popup-close" title="Đóng">&times;</button>
+      </div>
+    </div>
+    <div class="popup-toolbar">
+      <button class="popup-tool-btn" id="popup-btn-capture" title="Sao chép ảnh LCD (Ctrl+C)">📷 Chụp</button>
+      <button class="popup-tool-btn" id="popup-btn-insert" title="Chèn vào trang ghi chú">✍️ Chèn</button>
+      <div class="tool-sep"></div>
+      <button class="popup-tool-btn active" id="popup-btn-zoom-1" title="Tỷ lệ 1.25x">1.25x</button>
+      <button class="popup-tool-btn" id="popup-btn-zoom-2" title="Tỷ lệ 1.6x">1.6x</button>
+      <button class="popup-tool-btn" id="popup-btn-zoom-3" title="Tỷ lệ 2.0x">2.0x</button>
+    </div>
+    <div class="popup-display-body" id="fx580-popup-body">
+      <div class="popup-lcd-wrapper" id="fx580-popup-lcd-wrapper" style="transform: scale(1.25); transform-origin: center center;">
+        <div class="lcd-screen-overlay popup-lcd" id="fx580-popup-lcd"></div>
+      </div>
+    </div>
+    <div class="window-resize-handle" id="fx580-popup-resize"></div>
+  </div>
+
+  <!-- Bảng theo dõi lịch sử phím bấm (Key Log Panel) -->
+  <div id="fx580-keylog-panel" class="keylog-panel" style="display: none;">
+    <div class="keylog-header">
+      <span>📋 Lịch sử phím bấm (Key Log)</span>
+      <div style="display: flex; gap: 4px;">
+        <button class="keylog-btn" id="keylog-btn-copy" title="Sao chép toàn bộ chuỗi phím">📋 Chép</button>
+        <button class="keylog-btn" id="keylog-btn-clear" title="Xóa lịch sử">🗑️ Xóa</button>
+        <button class="keylog-btn" id="keylog-btn-close" title="Đóng">&times;</button>
+      </div>
+    </div>
+    <div class="keylog-body" id="keylog-body">
+      <div class="keylog-empty">Chưa có phím bấm nào</div>
+    </div>
   </div>
 
   <!-- ========================================== -->
@@ -1422,14 +1463,14 @@
   <!-- Module Xoay Hình học Không gian 3D 360° -->
   <script src="hhkg3d.js?v=20261026_1520"></script>
   <!-- Module Máy tính Casio fx-580VN X -->
-  <script src="fx580.js?v=20261026_1520"></script>
+  <script src="fx580.js?v=20261026_1830"></script>
   <!-- Module Đồ thị hàm số & 3D Solid of Revolution -->
-  <script src="graph_widget.js?v=20261026_1520"></script>
-  <script src="app.js?v=20261026_1520"></script>
+  <script src="graph_widget.js?v=20261026_1830"></script>
+  <script src="app.js?v=20261026_1830"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261026_1520').catch(function() {});
+        navigator.serviceWorker.register('./sw.js?v=20261026_1830').catch(function() {});
       });
     }
   </script>

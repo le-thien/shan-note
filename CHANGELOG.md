@@ -2,6 +2,22 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Tối ưu hóa Độ ổn định & Bổ sung Tiện ích Máy tính Casio fx-580VN X] - 26/10/2026
+
+- **1. Khắc phục triệt để lỗi nhân đôi/nhân ba phím và cô lập bắt phím (Hạng mục 1):**
+  - Khắc phục lỗi bấm 1 lần ra 2-3 số bằng cách thêm cờ bảo vệ `_eventsBound` và loại bỏ lệnh gọi lặp `bindEvents()` trong `fxBridge.open()`.
+  - Cô lập sự kiện phím bàn phím: Chỉ xử lý phím khi cửa sổ Casio đang mở (`display !== 'none'`) và con trỏ không ở trong các trường văn bản (`input`, `textarea`, `contenteditable`), giải phóng hoàn toàn các phím `Enter`, `Backspace`, phím chữ khi soạn thảo bài tập trên Nét.
+  - Hỗ trợ phím tắt tiện lợi: `Ctrl+B / Cmd+B` (bật/tắt âm thanh), `Ctrl+S / Cmd+S` (chụp LCD khi chuột ở vùng máy tính).
+- **2. Kích hoạt và kết nối 4 tiện ích nâng cao trên thanh tiêu đề Casio (Hạng mục 2):**
+  - **Âm thanh bàn phím (`#tb-btn-sound`):** Tích hợp `Web Audio API` phát âm thanh click phím cơ học chân thực, ghi nhớ trạng thái bật/tắt vào `localStorage`.
+  - **Chụp ảnh màn hình LCD (`#tb-btn-capture`):** Trích xuất ảnh LCD 2D Canvas sắc nét, tự động ghi vào Clipboard để dán nhanh (`⌘V`) hoặc tải tệp ảnh PNG chất lượng cao.
+  - **Cửa sổ Pop-up Display LCD độc lập (`#tb-btn-popup`):** Cửa sổ phóng to màn hình LCD với 3 mức thu phóng (1.25x, 1.6x, 2.0x), hỗ trợ kéo thả vị trí, tay cầm co giãn kéo dãn, và đồng bộ 100% thời gian thực (0ms) từ máy tính Casio để hỗ trợ trình chiếu/dạy học.
+  - **Bảng lịch sử phím bấm Key Log (`#tb-btn-keylog`):** Giao diện bảng danh sách phím đã bấm với badge màu sắc phân loại khoa học (phím số, phím hàm lượng giác, phím điều hướng), hỗ trợ nút Sao chép toàn bộ chuỗi phím vào bộ nhớ tạm hoặc Xóa lịch sử.
+- **3. Co giãn tỷ lệ chuẩn 644/1250 và Ghi nhớ trạng thái cửa sổ (Hạng mục 3):**
+  - Bổ sung tay cầm co giãn kích thước ở góc dưới bên phải (`#fx580-calc-resize`), tự động khóa tỷ lệ chuẩn `644 / 1250` của Casio ClassWiz, chống méo hình hoặc biến dạng vỏ máy.
+  - Tự động ghi nhớ và khôi phục tọa độ vị trí (`fx580_window_pos`) cùng độ rộng (`fx580_window_width`) vào `localStorage`.
+  - Nâng cấp bộ đệm Service Worker lên `net-app-v20` và cập nhật phiên bản query string `?v=20261026_1830` để kích hoạt làm mới tự động.
+
 ## [Cập nhật toàn diện Giả lập Máy tính Casio fx-580VN X Chuẩn 1:1 từ Tikz-Physics] - 26/10/2026
 
 - **1. Đồng bộ và cập nhật toàn bộ mã nguồn máy tính Casio fx-580VN X từ kho Tikz-Physics/casio-fx580vnx:**
