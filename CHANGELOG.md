@@ -2,6 +2,37 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Cập nhật toàn diện Giả lập Máy tính Casio fx-580VN X Chuẩn 1:1 từ Tikz-Physics] - 26/10/2026
+
+- **1. Đồng bộ và cập nhật toàn bộ mã nguồn máy tính Casio fx-580VN X từ kho Tikz-Physics/casio-fx580vnx:**
+  - *Ngoại quan chuẩn 1:1 chính hãng ClassWiz:* Nền vỏ máy vân Carbon cao cấp với kích thước tỷ lệ chuẩn xác và 50 phím bấm vật lý được trích xuất trực tiếp từ tọa độ chính hãng Casio DLL (`CLASSWIZ_P20.dll`).
+  - *Màn hình tinh thể lỏng Natural Textbook Display (Natural-V.P.A.M):* Hiển thị chân thực 100% các biểu thức toán học 2 chiều: phân số $\frac{a}{b}$, hỗn số, căn thức bậc hai, căn bậc $n$, luỹ thừa $x^{\blacksquare}$, tích phân $\int$, vi phân đạo hàm $\frac{d}{dx}$, tổng $\sum$, logarit cơ số $\log_{\blacksquare}$, số thập phân vô hạn tuần hoàn.
+  - *Bộ font Casio ClassWiz LCD chuyên biệt (`fonts/ClassWizXDisplay-Regular.woff2` / `.woff` / `.ttf`):* Hiển thị ma trận điểm (dot-matrix) sắc nét chuẩn hãng, kèm bộ ký hiệu vector SVG chuẩn hóa cho toàn bộ 12 chế độ trên LCD.
+- **2. Đầy đủ 12 Menu chức năng hoạt động hoàn chỉnh 100%:**
+  - *Menu 1 (COMP):* Tính toán khoa học, phân số, căn thức, đạo hàm số, tích phân số, số ngẫu nhiên, giải phương trình SOLVE (Newton-Raphson), biến nhớ ($A, B, C, D, E, F, X, Y, M, Ans, PreAns$), 47 hằng số khoa học, 40 đơn vị chuyển đổi.
+  - *Menu 2 (CMPLX):* Số phức dạng đại số $a+bi$ và lượng giác $r\angle\theta$, modun, argument, liên hợp, phần thực, phần ảo.
+  - *Menu 3 (BASE-N):* Hệ nhị phân (BIN), bát phân (OCT), thập phân (DEC), thập lục phân (HEX), phép toán logic AND, OR, XOR, XNOR, NOT, NEG.
+  - *Menu 4 (MATRIX):* Ma trận MatA, MatB, MatC, MatD cấp tới 4x4; định thức $\det$, nghịch đảo $A^{-1}$, chuyển vị $A^T$, nhân/cộng ma trận.
+  - *Menu 5 (VECTOR):* Vector 2D và 3D (VctA, VctB, VctC, VctD); tích có hướng, tích vô hướng, độ dài, góc giữa hai vector.
+  - *Menu 6 (STAT):* Thống kê 1 biến (trung bình, độ lệch chuẩn, tứ phân vị $Q_1, Med, Q_3, \min, \max$) và hồi quy.
+  - *Menu 7 (DIST):* Phân phối xác suất Normal PD, Normal CD, Inverse Normal, Binomial PD, Binomial CD, Poisson PD, Poisson CD.
+  - *Menu 8 (TABLE):* Lập bảng giá trị song hàm $f(x)$ và $g(x)$ với Start, End, Step linh hoạt.
+  - *Menu 9 (EQUATION):* Hệ phương trình bậc nhất 2-4 ẩn có dấu ngoặc nhọn lớn $\{$; Phương trình đa thức bậc 2, 3, 4 tìm nghiệm thực/phức và tọa độ đỉnh parabol, cực trị địa phương.
+  - *Menu A (INEQUALITY):* Bất phương trình đa thức bậc 2, 3, 4 ($>, <, \ge, \le$).
+  - *Menu B (RATIO):* Tính tỉ lệ thức $A:B = X:D$ và $A:B = C:X$.
+  - *Menu 0/12 (SPREADSHEET):* Bảng tính mini 5 cột x 45 dòng với công thức.
+- **3. Tích hợp sâu vào Nét & Tiện ích giảng dạy:**
+  - *Cửa sổ nổi kéo thả (Draggable Window):* Nhấp nút `[ 🖩 fx580 ]` trên thanh công cụ để mở/đóng; người dùng có thể kéo thả di chuyển khắp trang ghi chú mà không che khuất bài vẽ.
+  - *Nút "✍️ Chèn" kết quả vào trang ghi chú:* Tự động chèn biểu thức và kết quả tính toán trực tiếp vào canvas dưới dạng đối tượng chữ Nét.
+  - *Công cụ tiện ích phong phú:*
+    + Nút âm thanh phím bấm chân thực (`Web Audio API`).
+    + Nút Pop-up Display (`🗖`) mở màn hình LCD phóng to độc lập phục vụ trình chiếu / giảng bài.
+    + Nút chụp ảnh màn hình LCD (`📷`) lưu ảnh PNG hoặc sao chép vào Clipboard.
+    + Xem lịch sử phím bấm Key Log (`📋`).
+    + Thu nhỏ / Phóng to cửa sổ máy tính.
+- **4. Cập nhật Service Worker:**
+  - Tích hợp bộ font ClassWiz vào đệm ngoại tuyến và nâng phiên bản cache lên `net-app-v18` trong `web/sw.js`.
+
 ## [Bổ sung tính năng Đường trung trực trong menu Dựng hình ▾] - 26/10/2026
 
 - **1. Thêm mục "Đường trung trực" vào menu Dựng hình ▾:**

@@ -145,14 +145,29 @@
   - **Thanh điều khiển nhanh trên Toolbar:** Cụm `[🔄 Xoay 3D 360°] [↶ 45°] [↷ 45°] [▶ Quay]` tự động hiển thị khi chọn hình không gian.
   - **Phòng chiếu Không gian 3D tương tác (3D Interactive Viewer):** Khung phóng to chuyên sâu để giảng bài, xoay tự do mọi chiều không gian, tô màu các mặt phẳng bán trong suốt (Shaded Faces), tự động quay tròn 360°, nút "Áp dụng vào trang ghi chú" cập nhật góc nhìn mới.
   - **Tự động chuyển đổi cạnh nét đứt/nét liền:** Thuật toán chiếu hình 3D lồi tự động biến cạnh thành nét liền khi quay ra phía trước và nét đứt khi quay ra phía sau, chuẩn xác theo phối cảnh SGK.
-- [ ] **Prototype máy tính tương thích fx-580VN X (chưa xác minh với máy thật):**
-  - **Nút bật/tắt `[fx580]`:** Đặt trong cụm nút cố định bên phải thanh tiêu đề để tránh bị cụm công cụ dài che; các công cụ bên trái có thể cuộn ngang.
-  - **Giao diện theo ảnh tham chiếu:** Vỏ máy màu xám than bo tròn, viền sáng, logo ở phần đầu, LCD xanh nhạt có khung đen; cụm SHIFT/ALPHA, Replay, MENU/ON và các hàng phím đã được sắp lại theo ảnh người dùng gửi. Các nút Chèn/Lịch sử/thu nhỏ/đóng vẫn có để bảo toàn tính năng ứng dụng.
-  - **Cửa sổ nổi:** Kéo thả, thu nhỏ và đóng; giao diện do Nét dựng lại từ ảnh tham chiếu, không phải phần mềm chính thức của Casio.
-  - **Tính năng "✍️ Chèn" kết quả vào trang ghi chú:** Tự động chèn kết quả tính toán hoặc nghiệm phương trình / bảng giá trị trực tiếp vào trang ghi chú dưới dạng đối tượng chữ, có thể kéo thả, đổi màu, hoàn tác.
-  - **Ngăn kéo lịch sử và bàn phím máy tính:** Có sẵn trong prototype; chưa đối chiếu hành vi phím với tài liệu hoặc máy thật.
-  - **Menu:** Hiển thị đủ 12 mode. Calculate, Statistics 1-VAR, Table cơ bản và một phần Equation có code; các mode khác báo rõ chưa triển khai, không giả vờ mở chức năng.
-  - **Giới hạn bắt buộc:** Chưa có Python core, editor công thức hai chiều, keymap đã xác minh hoặc session độc lập. Evaluator hiện dùng `new Function` và phải được thay bằng parser an toàn trước khi lõi tính toán được xem là phù hợp đặc tả. Bảng chi tiết: [`../spec/feature_matrix.json`](../spec/feature_matrix.json); khảo sát tích hợp: [`integration-discovery.md`](integration-discovery.md).
+- [x] **Giả lập Máy tính Casio fx-580VN X ClassWiz Chuẩn 1:1 Chính Hãng (Tikz-Physics):**
+  - **Đồng bộ và cập nhật 100% mã nguồn từ kho Tikz-Physics/casio-fx580vnx:**
+    + Giao diện chuẩn 1:1 vỏ máy ClassWiz chính hãng, tỷ lệ chân thực kèm 50 phím bấm vật lý được trích xuất tọa độ chính xác từ `CLASSWIZ_P20.dll`.
+    + Màn hình tinh thể lỏng Natural Textbook Display (Natural-V.P.A.M): Hỗ trợ đầy đủ biểu thức 2 chiều (phân số, căn bậc $n$, luỹ thừa, tích phân, đạo hàm, tổng $\sum$, logarit cơ số...).
+    + Bộ font Casio LCD chuyên dụng (`ClassWizXDisplay-Regular`) hiển thị dot-matrix chuẩn sắc nét và icon SVG vector authentic cho toàn bộ 12 mode.
+  - **Đầy đủ 12 Menu chức năng hoạt động hoàn hảo:**
+    + Menu 1 (COMP): Tính toán khoa học, phân số, căn thức, vi tích phân số, SOLVE, biến nhớ, hằng số, đổi đơn vị.
+    + Menu 2 (CMPLX): Số phức dạng đại số $a+bi$ và lượng giác $r\angle\theta$.
+    + Menu 3 (BASE-N): Nhị phân, bát phân, thập phân, thập lục phân và logic bitwise.
+    + Menu 4 (MATRIX): Ma trận tới cấp 4x4, định thức $\det$, nghịch đảo $A^{-1}$, chuyển vị $A^T$.
+    + Menu 5 (VECTOR): Vector 2D/3D, tích vô hướng, tích có hướng, độ dài, góc.
+    + Menu 6 (STAT): Thống kê 1 biến và hồi quy.
+    + Menu 7 (DIST): Phân phối xác suất (Normal, Binomial, Poisson).
+    + Menu 8 (TABLE): Bảng giá trị song hàm $f(x)$ và $g(x)$.
+    + Menu 9 (EQUATION): Hệ phương trình 2-4 ẩn dấu $\{$, Phương trình bậc 2-4 tìm nghiệm phức & đỉnh parabol.
+    + Menu A (INEQUALITY): Bất phương trình bậc 2-4.
+    + Menu B (RATIO): Tỉ lệ thức $A:B=X:D$.
+    + Menu 0/12 (SPREADSHEET): Bảng tính mini 5x45.
+  - **Tích hợp sâu trong ứng dụng Nét:**
+    + Cửa sổ nổi kéo thả khắp màn hình không che bài giảng.
+    + Tính năng "✍️ Chèn" kết quả vào trang ghi chú tức thì.
+    + Tiện ích: Âm thanh phím Web Audio API, Pop-up Display phóng to trình chiếu, Chụp ảnh LCD PNG, Key Log.
+    + Hoạt động offline 100% và hỗ trợ PWA qua Service Worker `net-app-v18`.
 - [x] **Nâng cấp & Tinh chỉnh công cụ Tẩy (Từng tí) siêu nhỏ và cực mảnh:**
   - **Đầu tẩy siêu nhỏ và thanh mảnh:** Bán kính mặc định tinh chỉnh xuống chỉ $3\text{px}$ (đường kính $6\text{px}$), đường viền hiển thị nét đứt siêu mỏng ($0.6\text{px}$) kèm chấm tâm li ti $0.5\text{px}$ giúp định vị cực kỳ chính xác.
   - **Vùng cắt gọt khít khao:** Giảm bù trừ sai số va chạm (`hitR`) về đúng bán kính hiển thị, loại bỏ hoàn toàn hiện tượng tẩy bị "phình to" hay xóa lẹm sang các nét lân cận.

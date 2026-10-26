@@ -938,8 +938,8 @@
     </div>
   </div>
 
-  <!-- ========================================== -->
-  <!-- CỬA SỔ MÁY TÍNH BỎ TÚI CASIO FX-580VN X -->
+    <!-- ========================================== -->
+  <!-- CỬA SỔ MÁY TÍNH BỎ TÚI CASIO FX-580VN X CHÍNH HÃNG CLASSWIZ -->
   <!-- ========================================== -->
   <div id="fx580-calculator-window" class="fx580-window" style="display: none;">
     <!-- Phần đầu vỏ máy và các tiện ích của Nét -->
@@ -951,222 +951,136 @@
       </div>
       <div class="fx580-win-controls">
         <button class="fx580-btn-tool fx580-btn-insert" id="fx580-btn-insert" title="Chèn kết quả tính toán vào trang ghi chú">✍️ Chèn</button>
-        <button class="fx580-btn-tool fx580-btn-history" id="fx580-btn-history" title="Xem lịch sử tính toán">📋</button>
-        <button class="fx580-btn-minimize" title="Thu nhỏ máy tính">−</button>
-        <button class="fx580-btn-close" title="Đóng máy tính">✕</button>
-      </div>
-    </div>
-
-    <!-- Ngăn kéo Lịch sử tính toán (Ẩn/Hiện) -->
-    <div class="fx580-history-drawer" id="fx580-history-drawer" style="display: none;">
-      <div class="fx580-history-header">
-        <span>LỊCH SỬ TÍNH TOÁN</span>
-        <button class="fx580-history-close" id="fx580-history-close">✕</button>
-      </div>
-      <div class="fx580-history-list" id="fx580-history-list">
-        <span class="history-empty">Chưa có phép tính nào</span>
-      </div>
-    </div>
-
-    <!-- Màn hình tinh thể lỏng Natural-V.P.A.M LCD -->
-    <div class="fx580-screen-wrapper">
-      <div class="fx580-lcd-screen">
-        <div class="fx580-status-line">
-          <span class="fx580-ind fx580-ind-s" id="fx580-ind-s">S</span>
-          <span class="fx580-ind fx580-ind-a" id="fx580-ind-a">A</span>
-          <span class="fx580-ind fx580-ind-m" id="fx580-ind-m">M</span>
-          <span class="fx580-ind fx580-ind-d" id="fx580-ind-d">D</span>
-          <span class="fx580-ind-fill"></span>
-          <span class="fx580-ind fx580-ind-math" id="fx580-ind-math">Math ▲▼</span>
-        </div>
-        <div class="fx580-expr-line" id="fx580-expr-text">
-          <span class="fx580-cursor"></span>
-        </div>
-        <div class="fx580-result-line" id="fx580-result-text">0</div>
-      </div>
-    </div>
-
-    <!-- Bàn phím Casio fx-580VN X -->
-    <div class="fx580-keypad">
-      <!-- Cụm phím SHIFT, ALPHA, REPLAY, MENU và ON -->
-      <div class="fx580-top-controls">
-        <button class="fx580-key key-shift" data-action="SHIFT">
-          <span class="key-sub-label shift-lbl">SHIFT</span>
-          <span class="key-main-label"></span>
+        <button class="fx580-btn-tool" id="tb-btn-sound" title="Bật / Tắt âm thanh phím bấm (Ctrl+B)">
+          <svg class="icon-sound-on" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <svg class="icon-sound-off" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
         </button>
-        <button class="fx580-key key-alpha" data-action="ALPHA">
-          <span class="key-sub-label alpha-lbl">ALPHA</span>
-          <span class="key-main-label"></span>
+        <button class="fx580-btn-tool" id="tb-btn-popup" title="Mở Pop-up Display (Màn hình LCD phóng to)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
         </button>
+        <button class="fx580-btn-tool" id="tb-btn-capture" title="Chụp ảnh màn hình LCD (Copy to Clipboard / Save PNG)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        </button>
+        <button class="fx580-btn-tool fx580-btn-history" id="tb-btn-keylog" title="Xem lịch sử phím bấm (Key Log)">📋</button>
+        <button class="fx580-btn-minimize" id="fx580-btn-minimize" title="Thu nhỏ máy tính">−</button>
+        <button class="fx580-btn-close" id="fx580-btn-close" title="Đóng máy tính">✕</button>
+      </div>
+    </div>
 
-        <div class="fx580-replay-wheel">
-          <div class="replay-inner">
-            <span class="replay-text">REPLAY</span>
-            <button class="replay-dir replay-up" data-action="UP">▲</button>
-            <button class="replay-dir replay-down" data-action="DOWN">▼</button>
-            <button class="replay-dir replay-left" data-action="LEFT">◀</button>
-            <button class="replay-dir replay-right" data-action="RIGHT">▶</button>
+    <!-- Thân máy tính 1:1 chuẩn Casio ClassWiz -->
+    <div class="fx580-body">
+      <div class="calc-container">
+        <div class="calculator-outer">
+      <div class="fx580-replay-wheel" style="display:none;"></div>
+
+      <!-- Active LCD Screen -->
+      <div class="lcd-screen-overlay" id="lcd-screen" class="lcd-screen-overlay fx580-lcd-screen">
+        <!-- Status Bar -->
+        <div class="lcd-status-bar" id="lcd-status-bar">
+          <div class="status-group">
+            <span class="status-sym sym-s" id="ind-shift"></span>
+            <span class="status-sym sym-a" id="ind-alpha"></span>
+            <span class="status-sym sym-m" id="ind-m"></span>
+            <span class="status-sym sym-sto" id="ind-sto"></span>
+          </div>
+          <div class="status-group">
+            <span class="status-sym sym-math active" id="ind-math"></span>
+            <span class="status-sym sym-d active" id="ind-d"></span>
+            <span class="status-sym sym-r" id="ind-r"></span>
+            <span class="status-sym sym-g" id="ind-g"></span>
+            <span class="mode-badge" id="ind-mode-badge" style="display:none;"></span>
+          </div>
+          <div class="status-group">
+            <span class="status-sym sym-up" id="ind-up"></span>
+            <span class="status-sym sym-down" id="ind-down"></span>
           </div>
         </div>
 
-        <button class="fx580-key key-menu" data-action="MENU">
-          <span class="key-sub-label shift-lbl">MENU SETUP</span>
-          <span class="key-main-label"></span>
-        </button>
-        <button class="fx580-key key-on" data-action="ON">
-          <span class="key-sub-label">ON</span>
-          <span class="key-main-label"></span>
-        </button>
-      </div>
-
-      <!-- Hàng phím tùy chọn và hàm -->
-      <div class="fx580-key-row row-fn">
-        <button class="fx580-key key-optn" data-action="OPTN">
-          <span class="key-sub-label">QR</span>
-          <span class="key-main-label">OPTN</span>
-        </button>
-        <button class="fx580-key" data-action="CALC">
-          <span class="key-sub-label shift-lbl">SOLVE</span>
-          <span class="key-main-label">CALC</span>
-        </button>
-        <button class="fx580-key" data-action="DIFF">
-          <span class="key-sub-label shift-lbl">∫dx</span>
-          <span class="key-main-label">d/dx</span>
-        </button>
-        <button class="fx580-key" data-action="VAR_X">
-          <span class="key-sub-label alpha-lbl">:</span>
-          <span class="key-main-label">x</span>
-        </button>
-        <button class="fx580-key" data-action="LOG">
-          <span class="key-sub-label shift-lbl">∑</span>
-          <span class="key-main-label">log<sub>■</sub>■</span>
-        </button>
-      </div>
-
-      <!-- Hàng phím tính năng hàng 2: Phân số, Căn, x^2, x^y, log, ln -->
-      <div class="fx580-key-row row-math-6">
-        <button class="fx580-key" data-action="FRAC">
-          <span class="key-sub-label shift-lbl">■■/■</span>
-          <span class="key-main-label">■/■</span>
-        </button>
-        <button class="fx580-key" data-action="SQRT">
-          <span class="key-sub-label shift-lbl">∛■</span>
-          <span class="key-main-label">√■</span>
-        </button>
-        <button class="fx580-key" data-action="POW2">
-          <span class="key-sub-label shift-lbl">x³</span>
-          <span class="key-main-label">x²</span>
-        </button>
-        <button class="fx580-key" data-action="POW">
-          <span class="key-sub-label shift-lbl"><sup>x</sup>√■</span>
-          <span class="key-main-label">x<sup>■</sup></span>
-        </button>
-        <button class="fx580-key" data-action="LOG">
-          <span class="key-sub-label shift-lbl">10<sup>■</sup></span>
-          <span class="key-main-label">log</span>
-        </button>
-        <button class="fx580-key" data-action="LN">
-          <span class="key-sub-label shift-lbl">e<sup>■</sup></span>
-          <span class="key-main-label">ln</span>
-        </button>
-      </div>
-
-      <!-- Hàng phím tính năng hàng 3: (-), °, x^-1, sin, cos, tan -->
-      <div class="fx580-key-row row-math-6">
-        <button class="fx580-key" data-action="NEG">
-          <span class="key-sub-label alpha-lbl">A</span>
-          <span class="key-main-label">(-)</span>
-        </button>
-        <button class="fx580-key" data-action="DEG">
-          <span class="key-sub-label alpha-lbl">B</span>
-          <span class="key-main-label">° ' "</span>
-        </button>
-        <button class="fx580-key" data-action="POW" data-val="^-1">
-          <span class="key-sub-label shift-lbl">x!</span>
-          <span class="key-main-label">x⁻¹</span>
-        </button>
-        <button class="fx580-key" data-action="SIN">
-          <span class="key-sub-label shift-lbl">sin⁻¹</span>
-          <span class="key-main-label">sin</span>
-        </button>
-        <button class="fx580-key" data-action="COS">
-          <span class="key-sub-label shift-lbl">cos⁻¹</span>
-          <span class="key-main-label">cos</span>
-        </button>
-        <button class="fx580-key" data-action="TAN">
-          <span class="key-sub-label shift-lbl">tan⁻¹</span>
-          <span class="key-main-label">tan</span>
-        </button>
-      </div>
-
-      <!-- Hàng phím tính năng hàng 4: STO, ENG, (, ), S<=>D, M+ -->
-      <div class="fx580-key-row row-math-6">
-        <button class="fx580-key" data-action="STO">
-          <span class="key-sub-label shift-lbl">RECALL</span>
-          <span class="key-main-label">STO</span>
-        </button>
-        <button class="fx580-key" data-action="ENG">
-          <span class="key-sub-label shift-lbl">←</span>
-          <span class="key-main-label">ENG</span>
-        </button>
-        <button class="fx580-key" data-action="LPAREN">
-          <span class="key-sub-label alpha-lbl">X</span>
-          <span class="key-main-label">(</span>
-        </button>
-        <button class="fx580-key" data-action="RPAREN">
-          <span class="key-sub-label alpha-lbl">Y</span>
-          <span class="key-main-label">)</span>
-        </button>
-        <button class="fx580-key key-sd" data-action="SD">
-          <span class="key-sub-label shift-lbl">≈</span>
-          <span class="key-main-label">S⇔D</span>
-        </button>
-        <button class="fx580-key" data-action="M_PLUS">
-          <span class="key-sub-label shift-lbl">M−</span>
-          <span class="key-main-label">M+</span>
-        </button>
-      </div>
-
-      <!-- Bàn phím số và phép tính cơ bản -->
-      <div class="fx580-num-pad">
-        <div class="fx580-key-row row-pad">
-          <button class="fx580-key key-num" data-action="NUM" data-val="7"><span class="key-main-label">7</span></button>
-          <button class="fx580-key key-num" data-action="NUM" data-val="8"><span class="key-main-label">8</span></button>
-          <button class="fx580-key key-num" data-action="NUM" data-val="9"><span class="key-main-label">9</span></button>
-          <button class="fx580-key key-cmd key-del" data-action="DEL"><span class="key-main-label">DEL</span></button>
-          <button class="fx580-key key-cmd key-ac" data-action="AC"><span class="key-main-label">AC</span></button>
+        <!-- Normal Calculation View -->
+        <div class="view-normal" id="view-normal">
+          <span class="expr-scroll-arrow expr-scroll-left" id="expr-scroll-left">◀</span>
+          <div class="screen-expression" id="screen-expression"><span class="cursor"></span></div>
+          <span class="expr-scroll-arrow expr-scroll-right" id="expr-scroll-right">▶</span>
+          <div class="screen-result" id="screen-result">0</div>
         </div>
 
-        <div class="fx580-key-row row-pad">
-          <button class="fx580-key key-num" data-action="NUM" data-val="4"><span class="key-main-label">4</span></button>
-          <button class="fx580-key key-num" data-action="NUM" data-val="5"><span class="key-main-label">5</span></button>
-          <button class="fx580-key key-num" data-action="NUM" data-val="6"><span class="key-main-label">6</span></button>
-          <button class="fx580-key key-op" data-action="MUL"><span class="key-main-label">×</span></button>
-          <button class="fx580-key key-op" data-action="DIV"><span class="key-main-label">÷</span></button>
+        <!-- Authentic 2x4 ClassWiz Menu -->
+        <div class="classwiz-menu-overlay" id="classwiz-menu-overlay">
+          <div class="menu-header-bar">
+            <span class="menu-page-arrow" id="menu-page-arrow">▼</span>
+          </div>
+          <div class="menu-grid-2x4" id="menu-grid-2x4"></div>
+          <div class="menu-divider-line"></div>
+          <div class="menu-footer-label" id="menu-footer-label">1:Calculate</div>
         </div>
 
-        <div class="fx580-key-row row-pad">
-          <button class="fx580-key key-num" data-action="NUM" data-val="1"><span class="key-main-label">1</span></button>
-          <button class="fx580-key key-num" data-action="NUM" data-val="2"><span class="key-main-label">2</span></button>
-          <button class="fx580-key key-num" data-action="NUM" data-val="3"><span class="key-main-label">3</span></button>
-          <button class="fx580-key key-op" data-action="ADD"><span class="key-main-label">+</span></button>
-          <button class="fx580-key key-op" data-action="SUB"><span class="key-main-label">−</span></button>
+        <!-- Authentic List Overlay (SETUP, OPTN) -->
+        <div class="classwiz-list-overlay" id="classwiz-list-overlay">
+          <div class="list-title-bar">
+            <span id="list-title-text">SETUP</span>
+            <span id="list-arrows-indicator">▲▼</span>
+          </div>
+          <div class="list-items-container" id="list-items-container"></div>
         </div>
 
-        <div class="fx580-key-row row-pad">
-          <button class="fx580-key key-num" data-action="NUM" data-val="0"><span class="key-main-label">0</span></button>
-          <button class="fx580-key key-num" data-action="DOT"><span class="key-main-label">·</span></button>
-          <button class="fx580-key key-op" data-action="EXP10">
-            <span class="key-sub-label shift-lbl">π</span>
-            <span class="key-main-label">×10<sup>x</sup></span>
-          </button>
-          <button class="fx580-key key-op" data-action="ANS">
-            <span class="key-sub-label shift-lbl">%</span>
-            <span class="key-main-label">Ans</span>
-          </button>
-          <button class="fx580-key key-equal" data-action="EQUAL"><span class="key-main-label">=</span></button>
-        </div>
+        <!-- Custom View -->
+        <div class="lcd-custom-view" id="lcd-custom-view"></div>
       </div>
+
+      <!-- 50 Physical Button Hitboxes directly from CLASSWIZ_P20.dll -->
+    <button class="calc-btn btn-round" id="btn-SHIFT" data-key="SHIFT" data-action="SHIFT" style="left: 15.373%; top: 38.320%; width: 7.609%; height: 3.920%;" title="[SHIFT] (SHIFT)" aria-label="SHIFT"></button>
+    <button class="calc-btn btn-round" id="btn-ALPHA" data-key="ALPHA" data-action="ALPHA" style="left: 26.242%; top: 38.320%; width: 7.609%; height: 3.920%;" title="[ALPHA] (ALPHA)" aria-label="ALPHA"></button>
+    <button class="calc-btn btn-round" id="btn-MENU" data-key="MENU" data-action="MENU" style="left: 66.304%; top: 38.320%; width: 7.609%; height: 3.920%;" title="[MENU] (MENU)" aria-label="MENU"></button>
+    <button class="calc-btn btn-round" id="btn-ON" data-key="ON" data-action="ON" style="left: 77.019%; top: 38.320%; width: 7.609%; height: 3.920%;" title="[ON] (ON)" aria-label="ON"></button>
+    <button class="calc-btn btn-dpad-up" id="btn-UP" data-key="UP" data-action="UP" style="left: 46.273%; top: 38.240%; width: 7.609%; height: 3.920%;" title="[Up] (▲)" aria-label="▲"></button>
+    <button class="calc-btn btn-dpad-down" id="btn-DOWN" data-key="DOWN" data-action="DOWN" style="left: 46.273%; top: 43.680%; width: 7.609%; height: 3.920%;" title="[Down] (▼)" aria-label="▼"></button>
+    <button class="calc-btn btn-dpad-left" id="btn-LEFT" data-key="LEFT" data-action="LEFT" style="left: 36.646%; top: 40.960%; width: 7.609%; height: 3.920%;" title="[Left] (◀)" aria-label="◀"></button>
+    <button class="calc-btn btn-dpad-right" id="btn-RIGHT" data-key="RIGHT" data-action="RIGHT" style="left: 55.901%; top: 40.960%; width: 7.609%; height: 3.920%;" title="[Right] (▶)" aria-label="▶"></button>
+    <button class="calc-btn btn-func" id="btn-OPTN" data-key="OPTN" data-action="OPTN" style="left: 14.596%; top: 46.000%; width: 10.559%; height: 3.200%;" title="[OPTN] (OPTN)" aria-label="OPTN"></button>
+    <button class="calc-btn btn-func" id="btn-CALC" data-key="CALC" data-action="CALC" style="left: 26.708%; top: 46.000%; width: 10.559%; height: 3.200%;" title="[CALC] (CALC)" aria-label="CALC"></button>
+    <button class="calc-btn btn-func" id="btn-int_diff" data-key="int_diff" data-action="int_diff" style="left: 63.043%; top: 46.000%; width: 10.559%; height: 3.200%;" title="[Integral] (∫dx)" aria-label="∫dx"></button>
+    <button class="calc-btn btn-func" id="btn-x_var" data-key="x_var" data-action="x_var" style="left: 75.155%; top: 46.000%; width: 10.559%; height: 3.200%;" title="[x] (x)" aria-label="x"></button>
+    <button class="calc-btn btn-func" id="btn-frac" data-key="frac" data-action="frac" style="left: 14.596%; top: 51.200%; width: 10.559%; height: 3.200%;" title="[d/c] (a/b)" aria-label="a/b"></button>
+    <button class="calc-btn btn-func" id="btn-sqrt" data-key="sqrt" data-action="sqrt" style="left: 26.708%; top: 51.200%; width: 10.559%; height: 3.200%;" title="[Square Root] (√)" aria-label="√"></button>
+    <button class="calc-btn btn-func" id="btn-sqr" data-key="sqr" data-action="sqr" style="left: 38.820%; top: 51.200%; width: 10.559%; height: 3.200%;" title="[x^2] (x²)" aria-label="x²"></button>
+    <button class="calc-btn btn-func" id="btn-pow" data-key="pow" data-action="pow" style="left: 51.087%; top: 51.200%; width: 10.559%; height: 3.200%;" title="[^] (x^■)" aria-label="x^■"></button>
+    <button class="calc-btn btn-func" id="btn-log" data-key="log" data-action="log" style="left: 63.043%; top: 51.200%; width: 10.559%; height: 3.200%;" title="[log(a,b)] (log_■)" aria-label="log_■"></button>
+    <button class="calc-btn btn-func" id="btn-ln" data-key="ln" data-action="ln" style="left: 75.155%; top: 51.200%; width: 10.559%; height: 3.200%;" title="[ln] (ln)" aria-label="ln"></button>
+    <button class="calc-btn btn-func" id="btn-neg" data-key="neg" data-action="neg" style="left: 14.596%; top: 56.480%; width: 10.559%; height: 3.200%;" title="[(-)] ((-))" aria-label="(-)"></button>
+    <button class="calc-btn btn-func" id="btn-deg" data-key="deg" data-action="deg" style="left: 26.708%; top: 56.480%; width: 10.559%; height: 3.200%;" title="[''"] (°'")" aria-label="°'""></button>
+    <button class="calc-btn btn-func" id="btn-recip" data-key="recip" data-action="recip" style="left: 38.820%; top: 56.480%; width: 10.559%; height: 3.200%;" title="[x^-1] (x⁻¹)" aria-label="x⁻¹"></button>
+    <button class="calc-btn btn-func" id="btn-sin" data-key="sin" data-action="sin" style="left: 51.087%; top: 56.480%; width: 10.559%; height: 3.200%;" title="[sin] (sin)" aria-label="sin"></button>
+    <button class="calc-btn btn-func" id="btn-cos" data-key="cos" data-action="cos" style="left: 63.043%; top: 56.480%; width: 10.559%; height: 3.200%;" title="[cos] (cos)" aria-label="cos"></button>
+    <button class="calc-btn btn-func" id="btn-tan" data-key="tan" data-action="tan" style="left: 75.155%; top: 56.480%; width: 10.559%; height: 3.200%;" title="[tan] (tan)" aria-label="tan"></button>
+    <button class="calc-btn btn-func" id="btn-STO" data-key="STO" data-action="STO" style="left: 14.596%; top: 61.760%; width: 10.559%; height: 3.200%;" title="[STO] (STO)" aria-label="STO"></button>
+    <button class="calc-btn btn-func" id="btn-ENG" data-key="ENG" data-action="ENG" style="left: 26.708%; top: 61.760%; width: 10.559%; height: 3.200%;" title="[ENG] (ENG)" aria-label="ENG"></button>
+    <button class="calc-btn btn-func" id="btn-open_paren" data-key="open_paren" data-action="open_paren" style="left: 38.820%; top: 61.760%; width: 10.559%; height: 3.200%;" title="[(] (()" aria-label="("></button>
+    <button class="calc-btn btn-func" id="btn-close_paren" data-key="close_paren" data-action="close_paren" style="left: 51.087%; top: 61.760%; width: 10.559%; height: 3.200%;" title="[)] ())" aria-label=")"></button>
+    <button class="calc-btn btn-func" id="btn-SD" data-key="SD" data-action="SD" style="left: 63.043%; top: 61.760%; width: 10.559%; height: 3.200%;" title="[S<>D] (S<=>D)" aria-label="S<=>D"></button>
+    <button class="calc-btn btn-func" id="btn-M_plus" data-key="M_plus" data-action="M_plus" style="left: 75.155%; top: 61.760%; width: 10.559%; height: 3.200%;" title="[M+] (M+)" aria-label="M+"></button>
+    <button class="calc-btn btn-num" id="btn-7" data-key="7" data-action="7" style="left: 14.907%; top: 67.280%; width: 12.422%; height: 4.480%;" title="[7] (7)" aria-label="7"></button>
+    <button class="calc-btn btn-num" id="btn-8" data-key="8" data-action="8" style="left: 29.348%; top: 67.280%; width: 12.422%; height: 4.480%;" title="[8] (8)" aria-label="8"></button>
+    <button class="calc-btn btn-num" id="btn-9" data-key="9" data-action="9" style="left: 43.789%; top: 67.280%; width: 12.422%; height: 4.480%;" title="[9] (9)" aria-label="9"></button>
+    <button class="calc-btn btn-del" id="btn-DEL" data-key="DEL" data-action="DEL" style="left: 58.230%; top: 67.280%; width: 12.422%; height: 4.480%;" title="[DEL] (DEL)" aria-label="DEL"></button>
+    <button class="calc-btn btn-ac" id="btn-AC" data-key="AC" data-action="AC" style="left: 72.671%; top: 67.280%; width: 12.422%; height: 4.480%;" title="[AC] (AC)" aria-label="AC"></button>
+    <button class="calc-btn btn-num" id="btn-4" data-key="4" data-action="4" style="left: 14.907%; top: 73.680%; width: 12.422%; height: 4.480%;" title="[4] (4)" aria-label="4"></button>
+    <button class="calc-btn btn-num" id="btn-5" data-key="5" data-action="5" style="left: 29.348%; top: 73.680%; width: 12.422%; height: 4.480%;" title="[5] (5)" aria-label="5"></button>
+    <button class="calc-btn btn-num" id="btn-6" data-key="6" data-action="6" style="left: 43.789%; top: 73.680%; width: 12.422%; height: 4.480%;" title="[6] (6)" aria-label="6"></button>
+    <button class="calc-btn btn-op" id="btn-mul" data-key="mul" data-action="mul" style="left: 58.230%; top: 73.680%; width: 12.422%; height: 4.480%;" title="[*] (×)" aria-label="×"></button>
+    <button class="calc-btn btn-op" id="btn-div" data-key="div" data-action="div" style="left: 72.671%; top: 73.680%; width: 12.422%; height: 4.480%;" title="[/] (÷)" aria-label="÷"></button>
+    <button class="calc-btn btn-num" id="btn-1" data-key="1" data-action="1" style="left: 14.907%; top: 80.080%; width: 12.422%; height: 4.480%;" title="[1] (1)" aria-label="1"></button>
+    <button class="calc-btn btn-num" id="btn-2" data-key="2" data-action="2" style="left: 29.348%; top: 80.080%; width: 12.422%; height: 4.480%;" title="[2] (2)" aria-label="2"></button>
+    <button class="calc-btn btn-num" id="btn-3" data-key="3" data-action="3" style="left: 43.789%; top: 80.080%; width: 12.422%; height: 4.480%;" title="[3] (3)" aria-label="3"></button>
+    <button class="calc-btn btn-op" id="btn-add" data-key="add" data-action="add" style="left: 58.230%; top: 80.080%; width: 12.422%; height: 4.480%;" title="[+] (+)" aria-label="+"></button>
+    <button class="calc-btn btn-op" id="btn-sub" data-key="sub" data-action="sub" style="left: 72.671%; top: 80.080%; width: 12.422%; height: 4.480%;" title="[-] (-)" aria-label="-"></button>
+    <button class="calc-btn btn-num" id="btn-0" data-key="0" data-action="0" style="left: 14.907%; top: 86.480%; width: 12.422%; height: 4.480%;" title="[0] (0)" aria-label="0"></button>
+    <button class="calc-btn btn-num" id="btn-." data-key="." data-action="." style="left: 29.348%; top: 86.480%; width: 12.422%; height: 4.480%;" title="[.] (.)" aria-label="."></button>
+    <button class="calc-btn btn-num" id="btn-x10x" data-key="x10x" data-action="x10x" style="left: 43.789%; top: 86.480%; width: 12.422%; height: 4.480%;" title="[*10^x] (×10ˣ)" aria-label="×10ˣ"></button>
+    <button class="calc-btn btn-num" id="btn-Ans" data-key="Ans" data-action="Ans" style="left: 58.230%; top: 86.480%; width: 12.422%; height: 4.480%;" title="[Ans] (Ans)" aria-label="Ans"></button>
+    <button class="calc-btn btn-op" id="btn-EQUALS" data-key="EQUALS" data-action="EQUALS" style="left: 72.671%; top: 86.480%; width: 12.422%; height: 4.480%;" title="[=] (=)" aria-label="="></button>
+
+    </div>
+  </div>
     </div>
   </div>
 

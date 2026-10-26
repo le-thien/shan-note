@@ -1,5 +1,5 @@
 // Service Worker cho ứng dụng Nét (Hỗ trợ chạy Offline & Cài đặt PWA)
-const CACHE_NAME = 'net-app-v17';
+const CACHE_NAME = 'net-app-v18';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -9,7 +9,10 @@ const ASSETS_TO_CACHE = [
   './hhkg3d.js',
   './fx580.js',
   './favicon.svg',
-  './manifest.json'
+  './manifest.json',
+  './fonts/ClassWizXDisplay-Regular.woff2',
+  './fonts/ClassWizXDisplay-Regular.woff',
+  './fonts/ClassWizXDisplay-Regular.ttf'
 ];
 
 self.addEventListener('install', (event) => {
