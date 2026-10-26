@@ -3580,6 +3580,173 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 200);
   }
 
+  // ==========================================================
+  // CÁC HÀM TÍNH TOÁN VÀ DỰNG GIAO ĐIỂM (INTERSECTION)
+  // ==========================================================
+
+  // Tìm giao điểm giữa 2 đường thẳng đi qua (p1, p2) và (p3, p4)
+  function findLineLineIntersection(p1, p2, p3, p4) {
+    if (!p1 || !p2 || !p3 || !p4) return null;
+    const dx1 = p2.x - p1.x;
+    const dy1 = p2.y - p1.y;
+    const dx2 = p4.x - p3.x;
+    const dy2 = p4.y - p3.y;
+    const denom = dx1 * dy2 - dy1 * dx2;
+    if (Math.abs(denom) < 1e-6) {
+      return null; // Song song hoặc trùng nhau
+    }
+    const t = ((p3.x - p1.x) * dy2 - (p3.y - p1.y) * dx2) / denom;
+    return {
+      x: p1.x + t * dx1,
+      y: p1.y + t * dy1
+    };
+  }
+
+  // Tìm giao điểm giữa đường thẳng (p1, p2) và đường tròn (center, radius)
+  function findLineCircleIntersection(p1, p2, center, radius) {
+    if (!p1 || !p2 || !center || radius <= 0) return [];
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-6) return [];
+    const ux = dx / len;
+    const uy = dy / len;
+    const vx = p1.x - center.x;
+    const vy = p1.y - center.y;
+    const b = 2 * (vx * ux + vy * uy);
+    const c = (vx * vx + vy * vy) - radius * radius;
+    const delta = b * b - 4 * c;
+
+    if (delta < -1e-4) {
+      return []; // Không cắt
+    }
+    if (Math.abs(delta) <= 1e-4) {
+      const t = -b / 2;
+      return [{ x: p1.x + t * ux, y: p1.y + t * uy }];
+    }
+    const sqrtDelta = Math.sqrt(delta);
+    const t1 = (-b - sqrtDelta) / 2;
+    const t2 = (-b + sqrtDelta) / 2;
+    return [
+      { x: p1.x + t1 * ux, y: p1.y + t1 * uy },
+      { x: p1.x + t2 * ux, y: p1.y + t2 * uy }
+    ];
+  }
+
+  // Tìm giao điểm giữa 2 đường tròn (c1, r1) và (c2, r2)
+  function findCircleCircleIntersection(c1, r1, c2, r2) {
+    if (!c1 || !c2 || r1 <= 0 || r2 <= 0) return [];
+    const d = Math.hypot(c2.x - c1.x, c2.y - c1.y);
+    if (d < 1e-4) return []; // Đồng tâm
+    if (d > r1 + r2 + 1e-4) return []; // Không chạm nhau
+    if (d < Math.abs(r1 - r2) - 1e-4) return []; // Chứa nhau không chạm
+
+    const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d);
+    let h2 = r1 * r1 - a * a;
+    if (h2 < 0) h2 = 0;
+    const h = Math.sqrt(h2);
+
+    const p0x = c1.x + (a * (c2.x - c1.x)) / d;
+    const p0y = c1.y + (a * (c2.y - c1.y)) / d;
+
+    if (h < 1e-4) {
+      return [{ x: p0x, y: p0y }];
+    }
+
+    const nx = -(c2.y - c1.y) / d;
+    const ny = (c2.x - c1.x) / d;
+    return [
+      { x: p0x + h * nx, y: p0y + h * ny },
+      { x: p0x - h * nx, y: p0y - h * ny }
+    ];
+  }
+
+  // Trích xuất hình học (line hoặc circle) từ đối tượng được nhấp chọn
+  function extractGeoGeometry(obj) {
+    if (!obj) return null;
+    if (obj.center && obj.radius) {
+      return { type: 'circle', center: obj.center, radius: obj.radius, element: obj.element || obj };
+    }
+    if (obj.start && obj.end) {
+      return { type: 'line', start: obj.start, end: obj.end, element: obj.element || obj };
+    }
+    const circ = getCircleFromElement(obj);
+    if (circ) return { type: 'circle', center: circ.center, radius: circ.radius, element: circ.element || obj };
+    const line = getLineOrEdgeFromElement(obj);
+    if (line) return { type: 'line', start: line.start, end: line.end, element: line.element || obj };
+    return null;
+  }
+
+  // Dựng giao điểm giữa 2 đối tượng hình học
+  function constructIntersectionFromTwoObjects(objA, objB) {
+    const gA = extractGeoGeometry(objA);
+    const gB = extractGeoGeometry(objB);
+    if (!gA || !gB) {
+      showPageToast('⚠️ Vui lòng nhấp chọn 2 đường thẳng hoặc đường tròn hợp lệ!');
+      statusToolInfo.textContent = 'Vui lòng chọn 2 đường thẳng, đoạn thẳng hoặc đường tròn để tìm giao điểm.';
+      return false;
+    }
+
+    let pts = [];
+    if (gA.type === 'line' && gB.type === 'line') {
+      const pt = findLineLineIntersection(gA.start, gA.end, gB.start, gB.end);
+      if (!pt) {
+        showPageToast('⚠️ Hai đường thẳng song song hoặc trùng nhau!');
+        statusToolInfo.textContent = 'Hai đường thẳng song song hoặc trùng nhau, không có giao điểm duy nhất.';
+        return false;
+      }
+      pts = [pt];
+    } else if (gA.type === 'line' && gB.type === 'circle') {
+      pts = findLineCircleIntersection(gA.start, gA.end, gB.center, gB.radius);
+    } else if (gA.type === 'circle' && gB.type === 'line') {
+      pts = findLineCircleIntersection(gB.start, gB.end, gA.center, gA.radius);
+    } else if (gA.type === 'circle' && gB.type === 'circle') {
+      pts = findCircleCircleIntersection(gA.center, gA.radius, gB.center, gB.radius);
+    }
+
+    if (!pts || pts.length === 0) {
+      showPageToast('⚠️ Hai hình không có điểm giao nhau!');
+      statusToolInfo.textContent = 'Hai hình không có điểm giao nhau. Hãy chọn 2 hình có vị trí cắt nhau.';
+      return false;
+    }
+
+    const parentElements = [];
+    if (gA.element) parentElements.push(gA.element);
+    if (gB.element && gB.element !== gA.element) parentElements.push(gB.element);
+
+    const createdPoints = [];
+    pts.forEach(pt => {
+      const newPoint = {
+        type: 'geo',
+        shape: 'point',
+        start: { x: pt.x, y: pt.y },
+        end: { x: pt.x, y: pt.y },
+        color: state.color || '#184e3a',
+        width: Math.max(state.strokeWidth || 3, 3)
+      };
+      ensureElementId(newPoint);
+      if (parentElements.length > 0) {
+        parentElements.forEach(ensureElementId);
+        linkGroupMulti(parentElements, newPoint);
+      }
+      pushNewElement(newPoint);
+      createdPoints.push(newPoint);
+    });
+
+    setSelectedElements(createdPoints);
+    finishGeoTask(createdPoints[0]);
+
+    if (pts.length === 1) {
+      showPageToast('✨ Đã xác định 1 giao điểm chính xác!');
+      statusToolInfo.textContent = `✨ Đã xác định 1 giao điểm tại (${Math.round(pts[0].x)}, ${Math.round(pts[0].y)}) (tự động gắn kết thành 1 nhóm với hình).`;
+    } else {
+      showPageToast(`✨ Đã xác định ${pts.length} giao điểm chính xác!`);
+      statusToolInfo.textContent = `✨ Đã xác định ${pts.length} giao điểm cắt nhau (tự động gắn kết thành 1 nhóm với hình).`;
+    }
+    renderPage();
+    return true;
+  }
+
   // Dựng đường vuông góc qua 1 điểm và vuông góc với 1 đường thẳng
   function constructPerpendicular(point, edge, bindingInfo = null, parentEl = null) {
     const parent = parentEl || (edge ? edge.element : null);
@@ -4334,6 +4501,8 @@ document.addEventListener('DOMContentLoaded', () => {
           constructAngleFromLineAndPoint(line, point);
           return true;
         }
+      } else if (geoShape === 'intersection') {
+        return constructIntersectionFromTwoObjects(elA, elB);
       }
     }
 
@@ -4343,6 +4512,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const pt = getPointFromElement(el);
       const line = getLineOrEdgeFromElement(el);
       const circ = getCircleFromElement(el);
+
+      if (geoShape === 'intersection') {
+        const geoObj = extractGeoGeometry(el);
+        if (geoObj) {
+          state.construction = { point: null, circle: null, line: null, edges: [], firstObject: geoObj };
+          if (geoObj.type === 'circle') state.construction.circle = geoObj;
+          if (geoObj.type === 'line') state.construction.line = geoObj;
+          const name = geoObj.type === 'circle' ? 'đường tròn' : 'đường thẳng';
+          statusToolInfo.textContent = `Giao điểm: Đã nhận ${name} 1. Hãy nhấp chọn hình thứ 2 để xác định giao điểm.`;
+          showPageToast(`✓ Đã nhận ${name} 1. Chọn tiếp hình 2!`);
+          renderPage();
+          return true;
+        }
+      }
 
       if (geoShape === 'midpoint') {
         if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel') {
@@ -4668,6 +4851,52 @@ document.addEventListener('DOMContentLoaded', () => {
       return false;
     }
 
+    // ==========================================================
+    // TÁC VỤ 7: GIAO ĐIỂM (2 đường / đoạn thẳng hoặc đường tròn)
+    // ==========================================================
+    if (task === 'intersection') {
+      const hitCircle = findCircleAt(point.x, point.y, 26);
+      const hitEdge = findEdgeAt(point.x, point.y, 26);
+      const hitObj = hitCircle || hitEdge;
+
+      if (!hitObj) {
+        statusToolInfo.textContent = 'Giao điểm: Hãy nhấp vào đường thẳng, cạnh hoặc đường tròn để chọn hình!';
+        return false;
+      }
+
+      // Trường hợp 1: Chưa chọn hình nào
+      if (!state.construction.firstObject) {
+        state.construction.firstObject = hitObj;
+        if (hitObj.center) {
+          state.construction.circle = hitObj;
+          state.construction.line = null;
+        } else {
+          state.construction.line = hitObj;
+          state.construction.circle = null;
+        }
+        const objName = hitObj.center ? 'Đường tròn' : 'Đường thẳng';
+        statusToolInfo.textContent = `✓ Đã chọn ${objName} 1. Tiếp tục nhấp chọn hình thứ hai để tìm giao điểm!`;
+        showPageToast(`✓ Đã nhận ${objName} 1. Chọn tiếp hình 2!`);
+        renderPage();
+        return true;
+      }
+
+      // Trường hợp 2: Đã chọn hình 1, người dùng bấm hình 2
+      const firstObj = state.construction.firstObject;
+      const sameElement = (firstObj.element === hitObj.element);
+      const sameEdge = (firstObj.edgeId && hitObj.edgeId && firstObj.edgeId === hitObj.edgeId);
+      if (sameElement && (sameEdge || (!firstObj.edgeId && !hitObj.edgeId))) {
+        statusToolInfo.textContent = 'Bạn vừa bấm lại hình cũ. Hãy chọn một hình khác để tìm giao điểm!';
+        return true;
+      }
+
+      // Đã có 2 hình khác nhau -> Thực hiện tác vụ!
+      constructIntersectionFromTwoObjects(firstObj, hitObj);
+      state.pendingConstruction = null;
+      state.construction = { point: null, circle: null, line: null, edges: [], firstObject: null };
+      return true;
+    }
+
     return false;
   }
 
@@ -4837,6 +5066,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return;
       }
+    } else if (state.activeGeo === 'intersection') {
+      const circle = findCircleAt(point.x, point.y, 26);
+      const edge = findEdgeAt(point.x, point.y, 26);
+      const hitObj = circle || edge;
+      if (!hitObj) {
+        statusToolInfo.textContent = 'Giao điểm: Hãy nhấp vào đường thẳng, cạnh hoặc đường tròn để chọn hình!';
+        return;
+      }
+      if (!state.construction.firstObject) {
+        state.construction.firstObject = hitObj;
+        if (hitObj.center) {
+          state.construction.circle = hitObj;
+          state.construction.line = null;
+        } else {
+          state.construction.line = hitObj;
+          state.construction.circle = null;
+        }
+        const name = hitObj.center ? 'đường tròn' : 'đường thẳng';
+        statusToolInfo.textContent = `✓ Đã chọn ${name} 1. Hãy nhấp tiếp hình thứ 2 để tìm giao điểm.`;
+        showPageToast(`✓ Đã nhận ${name} 1. Chọn tiếp hình 2!`);
+        renderPage();
+        return;
+      }
+      const firstObj = state.construction.firstObject;
+      const sameElement = (firstObj.element === hitObj.element);
+      const sameEdge = (firstObj.edgeId && hitObj.edgeId && firstObj.edgeId === hitObj.edgeId);
+      if (sameElement && (sameEdge || (!firstObj.edgeId && !hitObj.edgeId))) {
+        statusToolInfo.textContent = 'Bạn vừa bấm lại hình cũ. Hãy chọn một hình khác để tìm giao điểm!';
+        return;
+      }
+      constructIntersectionFromTwoObjects(firstObj, hitObj);
+      state.construction = { point: null, circle: null, line: null, edges: [], firstObject: null };
+      return;
     } else if (state.activeGeo === 'point') {
       const circSnap = checkCircleSnap(point);
       const edgeSnap = findEdgeAt(point.x, point.y, 24);
@@ -5030,10 +5292,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const midX = (l.start.x + l.end.x) / 2;
       const midY = (l.start.y + l.end.y) / 2;
-      drawSharpArrowIndicator(ctx, midX, midY, '✓ Đã chọn: Đường thẳng', true);
+      const lineLabel = (state.pendingConstruction === 'intersection' || state.activeGeo === 'intersection') ? '✓ Đã nhận: Đường 1' : '✓ Đã chọn: Đường thẳng';
+      drawSharpArrowIndicator(ctx, midX, midY, lineLabel, true);
     }
 
-    // 3. Vẽ đường tròn đã chọn (cho Tiếp tuyến)
+    // 3. Vẽ đường tròn đã chọn (cho Tiếp tuyến hoặc Giao điểm)
     if (state.construction.circle) {
       const c = state.construction.circle;
       ctx.beginPath();
@@ -5048,7 +5311,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.strokeStyle = '#184e3a';
       ctx.stroke();
 
-      drawSharpArrowIndicator(ctx, c.center.x, c.center.y - c.radius, '✓ Đã chọn: Đường tròn', true);
+      const circLabel = (state.pendingConstruction === 'intersection' || state.activeGeo === 'intersection') ? '✓ Đã nhận: Đường tròn 1' : '✓ Đã chọn: Đường tròn';
+      drawSharpArrowIndicator(ctx, c.center.x, c.center.y - c.radius, circLabel, true);
     }
 
     // 4. Vẽ các cạnh đã chọn và hiệu ứng xem trước cho phân giác
@@ -6402,7 +6666,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     } else if (state.activeTool === 'geo' && state.geoStartPoint) {
-      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint') {
+      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection') {
         return;
       }
       let previewEnd = point;
@@ -6647,7 +6911,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.isDrawing = false;
 
     if (state.activeTool === 'geo') {
-      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint') {
+      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection') {
         const d = state.geoStartPoint ? Math.hypot(point.x - state.geoStartPoint.x, point.y - state.geoStartPoint.y) : 0;
         state.geoStartPoint = null;
         if (d < 25) {
@@ -7646,7 +7910,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function activateGeoTool(geoName, targetGroupBtn, targetItemBtn) {
     if (!geoName) return;
 
-    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'angle'].includes(geoName);
+    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'angle', 'intersection'].includes(geoName);
 
     // 1. Tắt trạng thái active ở các công cụ khác
     toolButtons.forEach(b => b.classList.remove('active'));
@@ -7669,7 +7933,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // NẾU LÀ CÁC TÁC VỤ DỰNG HÌNH: PHÂN GIÁC, VUÔNG GÓC, SONG SONG, TIẾP TUYẾN, 2 TIẾP TUYẾN, CHỌN GÓC
+    // NẾU LÀ CÁC TÁC VỤ DỰNG HÌNH: PHÂN GIÁC, VUÔNG GÓC, SONG SONG, TIẾP TUYẾN, 2 TIẾP TUYẾN, CHỌN GÓC, GIAO ĐIỂM
     // Thực hiện đúng quy trình 4 bước theo yêu cầu:
     // 1. Chọn 1 tác vụ -> 2. Chuyển sang chế độ "Chọn" -> 3. Chọn điểm/đường rồi chọn đối tượng còn lại -> 4. Thực hiện tác vụ
     if (isConstructionTask) {
@@ -7679,7 +7943,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.activeGeo = geoName;
       state.pendingConstruction = geoName;
       state.hoverPointTarget = null;
-      state.construction = { point: null, circle: null, line: null, edges: [] };
+      state.construction = { point: null, circle: null, line: null, edges: [], firstObject: null };
       setCanvasCursor(SHARP_ARROW_CURSOR);
 
       if (state.activeGeo === 'perpendicular') {
@@ -7694,6 +7958,8 @@ document.addEventListener('DOMContentLoaded', () => {
         statusToolInfo.textContent = 'Tiếp tuyến: Bấm chọn 1 điểm (trên hoặc ngoài đường tròn), rồi chọn đường tròn để thực hiện tác vụ';
       } else if (state.activeGeo === 'two-tangents') {
         statusToolInfo.textContent = '2 tiếp tuyến: Bấm chọn 1 điểm ngoài đường tròn, rồi chọn đường tròn để thực hiện tác vụ';
+      } else if (state.activeGeo === 'intersection') {
+        statusToolInfo.textContent = 'Giao điểm: Bấm chọn đường thứ nhất (hoặc đường tròn), rồi chọn tiếp hình thứ 2 để xác định giao điểm';
       }
 
       showPageToast('🎯 Đã chuyển sang chế độ Chọn: Bấm chọn các đối tượng trên bảng vẽ');

@@ -2,6 +2,22 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Bổ sung tính năng Giao điểm của 2 hình trong menu Dựng hình ▾] - 26/10/2026
+
+- **1. Thêm mục "Giao điểm" vào menu Dựng hình ▾:**
+  - Nằm ngay dưới nút *Trung điểm* với biểu tượng hai đường cắt nhau có chấm tròn ở tâm (`intersection`).
+  - Hỗ trợ đầy đủ cho cả hai quy trình tương tác:
+    + *Cách 1 (Nhanh 0ms):* Chọn trước 2 hình trên canvas rồi bấm `[ Dựng hình ▾ ] -> [ Giao điểm ]` để xuất ngay điểm giao nhau.
+    + *Cách 2 (Chọn tương tác):* Bấm `Giao điểm`, chuyển con trỏ sang mũi tên nhọn macOS; nhấp chọn hình 1 (sáng quầng ngọc bích kèm thông báo *"✓ Đã nhận: Đường 1"* hoặc *"✓ Đã nhận: Đường tròn 1"*); nhấp tiếp hình 2 để tự động tính toán và chấm chính xác giao điểm.
+- **2. Thuật toán hình học giải tích chuẩn xác 100%:**
+  - *Đường thẳng cắt Đường thẳng / Đoạn thẳng:* Tự động giải hệ phương trình xác định giao điểm duy nhất (thông báo nếu hai đường song song hoặc trùng nhau).
+  - *Đường thẳng cắt Đường tròn:* Tự động tìm 1 điểm tiếp xúc hoặc 2 điểm cắt nhau dựa trên phương trình bậc hai.
+  - *Hai đường tròn cắt nhau:* Tự động tìm 1 điểm tiếp xúc hoặc 2 điểm cắt nhau dựa trên khoảng cách tâm.
+- **3. Tích hợp quản lý đối tượng & Service Worker:**
+  - Điểm giao nhau tự động gắn nhóm liên kết (`linkGroupMulti`) với các hình mẹ để khi di chuyển hoặc xóa không bị rời rạc.
+  - Hỗ trợ lưu trữ hoàn tác `⌘Z` (Undo/Redo).
+  - Nâng cache Service Worker lên `net-app-v15` trong `web/sw.js`.
+
 ## [Tái cấu trúc cụm Hình học: Gom nút Cơ bản vào Hình và Dựng hình] - 25/10/2026
 
 - **1. Loại bỏ nút dropdown Cơ bản khỏi Header:**

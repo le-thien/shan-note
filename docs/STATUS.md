@@ -56,8 +56,12 @@
   - **Tái cấu trúc cụm công cụ Hình học: Gom nút Cơ bản vào nút Hình và Dựng hình:**
     + Loại bỏ hoàn toàn nút dropdown `[ Cơ bản ▾ ]`, tinh gọn thanh Header giúp giao diện trực quan và phân loại chức năng rõ ràng hơn.
     + **Nút `[ 📐 Hình ▾ ]`:** Đảm nhận toàn bộ các thực thể hình học: `Đoạn thẳng` (mặc định), `Điểm`, `Đường tròn`, `Elip`, các loại Tam giác và Tứ giác với đường phân cách trang nhã.
-    + **Nút `[ 🛠️ Dựng hình ▾ ]`:** Đảm nhận toàn bộ các tác vụ dựng hình tương tác: `Trung điểm` (mặc định được đưa lên đầu), `Phân giác`, `Vuông góc`, `Song song`, `Tiếp tuyến`, `2 tiếp tuyến`, `Chọn góc`.
-    + Đồng bộ nhãn tên, icon mặc định (`line` cho Hình, `midpoint` cho Dựng hình) và nâng cache Service Worker lên `net-app-v14`.
+    + **Nút `[ 🛠️ Dựng hình ▾ ]`:** Đảm nhận toàn bộ các tác vụ dựng hình tương tác: `Trung điểm` (mặc định được đưa lên đầu), `Giao điểm`, `Phân giác`, `Vuông góc`, `Song song`, `Tiếp tuyến`, `2 tiếp tuyến`, `Chọn góc`.
+  - **Bổ sung tính năng "Giao điểm của 2 hình" trong menu Dựng hình ▾:**
+    + *Quy trình tương tác chuẩn mực:* Bấm `[ Dựng hình ▾ ] -> [ Giao điểm ]` chuyển sang chế độ Chọn với con trỏ macOS nhọn; nhấp chọn hình 1 (sáng quầng ngọc bích kèm chỉ báo *"✓ Đã nhận: Đường 1"* hoặc *"✓ Đã nhận: Đường tròn 1"*); nhấp tiếp hình 2 để hệ thống tính toán và chấm chính xác giao điểm.
+    + *Hỗ trợ chọn trước 0ms:* Chọn sẵn 2 hình trên canvas rồi bấm `Giao điểm` sẽ lập tức sinh ra các điểm giao nhau.
+    + *Thuật toán hình học giải tích chuẩn xác 100%:* Đường thẳng cắt Đường thẳng / Đoạn thẳng (1 điểm hoặc báo song song/trùng nhau); Đường thẳng cắt Đường tròn (1 điểm tiếp xúc hoặc 2 điểm cắt); Hai đường tròn cắt nhau (1 điểm tiếp xúc hoặc 2 điểm cắt).
+    + Tự động gắn kết nhóm (`group link`) với các hình mẹ, lưu lịch sử hoàn tác `⌘Z` (Undo/Redo) và nâng cache Service Worker lên `net-app-v15`.
 - **Sẵn sàng chuyển tiếp:** Đóng gói ứng dụng macOS `.app`.
 
 ## 2. Các chức năng đã thực hiện
