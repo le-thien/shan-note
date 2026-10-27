@@ -2,6 +2,34 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Bảo Toàn Tuyệt Đối Điểm Ban Đầu Cho Đường Thẳng Song Song & Vuông Góc Khi Biến Động] - 27/10/2026
+
+- **1. Bảo toàn hình học điểm ban đầu (Point Invariance on Dynamic Update):**
+  - Khắc phục lỗi khi đường thẳng ban đầu thay đổi (xoay góc, kéo dài, di chuyển đầu mút) hoặc điểm ban đầu di chuyển thì đường song song bị lệch khỏi điểm ban đầu.
+  - Tái cấu trúc thuật toán giải tích cho `b.type === 'parallel'`: Xác định chính xác vị trí thời gian thực của điểm $P$ (`pointElId`, `pointVertexIndex`, `pointRef`) và phương đường thẳng gốc $AB$ (`uBase`).
+  - Đường thẳng song song tự động xoay và trượt sao cho **LUÔN LUÔN ĐI QUA ĐIỂM BAN ĐẦU $P$** (khoảng cách bằng $0$) và luôn song song với đường thẳng gốc $AB$.
+- **2. Đồng bộ hai chiều điểm ban đầu (Two-way Real-time Tracking):**
+  - Khi kéo đường ban đầu: Đường song song xoay theo phương mới quanh tâm là điểm ban đầu $P$.
+  - Khi kéo điểm ban đầu $P$: Đường song song tự động trượt theo vị trí mới của $P$, bảo toàn phương song song với đường ban đầu.
+  - Tự động tạo đối tượng điểm hình học nếu người dùng bấm ra khoảng trống trong tác vụ dựng đường song song/vuông góc để người dùng luôn có điểm cụ thể tương tác.
+- **3. Cập nhật tọa độ `pointRef` khi tịnh tiến và xoay:**
+  - Bổ sung cập nhật `el.binding.pointRef` trong `translateElement` và `rotateElement2D` để bảo toàn tuyệt đối tọa độ tham chiếu khi cả nhóm di chuyển.
+- **4. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v39` và query string `?v=20261027_2045` trong `web/index.html`.
+
+## [Tối Ưu Hóa Chọn 1 Đối Tượng — Không Vẽ Nhiều Khung Vuông Nét Đứt & Giữ Kéo Di Chuyển Theo Nhóm] - 27/10/2026
+
+- **1. Hiển thị chọn đơn lẻ tinh tế, sạch đẹp (Clean Single Selection UI):**
+  - Khi nhấp chọn (single click) vào 1 đối tượng: Chỉ chọn và hiển thị duy nhất khung viền chọn của đúng đối tượng đó (`setSelectedElements([el])` hoặc `setSelectedElements([hitPoint])`).
+  - Khắc phục triệt để hiện tượng khi bấm vào 1 hình trong cụm dựng hình thì màn hình vẽ hàng loạt hình vuông nét đứt đan chéo nhau và mọc ra 4 nhãn "Điểm đã chọn" gây hiểu lầm là chọn hết.
+  - Khi vừa hoàn thành dựng hình (`finishGeoTask`): Chỉ chọn duy nhất đối tượng vừa tạo (`setSelectedElements([createdElement])`), giao diện gọn gàng, trong sáng.
+- **2. Duy trì kéo di chuyển theo nhóm thông minh (Group Movement on Drag):**
+  - Tách biệt hoàn toàn giữa việc "Hiển thị chọn đối tượng" và "Hành vi kéo di chuyển".
+  - Khi người dùng kéo chuột di chuyển đối tượng đang chọn, hàm `translateElement` thông qua cơ chế nhận diện liên kết `areElementsLinked` vẫn tự động kéo theo toàn bộ các đối tượng phụ thuộc/liên kết trong nhóm di chuyển đồng bộ, trơn tru.
+  - Sau khi kết thúc thao tác kéo, danh sách đối tượng chọn vẫn giữ nguyên là đối tượng đơn lẻ người dùng vừa thao tác, không bị phình to làm phát sinh khung viền rác.
+- **3. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v38` và query string `?v=20261027_2025` trong `web/index.html`.
+
 ## [Hoàn Thiện Cơ Chế Gắn Kết & Di Chuyển Theo Nhóm Cho Menu Dựng Hình ▾] - 27/10/2026
 
 - **1. Gắn kết chặt chẽ và di chuyển theo nhóm 100% (Unified Group Movement):**

@@ -7,3 +7,8 @@
 
 # Scratch scripts
 scratch/
+
+# Video and screen recordings
+*.mov
+*.mp4
+*.webm

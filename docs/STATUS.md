@@ -7,12 +7,20 @@
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Bảo toàn Tuyệt đối Điểm Ban Đầu cho Đường Thẳng Song Song & Vuông Góc:**
+    + *Bảo toàn hình học điểm ban đầu (Point Invariance on Dynamic Update):* Khắc phục lỗi khi đường thẳng ban đầu thay đổi (xoay góc, kéo dài, di chuyển đầu mút) hoặc điểm ban đầu di chuyển thì đường song song bị lệch khỏi điểm ban đầu.
+    + *Đồng bộ thời gian thực hai chiều (Two-way Real-time Tracking):* Khi kéo hoặc xoay đường thẳng ban đầu, đường song song xoay theo quanh tâm chính là điểm ban đầu $P$, bảo toàn tuyệt đối việc luôn đi qua $P$ (khoảng cách bằng 0). Khi kéo điểm ban đầu $P$, đường song song trượt theo vị trí mới của $P$ và luôn song song với đường thẳng ban đầu.
+    + *Tự động tạo điểm hình học:* Nếu người dùng bấm chỉ định vị trí trên khoảng trống, hệ thống tự động sinh một điểm hình học tại đó để người dùng nhìn thấy rõ và tương tác được với điểm.
+    + *Nâng cấp Cache & Service Worker:* Nâng phiên bản cache lên `net-app-v39` và query param `?v=20261027_2045`.
+  - **Tối ưu hóa Chọn 1 Đối Tượng (Không vẽ nhiều khung vuông nét đứt & Giữ kéo di chuyển theo nhóm):**
+    + *Hiển thị chọn đơn lẻ tinh tế, sạch đẹp:* Khi người dùng nhấp chọn thông thường vào 1 đối tượng (dù là điểm hay đoạn thẳng hay hình học), hệ thống chỉ chọn đúng 1 đối tượng đó (`setSelectedElements([el])` / `[hitPoint]`). Chỉ hiển thị duy nhất khung viền chọn của đúng đối tượng đó, loại bỏ hoàn toàn hiện tượng vẽ 4-5 khung chữ nhật nét đứt đan chéo nhau và 4 nhãn "Điểm đã chọn" gây hiểu lầm là chọn hết.
+    + *Khi vừa dựng hình xong (`finishGeoTask`):* Chỉ chọn đơn lẻ đối tượng vừa tạo (`setSelectedElements([createdElement])`), giúp giao diện gọn gàng, trong sáng.
+    + *Duy trì kéo di chuyển theo nhóm thông minh:* Tách biệt việc "Hiển thị chọn" và "Hành vi kéo di chuyển". Khi người dùng kéo chuột di chuyển đối tượng, hàm `translateElement` thông qua cơ chế nhận diện liên kết `areElementsLinked` vẫn tự động kéo theo toàn bộ cụm đối tượng liên kết trong nhóm di chuyển đồng bộ, trơn tru.
   - **Hoàn thiện cơ chế Gắn kết & Di chuyển theo nhóm cho toàn bộ 13 tác vụ Dựng hình:**
     + *Gắn kết và di chuyển theo nhóm 100% (Unified Group Movement):* Mọi đối tượng sinh ra từ các tác vụ Dựng hình (Trung điểm, Đường trung trực, Đối xứng điểm, Đối xứng trục, Đường tròn ngoại/nội tiếp, Giao điểm, Phân giác, Vuông góc, Song song, Tiếp tuyến...) được gắn kết chặt chẽ vào cùng một nhóm với đối tượng ban đầu.
-    + *Kéo di chuyển đồng bộ 2 chiều:* Khi người dùng nhấp chọn bất kỳ đối tượng nào (dù là hình ban đầu hay hình sinh ra), hệ thống tự động chọn toàn bộ nhóm. Khi kéo rê chuột, toàn bộ cụm đối tượng cùng di chuyển chính xác theo độ dời `(dx, dy)`, bảo toàn tuyệt đối khoảng cách và tương quan hình học.
+    + *Kéo di chuyển đồng bộ 2 chiều:* Khi kéo rê chuột, toàn bộ cụm đối tượng cùng di chuyển chính xác theo độ dời `(dx, dy)`, bảo toàn tuyệt đối khoảng cách và tương quan hình học.
     + *Ràng buộc động toàn diện (Dynamic Constraint Updates):* Khi kéo các điểm điều khiển (đỉnh tam giác, đầu mút đoạn thẳng, bán kính đường tròn...), các đối tượng sinh ra (gồm cả Giao điểm mới được bổ sung ràng buộc giải tích) tự động biến đổi, xoay góc và tính toán lại bám sát theo thời gian thực (0ms).
     + *Hàm nhận diện liên kết đa chiều `areElementsLinked`:* Quét tự động mọi trường định danh (`parentId`, `triangleId`, `pt1Id`, `pt2Id`, `pt3Id`, `axisId`, `pointElId`, `objAId`, `objBId`...) và thuật toán BFS đảm bảo không một phần tử nào bị bỏ sót hay rớt lại.
-    + *Nâng cấp Cache & Service Worker:* Nâng phiên bản cache lên `net-app-v37` và query param `?v=20261027_2000`.
   - **Hoàn thiện phân cách giữa 2 trang cuộn liên tiếp (Dòng kẻ ngang nét đứt & Khoảng cách thu hẹp thanh lịch):**
     + *Thu hẹp khoảng cách giữa các trang:* Giảm khoảng cách trống từ 42px xuống còn 10px, loại bỏ dải xám thô ngăn cách, tạo cảm giác một cuộn giấy liền mạch, tinh tế như tập vở học sinh / sổ tay thật.
     + *Dòng kẻ ngang nét đứt phân cách trang:* Tự động hiển thị 1 dòng kẻ ngang nét đứt (`1.5px dashed`) chạy dài trọn vẹn toàn bộ bề rộng trang giấy ở chính giữa khoảng hở giữa 2 trang liên tiếp (trang 1-2, 2-3,...).

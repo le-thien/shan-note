@@ -1539,6 +1539,10 @@ document.addEventListener('DOMContentLoaded', () => {
           p.y += dy;
         }
       }
+      if (el.binding && el.binding.pointRef) {
+        el.binding.pointRef.x += dx;
+        el.binding.pointRef.y += dy;
+      }
     } else if (el.type === 'stroke') {
       for (const p of el.points) {
         p.x += dx;
@@ -1606,6 +1610,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.arm2Angle !== undefined) el.arm2Angle += rad;
       if (el.angles) {
         el.angles = el.angles.map(a => a + rad);
+      }
+      if (el.binding && el.binding.pointRef) {
+        rotPt(el.binding.pointRef);
       }
     } else if (el.type === 'stroke' && el.points) {
       for (const p of el.points) rotPt(p);
@@ -1872,21 +1879,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 5. Đường song song (Parallel)
     else if (b.type === 'parallel') {
+      // 1. Xác định đường thẳng gốc AB
       let A = null, B = null;
-      if (parentEl.shape === 'line' || parentEl.shape === 'perpendicular' || parentEl.shape === 'parallel') {
-        A = parentEl.start; B = parentEl.end;
-      } else if (parentEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
-        A = parentEl.points[b.v1Index]; B = parentEl.points[b.v2Index];
+      const baseEl = b.parentId ? findElementById(b.parentId) : (parentEl.shape !== 'point' ? parentEl : null);
+      if (baseEl) {
+        if (baseEl.shape === 'line' || baseEl.shape === 'perpendicular' || baseEl.shape === 'parallel') {
+          A = baseEl.start;
+          B = baseEl.end;
+        } else if (baseEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
+          A = baseEl.points[b.v1Index];
+          B = baseEl.points[b.v2Index];
+        }
       }
-      if (A && B) {
+
+      // 2. Xác định Điểm ban đầu P mà đường song song phải luôn luôn đi qua
+      let P = null;
+      if (b.pointElId) {
+        const ptEl = findElementById(b.pointElId);
+        if (ptEl) {
+          if (b.pointVertexIndex !== undefined && ptEl.points && ptEl.points[b.pointVertexIndex]) {
+            P = ptEl.points[b.pointVertexIndex];
+          } else if (ptEl.start) {
+            P = ptEl.start;
+          } else if (ptEl.x !== undefined && ptEl.y !== undefined) {
+            P = ptEl;
+          }
+        }
+      }
+      if (!P && b.pointRef) {
+        P = b.pointRef;
+      }
+      if (!P) {
+        P = { x: (child.start.x + child.end.x) / 2, y: (child.start.y + child.end.y) / 2 };
+      }
+
+      // 3. Cập nhật đường song song đi qua P và có phương song song với AB
+      if (A && B && P) {
         const vx = B.x - A.x, vy = B.y - A.y;
         const lenV = Math.hypot(vx, vy) || 1;
         const uBase = { x: vx / lenV, y: vy / lenV };
         child.baseDir = uBase;
-        const mid = { x: (child.start.x + child.end.x) / 2, y: (child.start.y + child.end.y) / 2 };
-        const halfLen = Math.hypot(child.end.x - child.start.x, child.end.y - child.start.y) / 2 || 80;
-        child.start = { x: mid.x - halfLen * uBase.x, y: mid.y - halfLen * uBase.y };
-        child.end = { x: mid.x + halfLen * uBase.x, y: mid.y + halfLen * uBase.y };
+
+        // Tính hình chiếu H của P lên đường thẳng gốc AB
+        const t = (P.x - A.x) * uBase.x + (P.y - A.y) * uBase.y;
+        const H = { x: A.x + t * uBase.x, y: A.y + t * uBase.y };
+
+        const tA = (A.x - H.x) * uBase.x + (A.y - H.y) * uBase.y;
+        const tB = (B.x - H.x) * uBase.x + (B.y - H.y) * uBase.y;
+
+        let p1 = { x: P.x + (tA - 15) * uBase.x, y: P.y + (tA - 15) * uBase.y };
+        let p2 = { x: P.x + (tB + 15) * uBase.x, y: P.y + (tB + 15) * uBase.y };
+
+        if (Math.hypot(p2.x - p1.x, p2.y - p1.y) < 50) {
+          const halfLen = Math.max(80, lenV / 2);
+          p1 = { x: P.x - halfLen * uBase.x, y: P.y - halfLen * uBase.y };
+          p2 = { x: P.x + halfLen * uBase.x, y: P.y + halfLen * uBase.y };
+        }
+
+        child.start = p1;
+        child.end = p2;
+        b.pointRef = { x: P.x, y: P.y };
       }
     }
 
@@ -4414,10 +4466,9 @@ document.addEventListener('DOMContentLoaded', () => {
       updateContextualToolbar('select');
     }
 
-    // 5. Nếu có đối tượng vừa tạo, tự động chọn toàn bộ nhóm gắn kết để người dùng kéo di chuyển đồng bộ
+    // 5. Nếu có đối tượng vừa tạo, chỉ chọn đơn lẻ đối tượng đó để giao diện gọn gàng, không bị nhiều khung chữ nhật
     if (createdElement) {
-      const grp = getGroupElements(createdElement);
-      setSelectedElements(grp);
+      setSelectedElements([createdElement]);
     }
 
     renderPage();
@@ -5028,14 +5079,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Dựng đường vuông góc qua 1 điểm và vuông góc với 1 đường thẳng
   function constructPerpendicular(point, edge, bindingInfo = null, parentEl = null) {
-    const parent = parentEl || (edge ? edge.element : null);
-    const ptEl = (point && point.element) ? point.element : (point && point.shape === 'point' ? point : null);
+    const parent = parentEl || (edge ? (edge.element || (edge.shape || edge.id ? edge : null)) : null);
+    const ptEl = (point && point.element) ? point.element : (point && (point.shape === 'point' || point.id) ? point : null);
     if (parent) ensureElementId(parent);
     if (ptEl) ensureElementId(ptEl);
     const px = (point.x !== undefined) ? point.x : (point.start ? point.start.x : 0);
     const py = (point.y !== undefined) ? point.y : (point.start ? point.start.y : 0);
-    const A = edge.start;
-    const B = edge.end;
+
+    let finalPtEl = ptEl;
+    if (!finalPtEl) {
+      finalPtEl = {
+        type: 'geo',
+        shape: 'point',
+        start: { x: px, y: py },
+        end: { x: px, y: py },
+        color: state.color || '#28634e',
+        width: 3
+      };
+      ensureElementId(finalPtEl);
+      pushNewElement(finalPtEl);
+    }
+
+    const A = edge.start || (edge.points && edge.v1Index !== undefined ? edge.points[edge.v1Index] : { x: 0, y: 0 });
+    const B = edge.end || (edge.points && edge.v2Index !== undefined ? edge.points[edge.v2Index] : { x: 100, y: 0 });
     const vx = B.x - A.x;
     const vy = B.y - A.y;
     const lenV = Math.hypot(vx, vy) || 1;
@@ -5099,14 +5165,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Dựng đường song song qua 1 điểm và song song với 1 đường thẳng
   function constructParallel(point, edge, bindingInfo = null, parentEl = null) {
-    const parent = parentEl || (edge ? edge.element : null);
-    const ptEl = (point && point.element) ? point.element : (point && point.shape === 'point' ? point : null);
+    const parent = parentEl || (edge ? (edge.element || (edge.shape || edge.id ? edge : null)) : null);
+    const ptEl = (point && point.element) ? point.element : (point && (point.shape === 'point' || point.id) ? point : null);
     if (parent) ensureElementId(parent);
     if (ptEl) ensureElementId(ptEl);
     const px = (point.x !== undefined) ? point.x : (point.start ? point.start.x : 0);
     const py = (point.y !== undefined) ? point.y : (point.start ? point.start.y : 0);
-    const A = edge.start;
-    const B = edge.end;
+
+    let finalPtEl = ptEl;
+    if (!finalPtEl) {
+      finalPtEl = {
+        type: 'geo',
+        shape: 'point',
+        start: { x: px, y: py },
+        end: { x: px, y: py },
+        color: state.color || '#28634e',
+        width: 3
+      };
+      ensureElementId(finalPtEl);
+      pushNewElement(finalPtEl);
+    }
+
+    const A = edge.start || (edge.points && edge.v1Index !== undefined ? edge.points[edge.v1Index] : { x: 0, y: 0 });
+    const B = edge.end || (edge.points && edge.v2Index !== undefined ? edge.points[edge.v2Index] : { x: 100, y: 0 });
     const vx = B.x - A.x;
     const vy = B.y - A.y;
     const lenV = Math.hypot(vx, vy) || 1;
@@ -5130,7 +5211,8 @@ document.addEventListener('DOMContentLoaded', () => {
       bindingInfo = {
         type: 'parallel',
         parentId: parent.id,
-        pointElId: ptEl ? ptEl.id : null,
+        pointElId: finalPtEl ? finalPtEl.id : null,
+        pointVertexIndex: (point && (point.vertexIndex !== undefined || point.vIndex !== undefined)) ? (point.vertexIndex !== undefined ? point.vertexIndex : point.vIndex) : undefined,
         edgeId: edge ? edge.edgeId : null,
         v1Index: edge ? edge.v1Index : null,
         v2Index: edge ? edge.v2Index : null,
@@ -5151,7 +5233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     ensureElementId(newGeo);
-    const parentsToLink = [parent, ptEl].filter(Boolean);
+    const parentsToLink = [parent, finalPtEl].filter(Boolean);
     if (parentsToLink.length > 0) {
       linkGroupMulti(parentsToLink, newGeo);
     }
@@ -8536,8 +8618,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Kiểm tra trúng điểm hình học rời
         const hitPoint = findElementAt(point.x, point.y);
         if (hitPoint && hitPoint.type === 'geo' && hitPoint.shape === 'point') {
-          const group = getGroupElements(hitPoint);
-          setSelectedElements(group);
+          setSelectedElements([hitPoint]);
           state.isDrawing = true;
           state.dragLast = { x: point.x, y: point.y };
           state.totalMoved = { dx: 0, dy: 0 };
@@ -8650,8 +8731,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
-          const group = getGroupElements(el);
-          setSelectedElements(group);
+          setSelectedElements([el]);
           state.isDrawing = true;
           state.dragLast = { x: point.x, y: point.y };
           state.totalMoved = { dx: 0, dy: 0 };
