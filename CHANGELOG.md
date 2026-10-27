@@ -2,6 +2,211 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Tối Ưu Phân Cách Giữa Các Trang — Dòng Kẻ Ngang Nét Đứt & Thu Hẹp Khoảng Cách] - 27/10/2026
+
+- **1. Thu hẹp khoảng cách giữa các trang:**
+  - Giảm khoảng cách rãnh xám giữa các trang trong `.pages-container` từ `42px` xuống còn `10px`.
+  - Loại bỏ hoàn toàn cảm giác đứt đoạn thô ráp của hai trang bị tách xa nhau, tạo dòng chảy ghi chú liên tục, tự nhiên như trang tập học sinh hoặc sổ tay cao cấp.
+- **2. Bổ sung dòng kẻ ngang nét đứt (Dashed Page Divider):**
+  - Tự động hiển thị một dòng kẻ ngang nét đứt thanh mảnh (`border-top: 1.5px dashed var(--color-page-divider-dashed)`) dài trọn vẹn toàn bộ bề rộng trang giấy ở chính giữa khoảng hở giữa 2 trang liên tiếp (`.paper-wrapper + .paper-wrapper::before`).
+  - Màu sắc đường nét đứt được phối chuẩn theo tông màu mực rừng - rêu dịu nhẹ của Nét (`rgba(36, 60, 54, 0.32)`), vừa rõ ràng phân định ranh giới chuyển trang, vừa trang nhã, không gây chói mắt hay phân tâm khi viết.
+- **3. Tinh chỉnh viền và bóng đổ mặt giấy:**
+  - Giảm bo góc mặt giấy `.paper-sheet` xuống `2px` và làm phẳng dịu nhẹ bóng đổ (`box-shadow: 0 2px 10px rgba(40, 60, 50, 0.05)`), loại bỏ vệt đen dồn cục ở mép nối, giúp các trang tiếp giáp phẳng phiu và tinh tế.
+- **4. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v36` và query string `?v=20261027_1910` trong `web/index.html`.
+
+## [Tính Năng "Đường Tròn Ngoại Tiếp" & "Đường Tròn Nội Tiếp" Trong Menu Dựng Hình ▾] - 27/10/2026
+
+- **1. Thêm 2 công cụ dựng đường tròn chuyên biệt vào Menu Dựng hình ▾:**
+  - Nút `[Đường tròn ngoại tiếp]` (`circumcircle`) với biểu tượng SVG đường tròn đi qua 3 đỉnh.
+  - Nút `[Đường tròn nội tiếp]` (`incircle`) với biểu tượng SVG tam giác tiếp xúc đường tròn bên trong.
+  - Tự động đổi biểu tượng và nhãn ngoài nút nhóm cha thành `Đường tròn ngoại tiếp` / `Đường tròn nội tiếp`, tự động chuyển sang công cụ Chọn (`Select tool`) với con trỏ mũi tên nhọn macOS.
+- **2. Quy trình thao tác 2 chiều linh hoạt (Chọn tam giác HOẶC Chọn 3 điểm):**
+  - *Cách 1 (Tiện ích một chạm cho Tam giác):* Người dùng chỉ cần nhấp vào một tam giác có sẵn trên bảng vẽ $\rightarrow$ Hệ thống tự động nhận dạng 3 đỉnh và vẽ ngay đường tròn ngoại tiếp (hoặc nội tiếp) chính xác 100%!
+  - *Cách 2 (Chọn 3 điểm bất kỳ):* Chọn Điểm 1 $\rightarrow$ Điểm 2 $\rightarrow$ Điểm 3. Có chỉ báo quầng sáng ngọc bích `✓ Đã chọn: Điểm 1`, `✓ Đã chọn: Điểm 2` và xem trước thời gian thực (0ms) khi rê chuột chọn Điểm 3.
+  - *Hỗ trợ chọn trước (0ms):* Quét chọn trước 3 điểm hoặc 1 tam giác rồi bấm công cụ $\rightarrow$ Dựng ngay tức thì.
+- **3. Dựng hình giải tích chuẩn xác & Xác định tâm đặc biệt:**
+  - *Đường tròn ngoại tiếp:* Giải hệ phương trình đường trung trực tìm tâm ngoại tiếp $O$, bán kính $R = OA = OB = OC$, vẽ điểm tâm $O$ và đường tròn ngoại tiếp.
+  - *Đường tròn nội tiếp:* Tính độ dài 3 cạnh $a, b, c$, tìm tâm nội tiếp $I$ theo trọng số tọa độ $x_I = \frac{ax_A + bx_B + cx_C}{a+b+c}$, bán kính $r = \frac{S}{p}$, vẽ điểm tâm $I$ và đường tròn tiếp xúc sát 3 cạnh tam giác.
+- **4. Liên kết động thời gian thực (Real-time Dynamic Binding) & Hoàn tác:**
+  - Ràng buộc động (`circumcircle`, `circumcircle_center`, `incircle`, `incircle_center`): Khi người dùng kéo di chuyển các điểm hoặc co giãn tam giác gốc, đường tròn và điểm tâm tự động co giãn và di chuyển bám sát thời gian thực (0ms).
+  - Tự động gom nhóm (`groupId`) để di chuyển đồng bộ khi chọn cả cụm.
+  - Hoàn tác `⌘Z` / `⌘⇧Z` (`add-multiple`): Gỡ bỏ hoặc khôi phục đồng thời toàn bộ các phần tử sinh ra chỉ với một lần bấm.
+- **5. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v35` và query string `?v=20261027_1900` trong `index.html`.
+
+## [Tính Năng "Đối Xứng Trục" Trong Menu Dựng Hình ▾ (Chuẩn Ký Hiệu SGK & Nối Đoạn Thẳng Vuông Góc Qua Trục)] - 27/10/2026
+
+- **1. Thêm công cụ "Đối xứng trục" vào Menu Dựng hình ▾:**
+  - Nút `[Đối xứng trục]` (`axis-symmetry`) trong menu thả xuống `[ 🛠️ Dựng hình ▾ ]` với biểu tượng SVG chuẩn (điểm và trục đối xứng kèm đoạn vuông góc).
+  - Tự động cập nhật biểu tượng và nhãn ngoài thanh công cụ chính thành `Đối xứng trục`.
+  - Tự động chuyển sang chế độ "Chọn" (`Select tool` active), con trỏ chuột chuyển sang dạng mũi tên nhọn macOS chuẩn xác.
+- **2. Quy trình thao tác 2 bước trực quan và hỗ trợ chọn linh hoạt:**
+  - *Linh hoạt thứ tự chọn:* Người dùng có thể chọn Điểm 1 trước rồi chọn Trục đối xứng (đoạn thẳng / đường thẳng / cạnh tam giác/đa giác), hoặc chọn Trục trước rồi chọn Điểm.
+  - *Hỗ trợ chọn trước (0ms):* Nếu đã chọn sẵn 1 Điểm và 1 Trục đối xứng từ trước trên bảng vẽ, bấm `[Đối xứng trục]` sẽ tạo ngay tức thì.
+  - *Xem trước thời gian thực (Real-time Preview):*
+    + Khi đã chọn Điểm 1 và rê chuột qua một cạnh/đoạn thẳng, hệ thống hiển thị đường nét đứt mờ nối từ Điểm 1 vuông góc qua trục tới Điểm 2 đối xứng, hiển thị chân vuông góc $H$ kèm ký hiệu góc vuông $\llcorner$ và nhãn `📐 Giao điểm trục (H)` cùng `✨ Điểm đối xứng qua trục`.
+- **3. Dựng hình chuẩn xác & Nối đoạn thẳng vuông góc qua trục:**
+  - *Hình chiếu chân vuông góc H:* Chiếu giải tích $P_1$ lên trục $AB \rightarrow H = A + t\vec{u}$, tạo điểm hình học `shape: 'point'` với thuộc tính `isMidpoint: true`.
+  - *Tạo Điểm đối xứng P2:* Tọa độ $P_2 = 2H - P_1$, tạo điểm hình học `shape: 'point'` với ràng buộc động `axis_symmetry_point`.
+  - *Nối đoạn thẳng vuông góc qua trục:* Đoạn thẳng `shape: 'line'` nối $P_1$ và $P_2$ đi qua $H$, có cờ `isAxisSymmetryLine: true`, tự động vẽ ký hiệu góc vuông $\llcorner$ tại $H$ và 2 vạch bằng nhau chuẩn SGK ($P_1 H = H P_2$).
+- **4. Liên kết động hai chiều (Dynamic BFS Binding) & Hoàn tác một chạm (Undo/Redo):**
+  - Ràng buộc động (`axis_symmetry_point`, `axis_symmetry_h`, `axis_symmetry_line`): Khi người dùng kéo di chuyển Điểm 1 hoặc di chuyển Trục đối xứng (hoặc đỉnh của tam giác chứa cạnh làm trục), Điểm $H$, Điểm $P_2$ và đoạn thẳng nối tự động cập nhật vị trí theo thời gian thực (0ms).
+  - Tự động liên kết cụm (Điểm 1, Trục, H, $P_2$, Đoạn thẳng vuông góc) vào nhóm (`groupId`) để di chuyển đồng bộ khi chọn.
+  - Hoàn tác `⌘Z` / `⌘⇧Z` (`add-multiple`): Gỡ bỏ hoặc khôi phục đồng thời toàn bộ các đối tượng sinh ra chỉ với một lần bấm.
+- **5. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v34` và query string `?v=20261027_1830` trong `index.html`.
+
+## [Tính Năng "Đối Xứng Điểm" Trong Menu Dựng Hình ▾ (Chuẩn Ký Hiệu SGK & Nối Đoạn Thẳng Qua 3 Điểm)] - 27/10/2026
+
+- **1. Thêm công cụ "Đối xứng điểm" vào Menu Dựng hình ▾:**
+  - Nút `[Đối xứng điểm]` (`point-symmetry`) trong menu thả xuống `[ 🛠️ Dựng hình ▾ ]` với biểu tượng SVG 3 điểm thẳng hàng đối xứng qua tâm.
+  - Khi chọn tác vụ, tự động cập nhật biểu tượng và nhãn ngoài thanh công cụ chính thành `Đối xứng điểm`.
+  - Tự động chuyển sang chế độ "Chọn" (`Select tool` active), con trỏ chuột chuyển sang dạng mũi tên nhọn macOS chuẩn xác.
+- **2. Quy trình thao tác 2 bước trực quan và hiển thị xem trước thời gian thực (Real-time Preview):**
+  - *Bước 1 — Chọn Điểm 1:* Người dùng nhấp chọn điểm cần lấy đối xứng (điểm hình học có sẵn, đỉnh tam giác/đa giác, đầu mút đoạn thẳng hoặc nhấp tại vị trí bất kỳ trên giấy). Hệ thống lập tức đánh dấu quầng sáng ngọc bích rực rỡ và nhãn chỉ báo `✓ Đã chọn: Điểm 1`.
+  - *Xem trước mượt mà:* Khi di chuyển chuột sau khi chọn Điểm 1, hệ thống hiển thị đường nét đứt mờ nối từ Điểm 1 qua con trỏ chuột (Điểm 2 tạm thời) đến Điểm 3 đối xứng xem trước, kèm các nhãn chỉ dẫn `🎯 Tâm đối xứng (Điểm 2)` và `✨ Điểm đối xứng (Điểm 3)` cùng 2 vạch bằng nhau chuẩn SGK.
+  - *Bước 2 — Chọn Điểm 2 (Tâm đối xứng):* Người dùng nhấp chọn Điểm 2 làm tâm đối xứng.
+- **3. Dựng hình chuẩn xác & Nối đoạn thẳng qua 3 điểm:**
+  - *Tạo Điểm 3:* Tự động tính toán giải tích tọa độ đối xứng $P_3 = 2P_2 - P_1$ và tạo điểm hình học `shape: 'point'` tại $P_3$.
+  - *Nối đoạn thẳng qua 3 điểm:* Tự động vẽ đoạn thẳng `shape: 'line'` nối từ Điểm 1 qua Điểm 2 tới Điểm 3, có đánh dấu 2 vạch bằng nhau chuẩn mực SGK ($P_1 P_2 = P_2 P_3$).
+- **4. Liên kết động hai chiều (Dynamic Binding) & Hoàn tác một chạm (Undo/Redo):**
+  - Ràng buộc động (`point_symmetry_pt3` & `point_symmetry_line`): Khi người dùng kéo di chuyển Điểm 1 hoặc Điểm 2, Điểm 3 và đoạn thẳng nối tự động cập nhật vị trí theo thời gian thực (0ms).
+  - Tự động gom toàn bộ cụm Điểm 1, Điểm 2, Điểm 3 và Đoạn thẳng 1-3 vào cùng 1 nhóm (`groupId`) để di chuyển đồng bộ khi chọn cả cụm.
+  - Hoàn tác `⌘Z` / `⌘⇧Z` (`add-multiple`): Gỡ bỏ hoặc khôi phục đồng thời toàn bộ các đối tượng sinh ra chỉ với duy nhất một lần bấm.
+- **5. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v33` và query string `?v=20261027_1815` trong `index.html`.
+
+## [Tối Ưu Hóa Chế Độ Thống Kê (STAT - Mode 6) Cho Máy Tính Casio fx-580VN X] - 27/10/2026
+
+- **1. Đồng bộ giao diện thực đơn (Menu Screen) chuẩn 100% Casio fx-580VN X:**
+  - Lưới 2x4 biểu tượng đơn sắc: Ô số `6: Thống kê` (biểu tượng biểu đồ cột 3 cột) hiển thị tương phản đảo ngược chuẩn xác (nền đen, biểu tượng nét trắng, nhãn số `6` góc dưới màu trắng chữ đen).
+  - Mũi tên chỉ hướng `▼` đặt tinh tế tại góc trên bên phải cột 3 báo hiệu còn các chế độ phía dưới.
+  - Đường kẻ đôi phân cách giữa lưới biểu tượng và thanh đáy chân trang (`border-top: 1.5px solid`, `border-bottom: 1px solid`).
+  - Thanh chân trang hiển thị nhãn chuẩn font ClassWiz dot-matrix: `6:Thống kê`.
+- **2. Màn hình Bảng Nhập Liệu Thống Kê 1-Biến (1-Variable Data Table) chuẩn xác từng pixel:**
+  - Thanh trạng thái đỉnh LCD hiển thị đầy đủ các huy hiệu: `√d` (Hiển thị tự nhiên), `D` (Độ DEG), và huy hiệu `STAT` nổi bật.
+  - Hàng tiêu đề cột: `#` (bên trái) và `x` (bên phải in nghiêng), bên dưới là đường kẻ đậm 2px ngăn cách toàn màn hình.
+  - Vùng dữ liệu hiển thị dòng chỉ định (ví dụ dòng 3 với giá trị `12`), bên dưới là đường kẻ mảnh phân cách.
+  - Dòng soạn thảo đáy màn hình: hiển thị số thứ tự dòng chuẩn bị nhập hoặc đang chỉnh sửa kèm dấu bằng và con trỏ nhấp nháy `|` căn phải (ví dụ `6= |`).
+- **3. Điều hướng và biên tập dữ liệu mượt mà:**
+  - Sử dụng phím `▲` (LÊN) / `▼` (XUỐNG) để di chuyển giữa các dòng dữ liệu và cuộn danh sách.
+  - Nhập số và bấm `=` để gán giá trị vào dòng hiện tại hoặc thêm mới vào cuối danh sách, tự động nhảy sang dòng tiếp theo.
+  - Phím `DEL`: xóa ký tự đang gõ, hoặc xóa dòng hiện tại nếu bộ đệm trống.
+  - Phím `AC`: chuyển sang màn hình tính toán thống kê `STAT_CALC` (không thoát khỏi chế độ Thống kê, đúng nguyên bản Casio).
+  - Phím `OPTN`: mở thực đơn chức năng Thống kê (`1: Chọn dạng`, `2: Dữ liệu`, `3: Tính 1-Biến`).
+  - Tính năng `3: Tính 1-Biến`: tính toán tức thì toàn bộ 11 chỉ số thống kê chuẩn xác ($\bar{x}$, $\Sigma x$, $\Sigma x^2$, $\sigma_x$, $s_x$, $n$, $\min$, $Q_1$, $\text{Med}$, $Q_3$, $\max$) kèm thanh cuộn `▲▼`.
+- **4. Khắc phục lỗi tràn và cắt xén dòng đáy (`6= |`):**
+  - Chuyển toàn bộ cấu trúc bảng sang bộ lớp CSS chuyên biệt `.stat-table-screen`, `.stat-header-row`, `.stat-data-row`, `.stat-input-row`.
+  - Thay thế `justify-content: space-between` và `flex: 1` bằng layout cố định khoảng cách theo tỷ lệ `var(--lcd-scale, 1)`, giúp chữ số `6=` và con trỏ `|` hiển thị trọn vẹn 100%, không còn bị cắt xén nửa dưới hay dính sát viền LCD.
+- **5. Đồng bộ hóa toàn diện theo Quy trình Hướng dẫn sử dụng:**
+  - Hỗ trợ đầy đủ phím `MENU` và `ON` từ mọi trạng thái thống kê để thoát ra thực đơn hoặc về chế độ tính toán thường `COMP` (`MENU 1`).
+  - Hỗ trợ phím đổi dấu số âm `(-)` (`neg`) và phím trừ `sub` (`-`), ký hiệu số mũ `×10ˣ` (`x10x`).
+  - Phím `DEL`: xóa ký tự trong bộ đệm hoặc xóa dòng dữ liệu với cập nhật con trỏ cuộn tự động.
+  - Phím `OPTN 1` $\rightarrow$ `1: 1-Biến`: cho phép khởi tạo bảng dữ liệu mới hoàn toàn sạch sẽ (bắt đầu từ dòng `1= |`) khi làm bài toán mới.
+  - Xử lý trạng thái an toàn khi tập dữ liệu trống (thông báo hướng dẫn `Bấm OPTN 2 để nhập số liệu`).
+- **6. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v32` và query string `?v=20261027_1105` cho `style.css` và `fx580.js`.
+
+## [Tối Ưu Hóa Tính Năng OCR Quét Vùng & Soạn Thảo Chữ Trực Tiếp] - 27/10/2026
+
+- **1. Quy trình Quét Vùng OCR trực quan và chính xác:**
+  - Bấm nút `[ ✍️ OCR ]`: Con trỏ đổi thành dạng chữ thập (`crosshair`).
+  - Người dùng nhấn và kéo chuột để khoanh vùng hình chữ nhật bao quanh chữ viết tay cần nhận dạng.
+  - Trên mặt giấy hiển thị khung chữ nhật quét viền đứt nét ngọc bích, vùng phủ mờ kèm 4 góc định vị camera kiểu scan.
+  - Khi thả chuột: Tự động trích xuất đúng vùng nét chữ vừa quét, hiển thị ảnh xem trước trong hộp thoại OCR và nhận dạng siêu tốc (nhanh hơn gấp 5 lần).
+  - Nút **`Chèn vào ghi chú`** tự động chèn văn bản đã nhận dạng vào đúng vị trí vừa quét trên trang.
+- **2. Soạn thảo Chữ trực tiếp trên mặt giấy (Inline Canvas Text Editor):**
+  - Bỏ hoàn toàn hộp thoại `prompt()` mặc định của trình duyệt.
+  - Bấm công cụ `[ T Chữ ]` rồi nhấp lên mặt giấy để mở khung gõ chữ trực tiếp tại chỗ, tự động co giãn.
+  - Tùy chỉnh 4 cỡ chữ (16 / 22 / 30 / 40px), nút đổi phông chữ Viết tay ⇋ Chuẩn in (`Aa`), lưu nhanh bằng `⌘Enter` hoặc `Ctrl+Enter`.
+  - Hỗ trợ nhấp đúp (`double-click`) vào bất kỳ đoạn chữ nào trên trang để sửa lại tức thì.
+  - Hỗ trợ hiển thị và tính toán vùng chọn cho văn bản nhiều dòng (`multiline`).
+- **3. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v29` và query string các tệp tĩnh lên `?v=20261027_1015`.
+
+## [Bố Trí Nút Tệp [ 📄 Tệp ▾ ] Kế Bên Logo `nét.` Trên Thanh Tiêu Đề] - 27/10/2026
+
+- **1. Nút Tệp chuyên dụng đặt cạnh logo `nét.` trên Header:**
+  - Đặt nút bấm `[ 📄 Tệp ▾ ]` (`#btn-file-dropdown`) ngay sát bên cạnh logo thương hiệu `nét.` ở góc trái thanh tiêu đề: `nét. | [ 📄 Tệp ▾ ] | [Hình ▾] [Dựng hình ▾] [HHKG ▾] [Đồ thị]`.
+  - Giữ phong cách thanh thực đơn chuẩn macOS (Logo -> Thực đơn Tệp -> Công cụ vẽ).
+- **2. Menu Tệp chuẩn mở xuống thanh lịch:**
+  - Nhấp vào nút `[ 📄 Tệp ▾ ]` mở dropdown menu từ trên xuống (`top: calc(100% + 5px)`) với bóng đổ mờ cao cấp, gồm đầy đủ 10 tác vụ tệp thiết yếu:
+    - Mới (`⌘N`), Lưu (`⌘S`), Lưu thành (`⌘⇧S`), Mở tệp Nét (`⌘O`), Nhập PDF, Nhập ảnh, Xuất PDF (`⌘P`), Xuất ảnh PNG, Xuất văn bản TXT, Thông tin Nét và Xóa toàn bộ trang.
+- **3. Tên Ghi chú đặt tại thanh đáy kế bên cụm trang:**
+  - Khối tên tài liệu `.bottom-doc-title-chip` (`[ 📄 Ghi chú mới ] · Đã lưu`) đặt tại thanh đáy bên trái cụm điều hướng trang (`[ ◫ ] | [ 📄 Ghi chú mới ] · Đã lưu | [ ‹ ] Trang [ 1 ] / X [ › ] [Trang 1] [+]`), người dùng nhấp trực tiếp vào tên để chỉnh sửa nhanh chóng.
+- **4. Bổ sung phím tắt `⌘P` / `Ctrl+P`:**
+  - Cho phép xuất file PDF ngay tức thì bằng tổ hợp phím tắt.
+- **5. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v28` và query string các tệp tĩnh lên `?v=20261027_0835`.
+
+## [Tối ưu hóa Hiển thị Trang PDF & Cụm Điều Hướng Trang [ ‹ ] Trang [ ô trống ] / [tổng số trang] [ › ]] - 27/10/2026
+
+- **1. Giải quyết triệt để lỗi tràn hàng chục tab trang:**
+  - Thay thế hàng loạt các tab `Trang 1`, `Trang 2` ... `Trang 25` dàn trải dài dằng dặc bằng cụm điều hướng trang tinh gọn (`.page-nav-control`): `[ ‹ ] Trang [ 1 ] / 25 [ › ]`.
+  - Tự động ẩn danh sách tab dàn trải khi tài liệu có trên 3 trang hoặc khi nhập PDF nhiều trang, giữ thanh đáy luôn thoáng đãng và sang trọng chuẩn phong cách Apple macOS.
+- **2. Ô nhập số trang trực quan chuyển trang tức thì (`#input-page-number`):**
+  - Người dùng có thể nhấp vào ô nhập số trang, hệ thống tự động bôi đen để gõ ngay số mới.
+  - Gõ số trang (ví dụ `15`) rồi nhấn `Enter` (hoặc nhấp chuột ra ngoài `blur`): trang lập tức cuộn mượt và chuyển ngay đến Trang 15; tự động chặn các số không hợp lệ (nhỏ hơn 1 hoặc lớn hơn tổng số trang).
+- **3. Cặp nút lật trang mượt mà (`btn-page-prev` / `btn-page-next`):**
+  - Nút `[ ‹ ]` lùi về trang trước, nút `[ › ]` tiến tới trang sau.
+  - Tự động làm mờ disabled khi đang ở Trang 1 hoặc Trang cuối cùng.
+  - Hỗ trợ phím mũi tên `↑ / ↓` và `PageUp / PageDown`.
+- **4. Đồng bộ hai chiều theo thời gian thực (Real-time Scroll Sync):**
+  - Khi cuộn xem tài liệu bằng chuột hoặc trackpad, ô nhập tự động cập nhật số trang đang nhìn thấy mà không làm gián đoạn việc soạn thảo.
+- **5. Tối ưu nạp PDF siêu tốc:**
+  - Nạp các trang PDF trong nền (`createNewPage(false)`), không giật cuộn lặp lại, cập nhật thanh điều hướng và chuyển về trang 1 sau khi nạp xong toàn bộ.
+- **6. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v26` và query string các tệp tĩnh lên `?v=20261027_0800`.
+
+## [Tích Hợp Tên Ghi Chú Vào Nút Tệp: [ 📄 Ghi chú mới ▾ ] · Đã lưu] - 26/10/2026
+
+- **1. Thiết kế Chip macOS Document Titlebar tích hợp thông minh:**
+  - Nút Tệp và tên ghi chú được gộp thành một khối duy nhất (`.doc-file-chip`): `[ 📄 Ghi chú mới ▾ ] · Đã lưu`.
+  - *Sửa tên trực tiếp:* Nhấp chuột vào chữ "Ghi chú mới" để gõ đổi tên tức thì, ô nhập tự động co giãn độ rộng linh hoạt theo số ký tự.
+  - *Mở menu Tệp:* Nhấp vào biểu tượng 📄 hoặc mũi tên ▾ ở hai đầu để mở bảng chọn tác vụ Tệp (Mới ⌘N, Lưu ⌘S, Lưu thành... ⌘⇧S, Mở tệp ⌘O, Xuất PDF/ảnh/văn bản...).
+  - *Trạng thái lưu:* Nhãn `· Đã lưu` hiển thị thanh thoát ngay bên cạnh chip.
+- **2. Tinh chỉnh canh lề Menu Tệp thông minh:**
+  - Thiết lập rule CSS `#dropdown-file-container .header-dropdown-menu { left: 0; right: auto; }` giúp menu khi mở xổ xuống căn trái vừa vặn, không bị tràn màn hình hay che khuất các phần khác.
+- **3. Tinh gọn thanh tiêu đề bên phải (`header-right`):**
+  - Góc phải chỉ còn nút tiện ích `[ 🖩 fx580 ]` phục vụ mở nhanh máy tính Casio fx-580VN X, loại bỏ mọi chi tiết thừa.
+- **4. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v24` và query string các tệp tĩnh lên `?v=20261026_2110`.
+
+
+- **1. Bước 1 — Chọn tác vụ:**
+  - Nhấp chọn *Đường trung trực* trong menu Dựng hình ▾ (hoặc Quan hệ ▾). Nút nhóm cập nhật biểu tượng $\perp$ và nhãn tương ứng.
+- **2. Bước 2 — Hiển thị "Chọn":**
+  - Tự động kích hoạt công cụ Chọn (`Select Tool` active), con trỏ mũi tên nhọn macOS chuẩn xác.
+  - Thanh trạng thái hướng dẫn rõ ràng: *"Đường trung trực: Bước 1 — Bấm chọn Điểm 1 (hoặc chọn 1 đoạn thẳng)"*.
+  - Thông báo Toast hiển thị: *"🎯 Chế độ Chọn: Bấm chọn Điểm 1"*.
+- **3. Bước 3 — Chọn Điểm 1 rồi chọn Điểm 2:**
+  - *Chọn Điểm 1:* Nhấp vào bất kỳ điểm, đỉnh tam giác/đa giác, đầu mút đoạn thẳng hoặc vị trí trên giấy. Hệ thống làm sáng ngay quầng ngọc bích rực rỡ kèm nhãn chỉ báo *"✓ Đã chọn: Điểm 1"*.
+  - *Xem trước thời gian thực (Real-time Preview):* Khi lia chuột, xuất hiện đường nét đứt mờ nối từ Điểm 1 tới con trỏ chuột, kèm chấm trung điểm $M$ tạm thời và đường trung trực vuông góc xem trước.
+  - *Chọn Điểm 2:* Nhấp chọn điểm thứ 2 trên bảng vẽ. Hệ thống lập tức hoàn thành tác vụ: tự động nối đoạn thẳng (nếu là 2 điểm rời), dựng đường trung trực vuông góc ở giữa, chấm điểm trung điểm $M$, ký hiệu góc vuông $\llcorner$ và 2 vạch bằng nhau ($||$) đối xứng chuẩn SGK.
+  - *Liên kết động (Dynamic binding):* Kéo di chuyển Điểm 1 hoặc Điểm 2 thì đường trung trực tự động cập nhật cân đối.
+- **4. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v22` và query string `?v=20261026_1915`.
+
+## [Tối ưu hóa Kéo điểm Hình chóp — Bảo toàn Tính chất Đáy Hình học] - 26/10/2026
+
+- **1. Bảo toàn hình bình hành 100% cho Hình chóp đáy hình bình hành (`pyramid-parallelogram`):**
+  - Ràng buộc quan hệ hình học hai chiều $A + C = B + D$ khi kéo bất kỳ đỉnh nào trong 4 đỉnh đáy ($A, B, C, D$).
+  - Đáy $ABCD$ luôn luôn là hình bình hành hoàn hảo: các cặp cạnh đối luôn song song và bằng nhau, loại bỏ hoàn toàn hiện tượng đáy bị méo mó thành tứ giác tự do.
+- **2. Bảo toàn hai đáy song song cho Hình chóp đáy hình thang (`pyramid-trapezoid`):**
+  - Hai đáy $AD$ (đáy sau nét đứt) và $BC$ (đáy trước nét liền) luôn song song ($AD \parallel BC$).
+  - Kéo $B$ hoặc $C$: Đáy $AD$ tự động xoay cùng góc với $BC$.
+  - Kéo $A$: Cả đáy sau $AD$ tịnh tiến song song.
+  - Kéo $D$: Điểm $D$ luôn trượt trên đường thẳng qua $A$ song song với $BC$, cho phép thay đổi độ dài đáy tự do mà không bao giờ mất phương song song.
+- **3. Bảo toàn đường cao thẳng đứng và đáy vuông cho Hình chóp tứ giác đều (`pyramid-regular`):**
+  - Đáy $ABCD$ bảo toàn hình bình hành biểu diễn của hình vuông.
+  - Tâm đáy $O$ tự động cập nhật là giao điểm của hai đường chéo $AC$ và $BD$.
+  - Đỉnh $S$ luôn bám trục thẳng đứng $SO \perp (ABCD)$ ($S.x = O.x$). Kéo đỉnh $S$ chỉnh chiều cao chóp đều; kéo tâm $O$ dời toàn bộ hình.
+- **4. Bảo vệ trật tự phối cảnh cho Hình chóp tứ giác (`pyramid-quad`) & Ngũ giác (`pyramid-pentagon`):**
+  - Ngăn ngừa các cạnh đáy tự cắt đan chéo hoặc lộn ngược tầng khuất/thấy, bảo toàn các nét đứt chuẩn SGK Hình học 11/12.
+- **5. Nâng cấp Service Worker Cache:**
+  - Nâng cache Service Worker lên `net-app-v21` và query string `?v=20261026_1910`.
+
 ## [Tối ưu hóa Độ ổn định & Bổ sung Tiện ích Máy tính Casio fx-580VN X] - 26/10/2026
 
 - **1. Khắc phục triệt để lỗi nhân đôi/nhân ba phím và cô lập bắt phím (Hạng mục 1):**

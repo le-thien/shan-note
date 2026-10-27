@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Nét">
-  <link rel="stylesheet" href="style.css?v=20261026_1520">
+  <link rel="stylesheet" href="style.css?v=20261027_1910">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&family=Caveat:wght@600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -175,235 +175,20 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- 1. TÀI LIỆU: Logo nét. · Tên tài liệu · Đã lưu       Nhập ▾ · Xuất ▾ · ... (Theo Hình 1) -->
+    <!-- 1. THANH TIÊU ĐỀ: Logo nét. · Các cụm công cụ Hình học & Đồ thị -->
     <header class="app-header">
       <div class="header-left">
         <span class="brand-logo">nét.</span>
         <div class="header-divider"></div>
-        <div class="doc-title-wrapper">
-          <input type="text" id="doc-title" class="doc-title-input" value="Ghi chú hình học & bài tập" title="Nhấp để đổi tên ghi chú">
-          <span id="save-badge" class="badge-saved">· Đã lưu</span>
-        </div>
 
-        <div class="header-divider"></div>
-
-        <!-- CỤM CÔNG CỤ HÌNH HỌC & ĐỒ THỊ (Thứ tự: Hình; Dựng hình; HHKG) -->
-        <div class="header-geo-cluster" id="header-geo-cluster">
-          <!-- 1. [Hình ▾] (Bao gồm Đoạn thẳng, Điểm, Đường tròn, Elip, Tam giác các loại, Tứ giác các loại) -->
-          <div class="geo-group-dropdown" id="dropdown-geo-shapes">
-            <button class="geo-group-btn active" id="btn-group-shapes" title="Các hình học: Đoạn thẳng, Điểm, Đường tròn, Tam giác, Tứ giác">
-              <span class="geo-group-icon" id="icon-group-shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="4" y1="20" x2="20" y2="4"/></svg>
-              </span>
-              <span class="geo-group-label" id="label-group-shapes">Hình</span>
-              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="geo-dropdown-menu" id="menu-group-shapes">
-              <button class="geo-dropdown-item geo-btn active" data-geo="line" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="4" y1="20" x2="20" y2="4"/></svg>
-                <span>Đoạn thẳng</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="point" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>
-                <span>Điểm</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="circle" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
-                <span>Đường tròn</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="ellipse" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="5"/></svg>
-                <span>Elip</span>
-              </button>
-              <div class="toolbar-menu-divider"></div>
-              <button class="geo-dropdown-item geo-btn" data-geo="triangle" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 4 21 20 3 20"/></svg>
-                <span>Tam giác thường</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="right-triangle" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="4 4 4 20 20 20"/></svg>
-                <span>Tam giác vuông</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="isosceles-triangle" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 3 21 21 3 21"/></svg>
-                <span>Tam giác cân</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="inscribed-triangle" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><polygon points="12 4 19 18 5 18"/></svg>
-                <span>Tam giác nội tiếp</span>
-              </button>
-              <div class="toolbar-menu-divider"></div>
-              <button class="geo-dropdown-item geo-btn" data-geo="rectangle" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1"/></svg>
-                <span>Hình chữ nhật</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="square" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/></svg>
-                <span>Hình vuông</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="parallelogram" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7 4 21 4 17 20 3 20"/></svg>
-                <span>Hình bình hành</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="rhombus" data-group="shapes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 3 21 12 12 21 3 12"/></svg>
-                <span>Hình thoi</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 2. [Dựng hình ▾] (Bao gồm Trung điểm, Giao điểm, Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc) -->
-          <div class="geo-group-dropdown" id="dropdown-geo-construction">
-            <button class="geo-group-btn" id="btn-group-construction" title="Dựng hình: Trung điểm, Giao điểm, Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc">
-              <span class="geo-group-icon" id="icon-group-construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                  <line x1="3" y1="12" x2="21" y2="12"/>
-                  <circle cx="12" cy="12" r="3" fill="currentColor"/>
-                </svg>
-              </span>
-              <span class="geo-group-label" id="label-group-construction">Dựng hình</span>
-              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="geo-dropdown-menu" id="menu-group-construction">
-              <button class="geo-dropdown-item geo-btn active" data-geo="midpoint" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                  <line x1="3" y1="12" x2="21" y2="12"/>
-                  <circle cx="12" cy="12" r="3" fill="currentColor"/>
-                </svg>
-                <span>Trung điểm</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="perpendicular-bisector" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                  <line x1="3" y1="17" x2="21" y2="17"/>
-                  <line x1="12" y1="3" x2="12" y2="21"/>
-                  <path d="M12 14h3v3"/>
-                  <line x1="7" y1="15" x2="7" y2="19"/>
-                  <line x1="17" y1="15" x2="17" y2="19"/>
-                </svg>
-                <span>Đường trung trực</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="intersection" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                  <line x1="4" y1="4" x2="20" y2="20"/>
-                  <line x1="4" y1="20" x2="20" y2="4"/>
-                  <circle cx="12" cy="12" r="3" fill="currentColor"/>
-                </svg>
-                <span>Giao điểm</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="bisector" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/><line x1="4" y1="20" x2="20" y2="20"/><line x1="4" y1="20" x2="14" y2="9"/></svg>
-                <span>Phân giác</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="perpendicular" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="18" x2="21" y2="18"/><line x1="12" y1="4" x2="12" y2="18"/><path d="M12 14h4v4"/></svg>
-                <span>Vuông góc</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="parallel" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
-                <span>Song song</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="tangent" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="15" r="5"/><line x1="21" y1="3" x2="14" y2="15"/></svg>
-                <span>Tiếp tuyến</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="two-tangents" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="14" cy="12" r="6"/><line x1="3" y1="12" x2="11" y2="6"/><line x1="3" y1="12" x2="11" y2="18"/></svg>
-                <span>2 tiếp tuyến</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="angle" data-group="construction">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 7 5 19 20 19"/><path d="M12 19a7 7 0 0 0-4-6"/></svg>
-                <span>Chọn góc</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Ô góc 60° (Chọn góc theo số đo độ - chỉ hiện khi chọn góc hoặc khi đang chọn đối tượng góc) -->
-          <div class="geo-angle-input-wrapper" id="geo-angle-input-container" title="Điều chỉnh số đo góc" style="display: none;">
-            <span style="font-size: 11.5px; font-weight: 600; color: #5e726b;">∡</span>
-            <input type="number" id="input-angle-degrees" class="input-degrees" value="60" min="1" max="359" step="1" title="Số đo góc">
-            <span class="deg-symbol">°</span>
-          </div>
-
-          <!-- Ô nhập 2 bán trục a và b của Elip -->
-          <div class="geo-angle-input-wrapper" id="geo-ellipse-axes-container" title="Nhập số đo 2 bán trục a và b của Elip" style="display: none;">
-            <span style="font-size: 11px; font-weight: 600; color: #5e726b;">a:</span>
-            <input type="number" id="input-ellipse-axis-a" class="input-degrees" value="60" min="5" max="2000" step="5" title="Bán trục a (ngang)" style="width: 34px;">
-            <span style="font-size: 11px; font-weight: 600; color: #5e726b; margin-left: 2px;">b:</span>
-            <input type="number" id="input-ellipse-axis-b" class="input-degrees" value="40" min="5" max="2000" step="5" title="Bán trục b (dọc)" style="width: 34px;">
-            <span class="deg-symbol" style="font-size: 11px;">px</span>
-          </div>
-
-          <!-- 4. [HHKG ▾] (Hình học không gian) -->
-          <div class="geo-group-dropdown" id="dropdown-geo-hhkg">
-            <button class="geo-group-btn" id="btn-group-hhkg" title="Hình học không gian: Tứ diện, Chóp tứ giác, Chóp đáy hình thang, Chóp đáy hình bình hành, Chóp đáy ngũ giác, Chóp tứ giác đều">
-              <span class="geo-group-icon" id="icon-group-hhkg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2 L2 18 L12 22 L22 18 Z"/>
-                  <path d="M12 2 L12 22"/>
-                </svg>
-              </span>
-              <span class="geo-group-label" id="label-group-hhkg">HHKG</span>
-              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="geo-dropdown-menu" id="menu-group-hhkg">
-              <button class="geo-dropdown-item geo-btn active" data-geo="tetrahedron" data-group="hhkg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 L3 19 L15 21 L21 16 Z"/><path d="M12 3 L15 21"/></svg>
-                <span>Tứ diện</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-quad" data-group="hhkg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L3 17 L10 21 L21 18 Z"/><path d="M12 2 L10 21"/></svg>
-                <span>Hình chóp tứ giác</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-trapezoid" data-group="hhkg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L2 18 L8 21 L16 21 L22 17 Z"/><path d="M12 2 L8 21"/><path d="M12 2 L16 21"/></svg>
-                <span>Hình chóp đáy hình thang</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-parallelogram" data-group="hhkg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L2 18 L14 21 L22 18 Z"/><path d="M12 2 L14 21"/></svg>
-                <span>Hình chóp đáy hình bình hành</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-pentagon" data-group="hhkg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L2 17 L7 21 L17 21 L22 16 Z"/><path d="M12 2 L7 21"/><path d="M12 2 L17 21"/></svg>
-                <span>Hình chóp đáy ngũ giác</span>
-              </button>
-              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-regular" data-group="hhkg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L3 17 L12 21 L21 17 Z"/><path d="M12 2 L12 21" stroke-dasharray="2 2"/><path d="M3 17 L21 17" stroke-dasharray="2 2"/></svg>
-                <span>Hình chóp tứ giác đều</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Thanh điều khiển xoay hình (Hiển thị ngoài hình trên thanh công cụ khi chọn hình) -->
-          <div class="geo-angle-input-wrapper hhkg-3d-controls" id="hhkg-3d-controls" title="Điều khiển xoay hình (2D & 3D)" style="display: none;">
-            <button class="hhkg-btn-tool" id="btn-toggle-rotation" title="Bật/Tắt tay cầm xoay tự do bên ngoài hình (Kéo chuột để xoay)">
-              <span>🔄 Xoay</span>
-            </button>
-            <button class="hhkg-btn-tool hhkg-btn-primary" id="btn-hhkg-rotate-3d" title="Mở phòng chiếu xoay 3D 360° tương tác" style="display: none;">
-              <span>Phòng chiếu 3D</span>
-            </button>
-            <button class="hhkg-btn-tool" id="btn-hhkg-rot-left" title="Xoay sang trái 45°">↶ 45°</button>
-            <button class="hhkg-btn-tool" id="btn-hhkg-rot-right" title="Xoay sang phải 45°">↷ 45°</button>
-            <button class="hhkg-btn-tool" id="btn-hhkg-auto-spin" title="Tự động quay tròn 360° trên trang giấy" style="display: none;">▶ Quay</button>
-          </div>
-
-          <div class="header-divider"></div>
-
-          <!-- Nút Đồ thị -->
-          <button id="tool-graph" class="tool-btn" data-tool="graph" title="Vẽ đồ thị hàm số toán học">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="20" x2="21" y2="20"/><line x1="3" y1="4" x2="3" y2="20"/><path d="m6 16 5-8 4 6 5-10"/></svg>
-            <span>Đồ thị</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <!-- Nút Tệp ▾ thống nhất toàn bộ tính năng Lưu, Xuất, Nhập... -->
+        <!-- Nút Tệp đặt kế bên Nét. (Mới, Lưu, Lưu thành, Nhập, Xuất...) -->
         <div class="header-dropdown-container" id="dropdown-file-container">
-          <button id="btn-file-menu" class="btn-header-dropdown" title="Menu Tệp (Lưu, Nhập, Xuất...)">
+          <button id="btn-file-dropdown" class="btn-header-dropdown btn-file-header" title="Menu Tệp (Mới, Lưu, Nhập, Xuất...)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span>Tệp</span>
             <svg class="header-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
+
           <div class="header-dropdown-menu header-menu-wide" id="menu-file">
             <!-- 0. Mới (New) -->
             <button class="header-menu-item" id="btn-file-new" title="Tạo ghi chú mới (⌘N)">
@@ -479,6 +264,320 @@
           <input type="file" id="input-project-file" accept=".net,.json" style="display: none;">
         </div>
 
+        <div class="header-divider"></div>
+
+        <!-- CỤM CÔNG CỤ HÌNH HỌC & ĐỒ THỊ (Thứ tự: Hình; Dựng hình; HHKG) -->
+        <div class="header-geo-cluster" id="header-geo-cluster">
+          <!-- 1. [Hình ▾] (Bao gồm Đoạn thẳng, Điểm, Đường tròn, Elip, Tam giác các loại, Tứ giác các loại) -->
+          <div class="geo-group-dropdown" id="dropdown-geo-shapes">
+            <button class="geo-group-btn active" id="btn-group-shapes" title="Các hình học: Đoạn thẳng, Điểm, Đường tròn, Tam giác, Tứ giác">
+              <span class="geo-group-icon" id="icon-group-shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+              </span>
+              <span class="geo-group-label" id="label-group-shapes">Hình</span>
+              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="geo-dropdown-menu" id="menu-group-shapes">
+              <button class="geo-dropdown-item geo-btn active" data-geo="line" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+                <span>Đoạn thẳng</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="point" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>
+                <span>Điểm</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="circle" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
+                <span>Đường tròn</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="ellipse" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="5"/></svg>
+                <span>Elip</span>
+              </button>
+              <div class="toolbar-menu-divider"></div>
+              <button class="geo-dropdown-item geo-btn" data-geo="triangle" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 4 21 20 3 20"/></svg>
+                <span>Tam giác thường</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="right-triangle" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="4 4 4 20 20 20"/></svg>
+                <span>Tam giác vuông</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="isosceles-triangle" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 3 21 21 3 21"/></svg>
+                <span>Tam giác cân</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="inscribed-triangle" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><polygon points="12 4 19 18 5 18"/></svg>
+                <span>Tam giác nội tiếp</span>
+              </button>
+              <div class="toolbar-menu-divider"></div>
+              <button class="geo-dropdown-item geo-btn" data-geo="rectangle" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="1"/></svg>
+                <span>Hình chữ nhật</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="square" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/></svg>
+                <span>Hình vuông</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="parallelogram" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7 4 21 4 17 20 3 20"/></svg>
+                <span>Hình bình hành</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="rhombus" data-group="shapes">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 3 21 12 12 21 3 12"/></svg>
+                <span>Hình thoi</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. [Dựng hình ▾] (Bao gồm Trung điểm, Đường trung trực, Đối xứng điểm, Đối xứng trục, Đường tròn ngoại tiếp, Đường tròn nội tiếp, Giao điểm, Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc) -->
+          <div class="geo-group-dropdown" id="dropdown-geo-construction">
+            <button class="geo-group-btn" id="btn-group-construction" title="Dựng hình: Trung điểm, Đường trung trực, Đối xứng điểm, Đối xứng trục, Đường tròn ngoại tiếp, Đường tròn nội tiếp, Giao điểm, Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc">
+              <span class="geo-group-icon" id="icon-group-construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                  <line x1="3" y1="12" x2="21" y2="12"/>
+                  <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="geo-group-label" id="label-group-construction">Dựng hình</span>
+              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="geo-dropdown-menu" id="menu-group-construction">
+              <button class="geo-dropdown-item geo-btn active" data-geo="midpoint" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                  <line x1="3" y1="12" x2="21" y2="12"/>
+                  <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                </svg>
+                <span>Trung điểm</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="perpendicular-bisector" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                  <line x1="3" y1="17" x2="21" y2="17"/>
+                  <line x1="12" y1="3" x2="12" y2="21"/>
+                  <path d="M12 14h3v3"/>
+                  <line x1="7" y1="15" x2="7" y2="19"/>
+                  <line x1="17" y1="15" x2="17" y2="19"/>
+                </svg>
+                <span>Đường trung trực</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="point-symmetry" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                  <line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="2 2"/>
+                  <circle cx="4" cy="12" r="2.5" fill="currentColor"/>
+                  <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
+                  <circle cx="20" cy="12" r="2.5" fill="currentColor"/>
+                </svg>
+                <span>Đối xứng điểm</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="axis-symmetry" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                  <line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="3 2"/>
+                  <line x1="4" y1="12" x2="20" y2="12"/>
+                  <circle cx="5" cy="12" r="2.5" fill="currentColor"/>
+                  <circle cx="19" cy="12" r="2.5" fill="currentColor"/>
+                  <path d="M12 9h3v3"/>
+                </svg>
+                <span>Đối xứng trục</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="circumcircle" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                  <circle cx="12" cy="12" r="9"/>
+                  <circle cx="12" cy="3" r="2" fill="currentColor"/>
+                  <circle cx="4.2" cy="16.5" r="2" fill="currentColor"/>
+                  <circle cx="19.8" cy="16.5" r="2" fill="currentColor"/>
+                </svg>
+                <span>Đường tròn ngoại tiếp</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="incircle" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                  <polygon points="12 3 22 21 2 21"/>
+                  <circle cx="12" cy="15" r="6"/>
+                </svg>
+                <span>Đường tròn nội tiếp</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="intersection" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                  <line x1="4" y1="4" x2="20" y2="20"/>
+                  <line x1="4" y1="20" x2="20" y2="4"/>
+                  <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                </svg>
+                <span>Giao điểm</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="bisector" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/><line x1="4" y1="20" x2="20" y2="20"/><line x1="4" y1="20" x2="14" y2="9"/></svg>
+                <span>Phân giác</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="perpendicular" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="18" x2="21" y2="18"/><line x1="12" y1="4" x2="12" y2="18"/><path d="M12 14h4v4"/></svg>
+                <span>Vuông góc</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="parallel" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+                <span>Song song</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="tangent" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="15" r="5"/><line x1="21" y1="3" x2="14" y2="15"/></svg>
+                <span>Tiếp tuyến</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="two-tangents" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="14" cy="12" r="6"/><line x1="3" y1="12" x2="11" y2="6"/><line x1="3" y1="12" x2="11" y2="18"/></svg>
+                <span>2 tiếp tuyến</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="angle" data-group="construction">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 7 5 19 20 19"/><path d="M12 19a7 7 0 0 0-4-6"/></svg>
+                <span>Chọn góc</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Ô góc 60° (Chọn góc theo số đo độ - chỉ hiện khi chọn góc hoặc khi đang chọn đối tượng góc) -->
+          <div class="geo-angle-input-wrapper" id="geo-angle-input-container" title="Điều chỉnh số đo góc" style="display: none;">
+            <span style="font-size: 11.5px; font-weight: 600; color: #5e726b;">∡</span>
+            <input type="number" id="input-angle-degrees" class="input-degrees" value="60" min="1" max="359" step="1" title="Số đo góc">
+            <span class="deg-symbol">°</span>
+          </div>
+
+          <!-- Ô nhập 2 bán trục a và b của Elip -->
+          <div class="geo-angle-input-wrapper" id="geo-ellipse-axes-container" title="Nhập số đo 2 bán trục a và b của Elip" style="display: none;">
+            <span style="font-size: 11px; font-weight: 600; color: #5e726b;">a:</span>
+            <input type="number" id="input-ellipse-axis-a" class="input-degrees" value="60" min="5" max="2000" step="5" title="Bán trục a (ngang)" style="width: 34px;">
+            <span style="font-size: 11px; font-weight: 600; color: #5e726b; margin-left: 2px;">b:</span>
+            <input type="number" id="input-ellipse-axis-b" class="input-degrees" value="40" min="5" max="2000" step="5" title="Bán trục b (dọc)" style="width: 34px;">
+            <span class="deg-symbol" style="font-size: 11px;">px</span>
+          </div>
+
+          <!-- 4. [HHKG ▾] (Hình học không gian) -->
+          <div class="geo-group-dropdown" id="dropdown-geo-hhkg">
+            <button class="geo-group-btn" id="btn-group-hhkg" title="Hình học không gian: Tứ diện, Chóp tứ giác, Chóp đáy hình thang, Chóp đáy hình bình hành, Chóp đáy ngũ giác, Chóp tứ giác đều">
+              <span class="geo-group-icon" id="icon-group-hhkg">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2 L2 18 L12 22 L22 18 Z"/>
+                  <path d="M12 2 L12 22"/>
+                </svg>
+              </span>
+              <span class="geo-group-label" id="label-group-hhkg">HHKG</span>
+              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="geo-dropdown-menu hhkg-grouped-menu" id="menu-group-hhkg">
+              <!-- NHÓM 1: KHỐI CHÓP & TỨ DIỆN -->
+              <div class="hhkg-menu-group-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2 L2 22 L22 22 Z"/></svg>
+                <span>Khối Chóp & Tứ diện</span>
+              </div>
+              
+              <!-- Phân mục: Cạnh bên vuông góc đáy (SA ⊥ đáy) -->
+              <div class="hhkg-menu-sublabel">Cạnh bên vuông góc đáy (SA ⊥ đáy)</div>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-sa-triangle" data-group="hhkg" title="Chóp S.ABC có SA ⊥ (ABC)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 2 L5 18 L19 21 L5 2 Z"/><path d="M5 2 L12 20"/><path d="M5 18 L19 21"/><path d="M5 14 h3 v4" stroke-width="1.5"/></svg>
+                <span>Chóp SA ⊥ đáy tam giác</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-sa-parallelogram" data-group="hhkg" title="Chóp S.ABCD có SA ⊥ (ABCD) đáy hình bình hành">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3 L6 16 L14 21 L22 18 Z"/><path d="M6 3 L14 21"/><path d="M6 3 L22 18"/><path d="M6 12 h3 v4" stroke-width="1.5"/></svg>
+                <span>Chóp SA ⊥ đáy hình bình hành</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-sa-trapezoid" data-group="hhkg" title="Chóp S.ABCD có SA ⊥ (ABCD) đáy hình thang">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3 L5 16 L10 21 L18 21 L22 16 Z"/><path d="M5 3 L10 21"/><path d="M5 3 L18 21"/><path d="M5 12 h3 v4" stroke-width="1.5"/></svg>
+                <span>Chóp SA ⊥ đáy hình thang</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-sa-quad" data-group="hhkg" title="Chóp S.ABCD có SA ⊥ (ABCD) đáy tứ giác">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3 L6 16 L12 21 L21 18 Z"/><path d="M6 3 L12 21"/><path d="M6 3 L21 18"/><path d="M6 12 h3 v4" stroke-width="1.5"/></svg>
+                <span>Chóp SA ⊥ đáy tứ giác</span>
+              </button>
+
+              <!-- Phân mục: Chóp đều & Chóp thường -->
+              <div class="hhkg-menu-sublabel">Chóp đều & Chóp thường</div>
+              <button class="geo-dropdown-item geo-btn active" data-geo="tetrahedron" data-group="hhkg" title="Tứ diện đều hoặc tứ diện tự do">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 L3 19 L15 21 L21 16 Z"/><path d="M12 3 L15 21"/></svg>
+                <span>Tứ diện</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-regular" data-group="hhkg" title="Hình chóp tứ giác đều (trục SO thẳng đứng từ tâm đáy)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L3 17 L12 21 L21 17 Z"/><path d="M12 2 L12 21" stroke-dasharray="2 2"/><path d="M3 17 L21 17" stroke-dasharray="2 2"/></svg>
+                <span>Chóp tứ giác đều</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-parallelogram" data-group="hhkg" title="Hình chóp đáy hình bình hành">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L2 18 L14 21 L22 18 Z"/><path d="M12 2 L14 21"/></svg>
+                <span>Chóp đáy hình bình hành</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-trapezoid" data-group="hhkg" title="Hình chóp đáy hình thang">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L2 18 L8 21 L16 21 L22 17 Z"/><path d="M12 2 L8 21"/><path d="M12 2 L16 21"/></svg>
+                <span>Chóp đáy hình thang</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-quad" data-group="hhkg" title="Hình chóp đáy tứ giác">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L3 17 L10 21 L21 18 Z"/><path d="M12 2 L10 21"/></svg>
+                <span>Chóp đáy tứ giác</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="pyramid-pentagon" data-group="hhkg" title="Hình chóp đáy ngũ giác">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L2 17 L7 21 L17 21 L22 16 Z"/><path d="M12 2 L7 21"/><path d="M12 2 L17 21"/></svg>
+                <span>Chóp đáy ngũ giác</span>
+              </button>
+
+              <div class="header-menu-divider"></div>
+
+              <!-- NHÓM 2: HÌNH LĂNG TRỤ & HÌNH HỘP -->
+              <div class="hhkg-menu-group-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 4 L19 4 L19 18 L5 18 Z"/><path d="M5 4 L9 1 L23 1 L19 4"/><path d="M23 1 L23 15 L19 18"/></svg>
+                <span>Lăng trụ & Hình hộp</span>
+              </div>
+              <button class="geo-dropdown-item geo-btn" data-geo="prism-stand" data-group="hhkg" title="Lăng trụ đứng tam giác / lăng trụ đều (cạnh bên ⊥ đáy)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6 L14 8 L20 4 Z"/><path d="M4 18 L14 20 L20 16 Z"/><path d="M4 6 L4 18"/><path d="M14 8 L14 20"/><path d="M20 4 L20 16"/></svg>
+                <span>Lăng trụ đứng / đều</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="prism-oblique" data-group="hhkg" title="Lăng trụ xiên (cạnh bên không vuông góc đáy)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5 L18 7 L23 3 Z"/><path d="M2 19 L12 21 L17 17 Z"/><path d="M8 5 L2 19"/><path d="M18 7 L12 21"/><path d="M23 3 L17 17"/></svg>
+                <span>Lăng trụ xiên</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="box-rect" data-group="hhkg" title="Hình hộp chữ nhật / Hình lập phương">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="13" height="13" rx="1"/><path d="M7 3 L20 3 L20 16"/><path d="M16 7 L20 3"/><path d="M3 7 L7 3"/><path d="M16 20 L20 16"/></svg>
+                <span>Hình hộp chữ nhật / Lập phương</span>
+              </button>
+
+              <div class="header-menu-divider"></div>
+
+              <!-- NHÓM 3: KHỐI TRÒN XOAY -->
+              <div class="hhkg-menu-group-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/></svg>
+                <span>Khối tròn xoay</span>
+              </div>
+              <button class="geo-dropdown-item geo-btn" data-geo="cone" data-group="hhkg" title="Hình nón tròn xoay (đỉnh S, đáy hình tròn phối cảnh)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 L3 19 A9 3 0 0 0 21 19 Z"/><path d="M3 19 A9 3 0 0 1 21 19" stroke-dasharray="2 2"/><path d="M12 3 L12 19" stroke-dasharray="2 2"/></svg>
+                <span>Hình nón</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="cylinder" data-group="hhkg" title="Hình trụ tròn xoay (2 đáy hình tròn phối cảnh)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5 L4 19 A8 3 0 0 0 20 19 L20 5"/><path d="M4 19 A8 3 0 0 1 20 19" stroke-dasharray="2 2"/></svg>
+                <span>Hình trụ</span>
+              </button>
+              <button class="geo-dropdown-item geo-btn" data-geo="sphere" data-group="hhkg" title="Mặt cầu / Khối cầu (đường tròn lớn và xích đạo elip)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="9" ry="3.5" stroke-dasharray="3 3"/></svg>
+                <span>Mặt cầu</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Thanh điều khiển xoay hình (Hiển thị ngoài hình trên thanh công cụ khi chọn hình) -->
+          <div class="geo-angle-input-wrapper hhkg-3d-controls" id="hhkg-3d-controls" title="Điều khiển xoay hình (2D & 3D)" style="display: none;">
+            <button class="hhkg-btn-tool" id="btn-toggle-rotation" title="Bật/Tắt tay cầm xoay tự do bên ngoài hình (Kéo chuột để xoay)">
+              <span>🔄 Xoay</span>
+            </button>
+            <button class="hhkg-btn-tool hhkg-btn-primary" id="btn-hhkg-rotate-3d" title="Mở phòng chiếu xoay 3D 360° tương tác" style="display: none;">
+              <span>Phòng chiếu 3D</span>
+            </button>
+            <button class="hhkg-btn-tool" id="btn-hhkg-rot-left" title="Xoay sang trái 45°">↶ 45°</button>
+            <button class="hhkg-btn-tool" id="btn-hhkg-rot-right" title="Xoay sang phải 45°">↷ 45°</button>
+            <button class="hhkg-btn-tool" id="btn-hhkg-auto-spin" title="Tự động quay tròn 360° trên trang giấy" style="display: none;">▶ Quay</button>
+          </div>
+
+          <div class="header-divider"></div>
+
+          <!-- Nút Đồ thị -->
+          <button id="tool-graph" class="tool-btn" data-tool="graph" title="Vẽ đồ thị hàm số toán học">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="20" x2="21" y2="20"/><line x1="3" y1="4" x2="3" y2="20"/><path d="m6 16 5-8 4 6 5-10"/></svg>
+            <span>Đồ thị</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
         <button id="btn-toggle-fx580" class="btn-header-dropdown" title="Bật/Tắt máy tính tương thích fx-580VN X">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></svg>
           <span>fx580</span>
@@ -671,15 +770,19 @@
         </div>
 
         <!-- Nút Chữ (Text) -->
-        <button id="tool-text" class="tool-btn" data-tool="text" title="Chèn văn bản (Phím T)">
+        <button id="tool-text" class="tool-btn" data-tool="text" title="Chèn văn bản vào ghi chú (Phím T)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
           <span>Chữ</span>
         </button>
 
-        <!-- Nút OCR khi chọn Select -->
-        <div class="context-section" id="context-select-options" style="display: none;">
-          <button id="btn-ocr" class="btn-context-ocr" title="Nhận dạng chữ viết tay thành văn bản">✍️ OCR</button>
-        </div>
+        <!-- Nút OCR nhận dạng chữ viết tay (Quét vùng chữ) -->
+        <button id="btn-ocr" class="tool-btn btn-toolbar-ocr" data-tool="ocr" title="Quét vùng chữ viết tay (OCR) để chuyển thành văn bản">
+          <span class="ocr-icon-emoji">✍️</span>
+          <span>OCR</span>
+        </button>
+
+        <!-- Vùng context ẩn để tương thích code cũ -->
+        <div class="context-section" id="context-select-options" style="display: none;"></div>
 
         <div class="primary-divider"></div>
 
@@ -762,7 +865,35 @@
         <button id="btn-toggle-sidebar" class="btn-sidebar-toggle active" title="Hiện/ẩn danh sách trang thu nhỏ">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
         </button>
+
+        <div class="bottom-divider"></div>
+
+        <!-- Tên ghi chú: đặt kế bên tay trái cụm trang (Hình 2) -->
+        <div class="bottom-doc-title-chip" id="bottom-doc-title-chip" title="Nhấp để đổi tên ghi chú">
+          <svg class="doc-icon-subtle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <input type="text" id="doc-title" class="doc-title-input" value="Ghi chú mới" title="Nhấp để đổi tên ghi chú" aria-label="Tên ghi chú">
+          <span id="save-badge" class="badge-saved">· Đã lưu</span>
+        </div>
+
+        <div class="bottom-divider"></div>
+
         <div class="pages-tabs-wrapper">
+          <!-- Cụm điều hướng trang PDF / tài liệu: [ ‹ ] Trang [ 1 ] / 25 [ › ] -->
+          <div class="page-nav-control" id="page-nav-control">
+            <button id="btn-page-prev" class="btn-page-nav" title="Trang trước (Phím mũi tên lên / PageUp)" aria-label="Trang trước">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="page-nav-box" title="Nhấp để nhập số trang">
+              <span class="page-nav-label">Trang</span>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-page-number" class="page-nav-input" value="1" aria-label="Số trang hiện tại">
+              <span class="page-nav-separator">/</span>
+              <span id="page-nav-total" class="page-nav-total">1</span>
+            </div>
+            <button id="btn-page-next" class="btn-page-nav" title="Trang tiếp (Phím mũi tên xuống / PageDown)" aria-label="Trang tiếp">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
           <div id="pages-list" class="pages-list">
             <button class="page-tab active" data-page="1">Trang 1</button>
             <button class="page-tab" data-page="2">Trang 2</button>
@@ -842,8 +973,19 @@
 
       <div class="modal-body">
         <p class="modal-desc">
-          Công cụ trích xuất nét chữ viết tay và ghi chú trên trang hiện tại thành văn bản kỹ thuật số. Quá trình xử lý diễn ra trực tiếp trên máy của bạn (hoạt động ngoại tuyến).
+          Quét vùng nét chữ viết tay và chuyển thành văn bản kỹ thuật số tức thì. Quá trình xử lý diễn ra trực tiếp trên máy của bạn (hoạt động an toàn, ngoại tuyến).
         </p>
+
+        <!-- Khung xem trước vùng chữ vừa quét -->
+        <div id="ocr-crop-preview-wrap" class="ocr-preview-wrap" style="display: none;">
+          <div class="ocr-preview-label-row">
+            <span class="ocr-label">🔍 Vùng nét chữ vừa quét:</span>
+            <span id="ocr-crop-dimensions" class="ocr-count">0 × 0 px</span>
+          </div>
+          <div class="ocr-preview-canvas-box">
+            <img id="ocr-crop-preview-img" class="ocr-preview-img" alt="Vùng chữ viết tay vừa quét">
+          </div>
+        </div>
 
         <div class="ocr-action-bar">
           <div class="ocr-lang-group">
@@ -1463,14 +1605,14 @@
   <!-- Module Xoay Hình học Không gian 3D 360° -->
   <script src="hhkg3d.js?v=20261026_1520"></script>
   <!-- Module Máy tính Casio fx-580VN X -->
-  <script src="fx580.js?v=20261026_1830"></script>
+  <script src="fx580.js?v=20261027_1105"></script>
   <!-- Module Đồ thị hàm số & 3D Solid of Revolution -->
   <script src="graph_widget.js?v=20261026_1830"></script>
-  <script src="app.js?v=20261026_1830"></script>
+  <script src="app.js?v=20261027_1910"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261026_1830').catch(function() {});
+        navigator.serviceWorker.register('./sw.js?v=20261027_1910').catch(function() {});
       });
     }
   </script>

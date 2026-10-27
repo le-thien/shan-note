@@ -57,6 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnUndo = document.getElementById('btn-undo');
   const btnRedo = document.getElementById('btn-redo');
 
+  // Điều hướng trang PDF & Đa trang (Page Navigator)
+  const pageNavControl = document.getElementById('page-nav-control');
+  const btnPagePrev = document.getElementById('btn-page-prev');
+  const btnPageNext = document.getElementById('btn-page-next');
+  const inputPageNumber = document.getElementById('input-page-number');
+  const pageNavTotal = document.getElementById('page-nav-total');
+
   // Sidebar trang thu nhỏ bên trái & Khổ giấy dọc/ngang
   const pagesSidebar = document.getElementById('pages-sidebar');
   const pagesThumbnailList = document.getElementById('pages-thumbnail-list');
@@ -370,6 +377,69 @@ document.addEventListener('DOMContentLoaded', () => {
       // Hiển thị 2 tùy chọn nét đứt cho Tiếp tuyến hoặc Chọn góc (để người dùng bấm chọn)
       if (state.pendingOptions && state.currentPage === p) {
         drawPendingOptions(targetCtx);
+      }
+
+      // Hiển thị khung quét nhận dạng chữ viết tay (OCR Scan Box)
+      if (state.activeTool === 'ocr' && state.isOcrScanning && state.ocrScanStart && state.ocrScanCurrent && state.currentPage === p) {
+        const sx = state.ocrScanStart.x;
+        const sy = state.ocrScanStart.y;
+        const cx = state.ocrScanCurrent.x;
+        const cy = state.ocrScanCurrent.y;
+        const bx = Math.min(sx, cx);
+        const by = Math.min(sy, cy);
+        const bw = Math.abs(cx - sx);
+        const bh = Math.abs(cy - sy);
+
+        targetCtx.save();
+        // Lớp mờ nền vùng quét
+        targetCtx.fillStyle = 'rgba(40, 99, 78, 0.12)';
+        targetCtx.fillRect(bx, by, bw, bh);
+
+        // Viền nét đứt
+        targetCtx.strokeStyle = '#28634e';
+        targetCtx.lineWidth = 2;
+        targetCtx.setLineDash([6, 4]);
+        targetCtx.strokeRect(bx, by, bw, bh);
+        targetCtx.setLineDash([]);
+
+        // 4 góc định vị camera kiểu scan
+        const arm = Math.min(16, Math.max(6, Math.min(bw, bh) / 3));
+        targetCtx.lineWidth = 3;
+        targetCtx.strokeStyle = '#1e4f3e';
+
+        // Góc trên trái
+        targetCtx.beginPath();
+        targetCtx.moveTo(bx, by + arm);
+        targetCtx.lineTo(bx, by);
+        targetCtx.lineTo(bx + arm, by);
+        targetCtx.stroke();
+
+        // Góc trên phải
+        targetCtx.beginPath();
+        targetCtx.moveTo(bx + bw - arm, by);
+        targetCtx.lineTo(bx + bw, by);
+        targetCtx.lineTo(bx + bw, by + arm);
+        targetCtx.stroke();
+
+        // Góc dưới trái
+        targetCtx.beginPath();
+        targetCtx.moveTo(bx, by + bh - arm);
+        targetCtx.lineTo(bx, by + bh);
+        targetCtx.lineTo(bx + arm, by + bh);
+        targetCtx.stroke();
+
+        // Góc dưới phải
+        targetCtx.beginPath();
+        targetCtx.moveTo(bx + bw - arm, by + bh);
+        targetCtx.lineTo(bx + bw, by + bh);
+        targetCtx.lineTo(bx + bw, by + bh - arm);
+        targetCtx.stroke();
+
+        // Nhãn chỉ báo nổi
+        targetCtx.fillStyle = '#1e4f3e';
+        targetCtx.font = 'bold 12px var(--font-main, sans-serif)';
+        targetCtx.fillText(`🔍 Vùng quét OCR: ${Math.round(bw)} × ${Math.round(bh)} px`, bx + 4, by > 22 ? by - 6 : by + bh + 16);
+        targetCtx.restore();
       }
 
       ctx = prevCtx;
@@ -1006,6 +1076,47 @@ document.addEventListener('DOMContentLoaded', () => {
             c.stroke();
             c.restore();
           }
+
+          if (el.shape === 'cone' && el.points[1] && el.points[3]) {
+            const O = el.points[1], B = el.points[3];
+            const rx = Math.max(15, Math.abs(B.x - O.x)), ry = Math.max(8, rx * 0.28);
+            c.save();
+            c.beginPath();
+            c.ellipse(O.x, O.y, rx, ry, 0, 0, Math.PI * 2);
+            c.lineWidth = (el.width || 2) + glowWidth;
+            c.strokeStyle = strokeGlow;
+            c.stroke();
+            c.restore();
+          } else if (el.shape === 'cylinder' && el.points[0] && el.points[2] && el.points[3] && el.points[5]) {
+            const O1 = el.points[0], B1 = el.points[2];
+            const rx1 = Math.max(15, Math.abs(B1.x - O1.x)), ry1 = Math.max(8, rx1 * 0.28);
+            const O2 = el.points[3], B2 = el.points[5];
+            const rx2 = Math.max(15, Math.abs(B2.x - O2.x)), ry2 = Math.max(8, rx2 * 0.28);
+            c.save();
+            c.lineWidth = (el.width || 2) + glowWidth;
+            c.strokeStyle = strokeGlow;
+            c.beginPath();
+            c.ellipse(O1.x, O1.y, rx1, ry1, 0, 0, Math.PI * 2);
+            c.stroke();
+            c.beginPath();
+            c.ellipse(O2.x, O2.y, rx2, ry2, 0, 0, Math.PI * 2);
+            c.stroke();
+            c.restore();
+          } else if (el.shape === 'sphere' && el.points[0] && el.points[1]) {
+            const O = el.points[0], M = el.points[1];
+            const R = Math.max(15, Math.hypot(M.x - O.x, M.y - O.y));
+            const ry = Math.max(8, R * 0.30);
+            c.save();
+            c.lineWidth = (el.width || 2) + glowWidth;
+            c.strokeStyle = strokeGlow;
+            c.beginPath();
+            c.arc(O.x, O.y, R, 0, Math.PI * 2);
+            c.stroke();
+            c.beginPath();
+            c.ellipse(O.x, O.y, R, ry, 0, 0, Math.PI * 2);
+            c.stroke();
+            c.restore();
+          }
         }
       } else if (el.shape === 'inscribed-triangle') {
         const r = Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
@@ -1201,11 +1312,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return { minX, maxX, minY, maxY };
     } else if (el.type === 'text') {
+      const fontSize = el.fontSize || 22;
+      const lineHeight = Math.round(fontSize * 1.35);
+      const lines = (el.text || '').split('\n');
+      let maxLen = 0;
+      for (const line of lines) {
+        if (line.length > maxLen) maxLen = line.length;
+      }
+      const approxWidth = Math.max(40, maxLen * (fontSize * 0.58));
+      const totalHeight = Math.max(fontSize, lines.length * lineHeight);
       return {
         minX: el.x,
-        maxX: el.x + (el.text ? el.text.length * 12 : 80),
-        minY: el.y - 24,
-        maxY: el.y + 8
+        maxX: el.x + approxWidth,
+        minY: el.y - 4,
+        maxY: el.y + totalHeight + 4
       };
     } else if (el.type === 'image') {
       return {
@@ -1273,6 +1393,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (m.groupId) groupIdsToMerge.add(m.groupId);
     }
 
+    // Gán groupId cho tất cả các đối tượng tham gia liên kết
+    for (const m of allMembers) {
+      ensureElementId(m);
+      m.groupId = targetGroupId;
+    }
+
     // Sáp nhập tất cả các đối tượng thuộc các nhóm này trên trang hiện tại
     for (const item of pageEls) {
       if (!item) continue;
@@ -1281,7 +1407,6 @@ document.addEventListener('DOMContentLoaded', () => {
         item.groupId = targetGroupId;
       }
     }
-    childEl.groupId = targetGroupId;
   }
 
   // Lấy tất cả các đối tượng cùng nhóm và liên kết phụ thuộc với el trên trang hiện tại
@@ -1798,6 +1923,173 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 5b. Điểm đối xứng (Point Symmetry - Point 3)
+    else if (b.type === 'point_symmetry_pt3') {
+      let A = null, B = null;
+      if (b.pt1Id && b.pt2Id) {
+        const pt1El = findElementById(b.pt1Id);
+        const pt2El = findElementById(b.pt2Id);
+        if (pt1El && pt2El) {
+          A = pt1El.start || pt1El;
+          B = pt2El.start || pt2El;
+        }
+      }
+      if (A && B) {
+        const x3 = 2 * B.x - A.x;
+        const y3 = 2 * B.y - A.y;
+        child.start = { x: x3, y: y3 };
+        child.end = { x: x3, y: y3 };
+      }
+    }
+
+    // 5c. Đoạn thẳng nối qua 3 điểm đối xứng (Point Symmetry - Line 1-3)
+    else if (b.type === 'point_symmetry_line') {
+      let A = null, B = null;
+      if (b.pt1Id && b.pt2Id) {
+        const pt1El = findElementById(b.pt1Id);
+        const pt2El = findElementById(b.pt2Id);
+        if (pt1El && pt2El) {
+          A = pt1El.start || pt1El;
+          B = pt2El.start || pt2El;
+        }
+      }
+      if (A && B) {
+        const x3 = 2 * B.x - A.x;
+        const y3 = 2 * B.y - A.y;
+        child.start = { x: A.x, y: A.y };
+        child.end = { x: x3, y: y3 };
+        child.midpoint = { x: B.x, y: B.y };
+      }
+    }
+
+    // 5d. Điểm đối xứng qua trục (Axis Symmetry - Point, H, Line)
+    else if (b.type === 'axis_symmetry_point' || b.type === 'axis_symmetry_h' || b.type === 'axis_symmetry_line') {
+      let P1 = null, A = null, B = null;
+      if (b.ptId) {
+        const ptEl = findElementById(b.ptId);
+        if (ptEl) P1 = ptEl.start || ptEl;
+      }
+      if (b.axisId) {
+        const axisEl = findElementById(b.axisId);
+        if (axisEl) {
+          if (axisEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
+            A = axisEl.points[b.v1Index];
+            B = axisEl.points[b.v2Index];
+          } else if (axisEl.start && axisEl.end) {
+            A = axisEl.start;
+            B = axisEl.end;
+          }
+        }
+      }
+      if (!A || !B) {
+        A = b.axisStart;
+        B = b.axisEnd;
+      }
+
+      if (P1 && A && B) {
+        const vx = B.x - A.x, vy = B.y - A.y;
+        const len = Math.hypot(vx, vy) || 1;
+        const ux = vx / len, uy = vy / len;
+        const t = (P1.x - A.x) * ux + (P1.y - A.y) * uy;
+        const H = { x: A.x + t * ux, y: A.y + t * uy };
+        const P2 = { x: 2 * H.x - P1.x, y: 2 * H.y - P1.y };
+
+        if (b.type === 'axis_symmetry_point') {
+          child.start = { x: P2.x, y: P2.y };
+          child.end = { x: P2.x, y: P2.y };
+        } else if (b.type === 'axis_symmetry_h') {
+          child.start = { x: H.x, y: H.y };
+          child.end = { x: H.x, y: H.y };
+        } else if (b.type === 'axis_symmetry_line') {
+          child.start = { x: P1.x, y: P1.y };
+          child.end = { x: P2.x, y: P2.y };
+          child.midpoint = { x: H.x, y: H.y };
+          child.axisDir = { x: ux, y: uy };
+        }
+      }
+    }
+
+    // 5.5. Đường tròn ngoại tiếp (Circumcircle) & Tâm ngoại tiếp (Circumcenter)
+    else if (b.type === 'circumcircle' || b.type === 'circumcircle_center') {
+      let p1 = null, p2 = null, p3 = null;
+      if (b.triangleId) {
+        const tri = findElementById(b.triangleId);
+        if (tri && tri.points && tri.points.length >= 3) {
+          p1 = tri.points[0]; p2 = tri.points[1]; p3 = tri.points[2];
+        }
+      }
+      if (!p1 || !p2 || !p3) {
+        const el1 = findElementById(b.pt1Id);
+        const el2 = findElementById(b.pt2Id);
+        const el3 = findElementById(b.pt3Id);
+        if (el1) p1 = el1.start || el1;
+        if (el2) p2 = el2.start || el2;
+        if (el3) p3 = el3.start || el3;
+      }
+      if (p1 && p2 && p3) {
+        const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y, x3 = p3.x, y3 = p3.y;
+        const D = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+        if (Math.abs(D) > 1e-4) {
+          const sq1 = x1 * x1 + y1 * y1;
+          const sq2 = x2 * x2 + y2 * y2;
+          const sq3 = x3 * x3 + y3 * y3;
+          const x0 = (sq1 * (y2 - y3) + sq2 * (y3 - y1) + sq3 * (y1 - y2)) / D;
+          const y0 = (sq1 * (x3 - x2) + sq2 * (x1 - x3) + sq3 * (x2 - x1)) / D;
+          const R = Math.hypot(x1 - x0, y1 - y0);
+
+          if (b.type === 'circumcircle_center') {
+            child.start = { x: x0, y: y0 };
+            child.end = { x: x0, y: y0 };
+          } else if (b.type === 'circumcircle') {
+            child.start = { x: x0, y: y0 };
+            child.end = { x: x0 + R, y: y0 };
+            child.radius = R;
+          }
+        }
+      }
+    }
+
+    // 5.6. Đường tròn nội tiếp (Incircle) & Tâm nội tiếp (Incenter)
+    else if (b.type === 'incircle' || b.type === 'incircle_center') {
+      let p1 = null, p2 = null, p3 = null;
+      if (b.triangleId) {
+        const tri = findElementById(b.triangleId);
+        if (tri && tri.points && tri.points.length >= 3) {
+          p1 = tri.points[0]; p2 = tri.points[1]; p3 = tri.points[2];
+        }
+      }
+      if (!p1 || !p2 || !p3) {
+        const el1 = findElementById(b.pt1Id);
+        const el2 = findElementById(b.pt2Id);
+        const el3 = findElementById(b.pt3Id);
+        if (el1) p1 = el1.start || el1;
+        if (el2) p2 = el2.start || el2;
+        if (el3) p3 = el3.start || el3;
+      }
+      if (p1 && p2 && p3) {
+        const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y, x3 = p3.x, y3 = p3.y;
+        const a = Math.hypot(x3 - x2, y3 - y2);
+        const bLen = Math.hypot(x1 - x3, y1 - y3);
+        const c = Math.hypot(x2 - x1, y2 - y1);
+        const peri = a + bLen + c;
+        if (peri > 1e-4) {
+          const xI = (a * x1 + bLen * x2 + c * x3) / peri;
+          const yI = (a * y1 + bLen * y2 + c * y3) / peri;
+          const S = 0.5 * Math.abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+          const r = S / (peri / 2);
+
+          if (b.type === 'incircle_center') {
+            child.start = { x: xI, y: yI };
+            child.end = { x: xI, y: yI };
+          } else if (b.type === 'incircle') {
+            child.start = { x: xI, y: yI };
+            child.end = { x: xI + r, y: yI };
+            child.radius = r;
+          }
+        }
+      }
+    }
+
     // 6. Điểm gắn trên đường tròn (Point on Circle)
     else if (b.type === 'point_on_circle') {
       const O = { x: parentEl.start.x, y: parentEl.start.y };
@@ -1988,6 +2280,12 @@ document.addEventListener('DOMContentLoaded', () => {
           b.parentId === parentEl.id ||
           b.ptAId === parentEl.id ||
           b.ptBId === parentEl.id ||
+          b.pt1Id === parentEl.id ||
+          b.pt2Id === parentEl.id ||
+          b.pt3Id === parentEl.id ||
+          b.triangleId === parentEl.id ||
+          b.ptId === parentEl.id ||
+          b.axisId === parentEl.id ||
           b.parent1Id === parentEl.id ||
           b.parent2Id === parentEl.id ||
           b.pointElId === parentEl.id
@@ -2385,6 +2683,27 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           }
+          if (el.shape === 'sphere' && el.points && el.points[0] && el.points[1]) {
+            const R = Math.hypot(el.points[1].x - el.points[0].x, el.points[1].y - el.points[0].y);
+            const d = Math.hypot(x - el.points[0].x, y - el.points[0].y);
+            if (Math.abs(d - R) <= 18 || d <= 20) return el;
+          }
+          if (el.shape === 'cone' && el.points && el.points[1] && el.points[3]) {
+            const O = el.points[1], B = el.points[3];
+            const rx = Math.max(15, Math.abs(B.x - O.x)), ry = Math.max(8, rx * 0.28);
+            const dx = (x - O.x) / rx, dy = (y - O.y) / ry;
+            if (Math.abs(Math.hypot(dx, dy) - 1) <= 0.3) return el;
+          }
+          if (el.shape === 'cylinder' && el.points && el.points[0] && el.points[2] && el.points[3]) {
+            const O1 = el.points[0], B1 = el.points[2];
+            const rx1 = Math.max(15, Math.abs(B1.x - O1.x)), ry1 = Math.max(8, rx1 * 0.28);
+            if (Math.abs(Math.hypot((x - O1.x) / rx1, (y - O1.y) / ry1) - 1) <= 0.3) return el;
+            const O2 = el.points[3], B2 = el.points[5];
+            if (B2) {
+              const rx2 = Math.max(15, Math.abs(B2.x - O2.x)), ry2 = Math.max(8, rx2 * 0.28);
+              if (Math.abs(Math.hypot((x - O2.x) / rx2, (y - O2.y) / ry2) - 1) <= 0.3) return el;
+            }
+          }
         } else if (el.points && el.points.length >= 3) {
           // Bắt trúng tam giác, hình chữ nhật, vuông, bình hành, thoi theo cạnh hoặc bên trong thân
           if (hitTestPolygon(x, y, el.points, 16)) return el;
@@ -2408,7 +2727,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (hit) return el;
       } else if (el.type === 'text') {
-        if (Math.hypot(el.x - x, el.y - y) <= 35) return el;
+        const box = getElementBoundingBox(el);
+        if (box && x >= box.minX - 8 && x <= box.maxX + 8 && y >= box.minY - 8 && y <= box.maxY + 8) {
+          return el;
+        }
       } else if (el.type === 'image') {
         if (x >= el.x && x <= el.x + el.width && y >= el.y && y <= el.y + el.height) {
           return el;
@@ -2481,9 +2803,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } else if (el.type === 'text') {
-      ctx.font = '20px "Caveat", cursive';
-      ctx.fillStyle = el.color;
-      ctx.fillText(el.text, el.x, el.y);
+      const fontSize = el.fontSize || 22;
+      const fontWeight = el.fontWeight || 'normal';
+      const fontFam = el.fontFamily || '"Caveat", "Dancing Script", cursive';
+      ctx.font = `${fontWeight} ${fontSize}px ${fontFam}`;
+      ctx.fillStyle = el.color || state.color || '#28634e';
+      ctx.textBaseline = 'top';
+
+      const lines = (el.text || '').split('\n');
+      const lineHeight = Math.round(fontSize * 1.35);
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], el.x, el.y + i * lineHeight);
+      }
     } else if (el.type === 'image') {
       if (!el.img && el.src) {
         el.img = new Image();
@@ -2508,7 +2839,24 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
-  const SOLID_SHAPES = ['tetrahedron', 'pyramid-quad', 'pyramid-trapezoid', 'pyramid-parallelogram', 'pyramid-pentagon', 'pyramid-regular'];
+  const SOLID_SHAPES = [
+    'tetrahedron',
+    'pyramid-quad',
+    'pyramid-trapezoid',
+    'pyramid-parallelogram',
+    'pyramid-pentagon',
+    'pyramid-regular',
+    'pyramid-sa-triangle',
+    'pyramid-sa-parallelogram',
+    'pyramid-sa-trapezoid',
+    'pyramid-sa-quad',
+    'prism-stand',
+    'prism-oblique',
+    'box-rect',
+    'cone',
+    'cylinder',
+    'sphere'
+  ];
 
   function isSolidShape(shape) {
     return shape && SOLID_SHAPES.includes(shape);
@@ -2644,16 +2992,541 @@ document.addEventListener('DOMContentLoaded', () => {
         [2, 4, 'dashed'],
         [0, 5, 'dashed']
       ];
+    } else if (shape === 'pyramid-sa-triangle') {
+      // Chóp S.ABC có SA ⊥ (ABC)
+      const A = { x: left + w * 0.22, y: top + h * 0.65, name: 'A', offX: -14, offY: 0 };
+      const S = { x: A.x, y: top, name: 'S', offX: 0, offY: -10 };
+      const B = { x: left, y: bottom, name: 'B', offX: -14, offY: 14 };
+      const C = { x: right, y: top + h * 0.72, name: 'C', offX: 8, offY: 4 };
+
+      points = [S, A, B, C];
+      edges = [
+        [0, 1, 'dashed'], // SA đường cao thẳng đứng vuông góc mặt đáy
+        [1, 3, 'dashed'], // AC cạnh đáy sau
+        [1, 2, 'solid'],  // AB cạnh đáy trước-trái
+        [2, 3, 'solid'],  // BC cạnh đáy trước
+        [0, 2, 'solid'],  // SB cạnh bên trước
+        [0, 3, 'solid']   // SC cạnh bên phải
+      ];
+    } else if (shape === 'pyramid-sa-parallelogram') {
+      // Chóp S.ABCD có SA ⊥ (ABCD) đáy hình bình hành
+      const A = { x: left + w * 0.28, y: top + h * 0.62, name: 'A', offX: -14, offY: 0 };
+      const S = { x: A.x, y: top, name: 'S', offX: 0, offY: -10 };
+      const B = { x: left, y: bottom, name: 'B', offX: -14, offY: 14 };
+      const D = { x: right, y: top + h * 0.62, name: 'D', offX: 8, offY: 2 };
+      const C = { x: right - w * 0.28, y: bottom, name: 'C', offX: 8, offY: 14 };
+
+      points = [S, A, B, C, D];
+      edges = [
+        [0, 1, 'dashed'], // SA vuông góc đáy
+        [1, 4, 'dashed'], // AD đáy sau
+        [1, 2, 'dashed'], // AB đáy trong
+        [2, 3, 'solid'],  // BC đáy trước
+        [3, 4, 'solid'],  // CD đáy phải
+        [0, 2, 'solid'],  // SB
+        [0, 3, 'solid'],  // SC
+        [0, 4, 'solid']   // SD
+      ];
+    } else if (shape === 'pyramid-sa-trapezoid') {
+      // Chóp S.ABCD có SA ⊥ (ABCD) đáy hình thang
+      const A = { x: left + w * 0.18, y: top + h * 0.62, name: 'A', offX: -14, offY: 0 };
+      const S = { x: A.x, y: top, name: 'S', offX: 0, offY: -10 };
+      const D = { x: right, y: top + h * 0.62, name: 'D', offX: 8, offY: 2 };
+      const B = { x: left + w * 0.05, y: bottom, name: 'B', offX: -14, offY: 14 };
+      const C = { x: left + w * 0.65, y: bottom, name: 'C', offX: 4, offY: 15 };
+
+      points = [S, A, B, C, D];
+      edges = [
+        [0, 1, 'dashed'], // SA
+        [1, 4, 'dashed'], // AD đáy sau
+        [1, 2, 'dashed'], // AB
+        [2, 3, 'solid'],  // BC
+        [3, 4, 'solid'],  // CD
+        [0, 2, 'solid'],  // SB
+        [0, 3, 'solid'],  // SC
+        [0, 4, 'solid']   // SD
+      ];
+    } else if (shape === 'pyramid-sa-quad') {
+      // Chóp S.ABCD có SA ⊥ (ABCD) đáy tứ giác
+      const A = { x: left + w * 0.22, y: top + h * 0.65, name: 'A', offX: -14, offY: 0 };
+      const S = { x: A.x, y: top, name: 'S', offX: 0, offY: -10 };
+      const B = { x: left, y: bottom - h * 0.06, name: 'B', offX: -14, offY: 10 };
+      const C = { x: left + w * 0.70, y: bottom, name: 'C', offX: 2, offY: 16 };
+      const D = { x: right, y: top + h * 0.68, name: 'D', offX: 8, offY: 2 };
+
+      points = [S, A, B, C, D];
+      edges = [
+        [0, 1, 'dashed'], // SA
+        [1, 4, 'dashed'], // AD
+        [1, 2, 'dashed'], // AB
+        [2, 3, 'solid'],  // BC
+        [3, 4, 'solid'],  // CD
+        [0, 2, 'solid'],  // SB
+        [0, 3, 'solid'],  // SC
+        [0, 4, 'solid']   // SD
+      ];
+    } else if (shape === 'prism-stand') {
+      // Lăng trụ đứng tam giác ABC.A'B'C' (cạnh bên vuông góc đáy)
+      const A = { x: left + w * 0.15, y: bottom - h * 0.15, name: 'A', offX: -14, offY: 0 };
+      const B = { x: left + w * 0.45, y: bottom, name: 'B', offX: -8, offY: 14 };
+      const C = { x: right, y: bottom - h * 0.14, name: 'C', offX: 8, offY: 4 };
+      const hPrism = h * 0.65;
+      const A1 = { x: A.x, y: A.y - hPrism, name: "A'", offX: -16, offY: -6 };
+      const B1 = { x: B.x, y: B.y - hPrism, name: "B'", offX: -8, offY: -10 };
+      const C1 = { x: C.x, y: C.y - hPrism, name: "C'", offX: 8, offY: -6 };
+
+      points = [A, B, C, A1, B1, C1];
+      edges = [
+        [0, 2, 'dashed'], // AC
+        [0, 3, 'dashed'], // AA'
+        [0, 1, 'solid'],  // AB
+        [1, 2, 'solid'],  // BC
+        [3, 4, 'solid'],  // A'B'
+        [4, 5, 'solid'],  // B'C'
+        [3, 5, 'solid'],  // A'C'
+        [1, 4, 'solid'],  // BB'
+        [2, 5, 'solid']   // CC'
+      ];
+    } else if (shape === 'prism-oblique') {
+      // Lăng trụ xiên ABC.A'B'C'
+      const A = { x: left + w * 0.10, y: bottom - h * 0.15, name: 'A', offX: -14, offY: 0 };
+      const B = { x: left + w * 0.40, y: bottom, name: 'B', offX: -8, offY: 14 };
+      const C = { x: right - w * 0.20, y: bottom - h * 0.14, name: 'C', offX: 8, offY: 4 };
+      const hPrism = h * 0.65;
+      const slantX = w * 0.20;
+      const A1 = { x: A.x + slantX, y: A.y - hPrism, name: "A'", offX: -16, offY: -6 };
+      const B1 = { x: B.x + slantX, y: B.y - hPrism, name: "B'", offX: -8, offY: -10 };
+      const C1 = { x: C.x + slantX, y: C.y - hPrism, name: "C'", offX: 8, offY: -6 };
+
+      points = [A, B, C, A1, B1, C1];
+      edges = [
+        [0, 2, 'dashed'], // AC
+        [0, 3, 'dashed'], // AA'
+        [0, 1, 'solid'],  // AB
+        [1, 2, 'solid'],  // BC
+        [3, 4, 'solid'],  // A'B'
+        [4, 5, 'solid'],  // B'C'
+        [3, 5, 'solid'],  // A'C'
+        [1, 4, 'solid'],  // BB'
+        [2, 5, 'solid']   // CC'
+      ];
+    } else if (shape === 'box-rect') {
+      // Hình hộp chữ nhật / Hình lập phương ABCD.A'B'C'D'
+      const A = { x: left + w * 0.25, y: bottom - h * 0.20, name: 'A', offX: -14, offY: 0 };
+      const D = { x: right, y: bottom - h * 0.20, name: 'D', offX: 8, offY: 2 };
+      const B = { x: left, y: bottom, name: 'B', offX: -14, offY: 14 };
+      const C = { x: right - w * 0.25, y: bottom, name: 'C', offX: 8, offY: 14 };
+      const hBox = h * 0.60;
+      const A1 = { x: A.x, y: A.y - hBox, name: "A'", offX: -16, offY: -6 };
+      const D1 = { x: D.x, y: D.y - hBox, name: "D'", offX: 8, offY: -6 };
+      const B1 = { x: B.x, y: B.y - hBox, name: "B'", offX: -14, offY: -8 };
+      const C1 = { x: C.x, y: C.y - hBox, name: "C'", offX: 8, offY: -8 };
+
+      points = [A, B, C, D, A1, B1, C1, D1];
+      edges = [
+        [0, 3, 'dashed'], // AD
+        [0, 1, 'dashed'], // AB
+        [0, 4, 'dashed'], // AA'
+        [1, 2, 'solid'],  // BC
+        [2, 3, 'solid'],  // CD
+        [4, 5, 'solid'],  // A'B'
+        [5, 6, 'solid'],  // B'C'
+        [6, 7, 'solid'],  // C'D'
+        [7, 4, 'solid'],  // D'A'
+        [1, 5, 'solid'],  // BB'
+        [2, 6, 'solid'],  // CC'
+        [3, 7, 'solid']   // DD'
+      ];
+    } else if (shape === 'cone') {
+      // Hình nón tròn xoay (đỉnh S, tâm đáy O, đường kính đáy AB)
+      const S = { x: left + w * 0.50, y: top, name: 'S', offX: 0, offY: -10 };
+      const O = { x: left + w * 0.50, y: bottom - h * 0.14, name: 'O', offX: 0, offY: 14 };
+      const A = { x: left + w * 0.08, y: O.y, name: 'A', offX: -14, offY: 2 };
+      const B = { x: right - w * 0.08, y: O.y, name: 'B', offX: 8, offY: 2 };
+
+      points = [S, O, A, B];
+      edges = [
+        [0, 2, 'solid'],  // SA đường sinh trái
+        [0, 3, 'solid'],  // SB đường sinh phải
+        [0, 1, 'dashed'], // SO trục cao
+        [1, 3, 'dashed']  // OB bán kính đáy
+      ];
+    } else if (shape === 'cylinder') {
+      // Hình trụ tròn xoay (tâm đáy trên O1, tâm đáy dưới O2)
+      const O1 = { x: left + w * 0.50, y: top + h * 0.14, name: "O'", offX: 0, offY: -12 };
+      const A1 = { x: left + w * 0.08, y: O1.y, name: "A'", offX: -16, offY: 2 };
+      const B1 = { x: right - w * 0.08, y: O1.y, name: "B'", offX: 8, offY: 2 };
+
+      const O2 = { x: left + w * 0.50, y: bottom - h * 0.14, name: 'O', offX: 0, offY: 14 };
+      const A2 = { x: left + w * 0.08, y: O2.y, name: 'A', offX: -14, offY: 2 };
+      const B2 = { x: right - w * 0.08, y: O2.y, name: 'B', offX: 8, offY: 2 };
+
+      points = [O1, A1, B1, O2, A2, B2];
+      edges = [
+        [1, 4, 'solid'],  // A'A đường sinh trái
+        [2, 5, 'solid'],  // B'B đường sinh phải
+        [0, 3, 'dashed'], // O'O trục
+        [3, 5, 'dashed']  // OB bán kính đáy dưới
+      ];
+    } else if (shape === 'sphere') {
+      // Mặt cầu / Khối cầu (tâm O, bán kính R, điểm xích đạo M)
+      const O = { x: left + w * 0.50, y: top + h * 0.50, name: 'O', offX: -6, offY: -10 };
+      const R = Math.min(w, h) * 0.46;
+      const M = { x: O.x + R, y: O.y, name: 'M', offX: 10, offY: 2 };
+
+      points = [O, M];
+      edges = [
+        [0, 1, 'dashed'] // OM bán kính
+      ];
     }
 
     return { points, edges };
+  }
+
+  function updateRegularPyramidCenterAndApex(el) {
+    if (!el.points || el.points.length < 6) return;
+    const A = el.points[1], C = el.points[3];
+    const ox = Math.round((A.x + C.x) / 2);
+    const oy = Math.round((A.y + C.y) / 2);
+    el.points[5] = {
+      x: ox,
+      y: oy,
+      name: 'O',
+      offX: 6,
+      offY: 12
+    };
+    if (el.points[0]) {
+      el.points[0].x = ox; // Giữ trục thẳng đứng SO chuẩn SGK
+    }
+  }
+
+  function handleSolidShapeDrag(el, h, target) {
+    if (!el.points || !el.points[h.index]) return;
+
+    const idx = h.index;
+    const shape = el.shape;
+
+    if (shape === 'pyramid-parallelogram') {
+      // 0: S, 1: A, 2: B, 3: C, 4: D
+      // Đáy là hình bình hành ABCD: A + C = B + D <=> D = A + C - B
+      if (idx === 0) {
+        // Đỉnh S: di chuyển tự do
+        el.points[0].x = target.x;
+        el.points[0].y = target.y;
+      } else if (idx === 1) {
+        // Kéo A: giữ B, C -> cập nhật D = A + C - B (đáy sau AD luôn song song và bằng BC)
+        el.points[1].x = target.x;
+        el.points[1].y = target.y;
+        el.points[4].x = Math.round(target.x + el.points[3].x - el.points[2].x);
+        el.points[4].y = Math.round(target.y + el.points[3].y - el.points[2].y);
+      } else if (idx === 2) {
+        // Kéo B: giữ A, D -> cập nhật C = B + D - A (đáy trước BC luôn song song và bằng AD)
+        el.points[2].x = target.x;
+        el.points[2].y = target.y;
+        el.points[3].x = Math.round(target.x + el.points[4].x - el.points[1].x);
+        el.points[3].y = Math.round(target.y + el.points[4].y - el.points[1].y);
+      } else if (idx === 3) {
+        // Kéo C: giữ A, B -> cập nhật D = A + C - B (cạnh DC luôn song song và bằng AB)
+        el.points[3].x = target.x;
+        el.points[3].y = target.y;
+        el.points[4].x = Math.round(el.points[1].x + target.x - el.points[2].x);
+        el.points[4].y = Math.round(el.points[1].y + target.y - el.points[2].y);
+      } else if (idx === 4) {
+        // Kéo D: giữ A, B -> cập nhật C = B + D - A
+        el.points[4].x = target.x;
+        el.points[4].y = target.y;
+        el.points[3].x = Math.round(el.points[2].x + target.x - el.points[1].x);
+        el.points[3].y = Math.round(el.points[2].y + target.y - el.points[1].y);
+      }
+    } else if (shape === 'pyramid-trapezoid') {
+      // 0: S, 1: A, 2: B, 3: C, 4: D
+      // Đáy hình thang: AD song song BC. AD là đáy sau, BC là đáy trước.
+      if (idx === 0) {
+        el.points[0].x = target.x;
+        el.points[0].y = target.y;
+      } else if (idx === 1) {
+        // Kéo A: dịch chuyển cả đáy sau AD theo vector độ dời
+        const dx = target.x - el.points[1].x;
+        const dy = target.y - el.points[1].y;
+        el.points[1].x = target.x;
+        el.points[1].y = target.y;
+        el.points[4].x += dx;
+        el.points[4].y += dy;
+      } else if (idx === 2) {
+        // Kéo B: thay đổi đáy trước BC
+        // AD giữ nguyên hướng song song với BC: D = A + lenAD * u_BC
+        const lenAD = Math.max(15, Math.hypot(el.points[4].x - el.points[1].x, el.points[4].y - el.points[1].y));
+        el.points[2].x = target.x;
+        el.points[2].y = target.y;
+        const vx = el.points[3].x - target.x;
+        const vy = el.points[3].y - target.y;
+        const vLen = Math.hypot(vx, vy);
+        if (vLen > 2) {
+          el.points[4].x = Math.round(el.points[1].x + (vx / vLen) * lenAD);
+          el.points[4].y = Math.round(el.points[1].y + (vy / vLen) * lenAD);
+        }
+      } else if (idx === 3) {
+        // Kéo C: thay đổi đáy trước BC
+        // AD giữ nguyên hướng song song với BC: D = A + lenAD * u_BC
+        const lenAD = Math.max(15, Math.hypot(el.points[4].x - el.points[1].x, el.points[4].y - el.points[1].y));
+        el.points[3].x = target.x;
+        el.points[3].y = target.y;
+        const vx = target.x - el.points[2].x;
+        const vy = target.y - el.points[2].y;
+        const vLen = Math.hypot(vx, vy);
+        if (vLen > 2) {
+          el.points[4].x = Math.round(el.points[1].x + (vx / vLen) * lenAD);
+          el.points[4].y = Math.round(el.points[1].y + (vy / vLen) * lenAD);
+        }
+      } else if (idx === 4) {
+        // Kéo D: thay đổi độ dài đáy AD, nhưng D luôn nằm trên đường thẳng qua A song song BC
+        const vx = el.points[3].x - el.points[2].x;
+        const vy = el.points[3].y - el.points[2].y;
+        const vLenSq = vx * vx + vy * vy;
+        if (vLenSq > 4) {
+          let t = ((target.x - el.points[1].x) * vx + (target.y - el.points[1].y) * vy) / vLenSq;
+          t = Math.max(0.12, t);
+          el.points[4].x = Math.round(el.points[1].x + t * vx);
+          el.points[4].y = Math.round(el.points[1].y + t * vy);
+        }
+      }
+    } else if (shape === 'pyramid-regular') {
+      // 0: S, 1: A, 2: B, 3: C, 4: D, 5: O
+      // Đáy ABCD là hình bình hành (biểu diễn hình vuông): A + C = B + D.
+      // O là tâm đáy: O = (A + C) / 2.
+      // S luôn nằm thẳng đứng trên tâm O: S.x = O.x.
+      if (idx === 0) {
+        // Kéo S: điều chỉnh chiều cao hình chóp
+        el.points[0].y = target.y;
+        if (el.points[5]) {
+          el.points[0].x = el.points[5].x; // Trục thẳng đứng SO
+        } else {
+          el.points[0].x = target.x;
+        }
+      } else if (idx === 1) {
+        // Kéo A
+        el.points[1].x = target.x;
+        el.points[1].y = target.y;
+        el.points[4].x = Math.round(target.x + el.points[3].x - el.points[2].x);
+        el.points[4].y = Math.round(target.y + el.points[3].y - el.points[2].y);
+        updateRegularPyramidCenterAndApex(el);
+      } else if (idx === 2) {
+        // Kéo B
+        el.points[2].x = target.x;
+        el.points[2].y = target.y;
+        el.points[3].x = Math.round(target.x + el.points[4].x - el.points[1].x);
+        el.points[3].y = Math.round(target.y + el.points[4].y - el.points[1].y);
+        updateRegularPyramidCenterAndApex(el);
+      } else if (idx === 3) {
+        // Kéo C
+        el.points[3].x = target.x;
+        el.points[3].y = target.y;
+        el.points[4].x = Math.round(el.points[1].x + target.x - el.points[2].x);
+        el.points[4].y = Math.round(el.points[1].y + target.y - el.points[2].y);
+        updateRegularPyramidCenterAndApex(el);
+      } else if (idx === 4) {
+        // Kéo D
+        el.points[4].x = target.x;
+        el.points[4].y = target.y;
+        el.points[3].x = Math.round(el.points[2].x + target.x - el.points[1].x);
+        el.points[3].y = Math.round(el.points[2].y + target.y - el.points[1].y);
+        updateRegularPyramidCenterAndApex(el);
+      } else if (idx === 5) {
+        // Kéo tâm O: tịnh tiến toàn bộ đáy và đỉnh
+        const dx = target.x - el.points[5].x;
+        const dy = target.y - el.points[5].y;
+        for (let i = 1; i <= 5; i++) {
+          el.points[i].x += dx;
+          el.points[i].y += dy;
+        }
+        el.points[0].x += dx;
+      }
+    } else if (shape === 'pyramid-quad') {
+      // 0: S, 1: A, 2: B, 3: C, 4: D
+      // Đáy tứ giác lồi tự do: bảo đảm không tự cắt lộn ngược
+      if (idx === 0) {
+        el.points[0].x = target.x;
+        el.points[0].y = target.y;
+      } else if (idx === 1) {
+        // A là đỉnh sau bên trái: A.y < B.y - 10, A.x < D.x - 15
+        el.points[1].x = Math.min(target.x, el.points[4].x - 15);
+        el.points[1].y = Math.min(target.y, el.points[2].y - 10);
+      } else if (idx === 2) {
+        // B là đỉnh trước bên trái: B.y > A.y + 10, B.x < C.x - 15
+        el.points[2].x = Math.min(target.x, el.points[3].x - 15);
+        el.points[2].y = Math.max(target.y, el.points[1].y + 10);
+      } else if (idx === 3) {
+        // C là đỉnh trước bên phải: C.x > B.x + 15, C.y > D.y + 10
+        el.points[3].x = Math.max(target.x, el.points[2].x + 15);
+        el.points[3].y = Math.max(target.y, el.points[4].y + 10);
+      } else if (idx === 4) {
+        // D là đỉnh sau bên phải: D.x > A.x + 15, D.y < C.y - 10
+        el.points[4].x = Math.max(target.x, el.points[1].x + 15);
+        el.points[4].y = Math.min(target.y, el.points[3].y - 10);
+      }
+    } else if (shape === 'pyramid-pentagon') {
+      // 0: S, 1..5: A, B, C, D, E
+      if (idx === 0) {
+        el.points[0].x = target.x;
+        el.points[0].y = target.y;
+      } else {
+        // Đỉnh đáy: giữ A và E ở tầng sau (y nhỏ hơn tầng trước B, C, D)
+        if (idx === 1) {
+          el.points[1].x = target.x;
+          el.points[1].y = Math.min(target.y, el.points[2].y - 10);
+        } else if (idx === 5) {
+          el.points[5].x = target.x;
+          el.points[5].y = Math.min(target.y, el.points[4].y - 10);
+        } else {
+          el.points[idx].x = target.x;
+          el.points[idx].y = target.y;
+        }
+      }
+    } else if (shape === 'pyramid-sa-triangle') {
+      // Chóp S.ABC có SA ⊥ (ABC) tại A (S.x = A.x)
+      if (idx === 0) {
+        el.points[0].x = el.points[1].x;
+        el.points[0].y = target.y;
+      } else if (idx === 1) {
+        el.points[1].x = target.x;
+        el.points[1].y = target.y;
+        el.points[0].x = target.x;
+      } else {
+        el.points[idx].x = target.x;
+        el.points[idx].y = target.y;
+      }
+    } else if (shape === 'pyramid-sa-parallelogram') {
+      // Chóp S.ABCD có SA ⊥ (ABCD) đáy HBH: S.x = A.x, D = A + C - B
+      if (idx === 0) {
+        el.points[0].x = el.points[1].x;
+        el.points[0].y = target.y;
+      } else if (idx === 1) {
+        el.points[1].x = target.x;
+        el.points[1].y = target.y;
+        el.points[0].x = target.x;
+        el.points[4].x = Math.round(target.x + el.points[3].x - el.points[2].x);
+        el.points[4].y = Math.round(target.y + el.points[3].y - el.points[2].y);
+      } else if (idx === 2) {
+        el.points[2].x = target.x;
+        el.points[2].y = target.y;
+        el.points[3].x = Math.round(target.x + el.points[4].x - el.points[1].x);
+        el.points[3].y = Math.round(target.y + el.points[4].y - el.points[1].y);
+      } else if (idx === 3) {
+        el.points[3].x = target.x;
+        el.points[3].y = target.y;
+        el.points[4].x = Math.round(el.points[1].x + target.x - el.points[2].x);
+        el.points[4].y = Math.round(el.points[1].y + target.y - el.points[2].y);
+      } else if (idx === 4) {
+        el.points[4].x = target.x;
+        el.points[4].y = target.y;
+        el.points[3].x = Math.round(el.points[2].x + target.x - el.points[1].x);
+        el.points[3].y = Math.round(el.points[2].y + target.y - el.points[1].y);
+      }
+    } else if (shape === 'pyramid-sa-trapezoid') {
+      // Chóp S.ABCD có SA ⊥ (ABCD) đáy hình thang: S.x = A.x, AD song song BC
+      if (idx === 0) {
+        el.points[0].x = el.points[1].x;
+        el.points[0].y = target.y;
+      } else if (idx === 1) {
+        const dx = target.x - el.points[1].x;
+        const dy = target.y - el.points[1].y;
+        el.points[1].x = target.x;
+        el.points[1].y = target.y;
+        el.points[0].x = target.x;
+        el.points[4].x += dx;
+        el.points[4].y += dy;
+      } else if (idx === 2 || idx === 3) {
+        el.points[idx].x = target.x;
+        el.points[idx].y = target.y;
+        const baseAngle = Math.atan2(el.points[3].y - el.points[2].y, el.points[3].x - el.points[2].x);
+        const topLen = Math.hypot(el.points[4].x - el.points[1].x, el.points[4].y - el.points[1].y);
+        el.points[4].x = Math.round(el.points[1].x + topLen * Math.cos(baseAngle));
+        el.points[4].y = Math.round(el.points[1].y + topLen * Math.sin(baseAngle));
+      } else if (idx === 4) {
+        const vx = el.points[3].x - el.points[2].x;
+        const vy = el.points[3].y - el.points[2].y;
+        const vLen = Math.hypot(vx, vy);
+        if (vLen > 1) {
+          const ux = vx / vLen, uy = vy / vLen;
+          const proj = (target.x - el.points[1].x) * ux + (target.y - el.points[1].y) * uy;
+          const clampedProj = Math.max(30, proj);
+          el.points[4].x = Math.round(el.points[1].x + clampedProj * ux);
+          el.points[4].y = Math.round(el.points[1].y + clampedProj * uy);
+        }
+      }
+    } else if (shape === 'pyramid-sa-quad') {
+      if (idx === 0) {
+        el.points[0].x = el.points[1].x;
+        el.points[0].y = target.y;
+      } else if (idx === 1) {
+        el.points[1].x = target.x;
+        el.points[1].y = target.y;
+        el.points[0].x = target.x;
+      } else {
+        el.points[idx].x = target.x;
+        el.points[idx].y = target.y;
+      }
+    } else if (shape === 'prism-stand') {
+      if (idx >= 3) {
+        const diffH = target.y - el.points[idx].y;
+        for (let i = 3; i <= 5; i++) {
+          el.points[i].y += diffH;
+        }
+      } else {
+        const dx = target.x - el.points[idx].x;
+        const dy = target.y - el.points[idx].y;
+        el.points[idx].x = target.x;
+        el.points[idx].y = target.y;
+        el.points[idx + 3].x += dx;
+        el.points[idx + 3].y += dy;
+      }
+    } else if (shape === 'prism-oblique') {
+      if (idx >= 3) {
+        const dx = target.x - el.points[idx].x;
+        const dy = target.y - el.points[idx].y;
+        for (let i = 3; i <= 5; i++) {
+          el.points[i].x += dx;
+          el.points[i].y += dy;
+        }
+      } else {
+        el.points[idx].x = target.x;
+        el.points[idx].y = target.y;
+      }
+    } else if (shape === 'box-rect') {
+      if (idx >= 4) {
+        const diffH = target.y - el.points[idx].y;
+        for (let i = 4; i <= 7; i++) {
+          el.points[i].y += diffH;
+        }
+      } else {
+        const dx = target.x - el.points[idx].x;
+        const dy = target.y - el.points[idx].y;
+        el.points[idx].x = target.x;
+        el.points[idx].y = target.y;
+        el.points[idx + 4].x += dx;
+        el.points[idx + 4].y += dy;
+      }
+    } else if (shape === 'cone' || shape === 'cylinder' || shape === 'sphere') {
+      el.points[idx].x = target.x;
+      el.points[idx].y = target.y;
+    } else {
+      // tetrahedron hoặc hình chóp khác
+      el.points[idx].x = target.x;
+      el.points[idx].y = target.y;
+    }
+
+    // Cập nhật bounding box start / end
+    const xs = el.points.map(pt => pt.x);
+    const ys = el.points.map(pt => pt.y);
+    el.start = { x: Math.min(...xs), y: Math.min(...ys) };
+    el.end = { x: Math.max(...xs), y: Math.max(...ys) };
   }
 
   function drawSolidShape(context, geo) {
     if (!geo.points || !geo.edges) return;
 
     // Đảm bảo cạnh đáy khuất AB [1, 2] luôn là nét đứt theo đúng chuẩn SGK Hình học 11/12
-    if (geo.shape && geo.shape.startsWith('pyramid')) {
+    if (geo.shape && geo.shape.startsWith('pyramid') && !geo.shape.startsWith('pyramid-sa-')) {
       for (const edge of geo.edges) {
         if ((edge[0] === 1 && edge[1] === 2) || (edge[0] === 2 && edge[1] === 1)) {
           edge[2] = 'dashed';
@@ -2661,6 +3534,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 1. Vẽ các cạnh đoạn thẳng
     for (const edge of geo.edges) {
       const p1 = geo.points[edge[0]];
       const p2 = geo.points[edge[1]];
@@ -2680,6 +3554,102 @@ document.addEventListener('DOMContentLoaded', () => {
       context.restore();
     }
 
+    // 2. Ký hiệu vuông góc ∟ tại đỉnh A cho các hình chóp SA ⊥ đáy
+    if (geo.shape && geo.shape.startsWith('pyramid-sa-')) {
+      const S = geo.points[0];
+      const A = geo.points[1];
+      const D_or_C = geo.points[4] || geo.points[3];
+      if (S && A && D_or_C) {
+        const sqSize = 8;
+        const vRightX = (D_or_C.x - A.x) > 0 ? 1 : -1;
+        context.save();
+        context.setLineDash([]);
+        context.strokeStyle = geo.color || '#184e3a';
+        context.lineWidth = 1.3;
+        context.beginPath();
+        context.moveTo(A.x, A.y - sqSize);
+        context.lineTo(A.x + sqSize * vRightX, A.y - sqSize);
+        context.lineTo(A.x + sqSize * vRightX, A.y);
+        context.stroke();
+        context.restore();
+      }
+    }
+
+    // 3. Đường cong elip / đường tròn cho khối tròn xoay (hình nón, hình trụ, mặt cầu)
+    if (geo.shape === 'cone') {
+      const O = geo.points[1], B = geo.points[3];
+      if (O && B) {
+        const rx = Math.max(15, Math.abs(B.x - O.x));
+        const ry = Math.max(8, rx * 0.28);
+        context.save();
+        context.strokeStyle = geo.color || '#184e3a';
+        context.lineWidth = geo.width || 2;
+        // Nửa sau (khuất): nét đứt
+        context.setLineDash([7, 5]);
+        context.beginPath();
+        context.ellipse(O.x, O.y, rx, ry, 0, Math.PI, Math.PI * 2);
+        context.stroke();
+        // Nửa trước (thấy): nét liền
+        context.setLineDash([]);
+        context.beginPath();
+        context.ellipse(O.x, O.y, rx, ry, 0, 0, Math.PI);
+        context.stroke();
+        context.restore();
+      }
+    } else if (geo.shape === 'cylinder') {
+      const O1 = geo.points[0], B1 = geo.points[2];
+      const O2 = geo.points[3], B2 = geo.points[5];
+      if (O1 && B1 && O2 && B2) {
+        const rx = Math.max(15, Math.abs(B1.x - O1.x));
+        const ry = Math.max(8, rx * 0.28);
+        context.save();
+        context.strokeStyle = geo.color || '#184e3a';
+        context.lineWidth = geo.width || 2;
+        // Đáy trên: toàn bộ nét liền
+        context.setLineDash([]);
+        context.beginPath();
+        context.ellipse(O1.x, O1.y, rx, ry, 0, 0, Math.PI * 2);
+        context.stroke();
+        // Đáy dưới nửa sau: nét đứt
+        context.setLineDash([7, 5]);
+        context.beginPath();
+        context.ellipse(O2.x, O2.y, rx, ry, 0, Math.PI, Math.PI * 2);
+        context.stroke();
+        // Đáy dưới nửa trước: nét liền
+        context.setLineDash([]);
+        context.beginPath();
+        context.ellipse(O2.x, O2.y, rx, ry, 0, 0, Math.PI);
+        context.stroke();
+        context.restore();
+      }
+    } else if (geo.shape === 'sphere') {
+      const O = geo.points[0], M = geo.points[1];
+      if (O && M) {
+        const R = Math.max(15, Math.hypot(M.x - O.x, M.y - O.y));
+        const ry = Math.max(8, R * 0.30);
+        context.save();
+        context.strokeStyle = geo.color || '#184e3a';
+        context.lineWidth = geo.width || 2;
+        // Đường tròn lớn ngoài: nét liền
+        context.setLineDash([]);
+        context.beginPath();
+        context.arc(O.x, O.y, R, 0, Math.PI * 2);
+        context.stroke();
+        // Xích đạo nửa sau: nét đứt
+        context.setLineDash([7, 5]);
+        context.beginPath();
+        context.ellipse(O.x, O.y, R, ry, 0, Math.PI, Math.PI * 2);
+        context.stroke();
+        // Xích đạo nửa trước: nét liền
+        context.setLineDash([]);
+        context.beginPath();
+        context.ellipse(O.x, O.y, R, ry, 0, 0, Math.PI);
+        context.stroke();
+        context.restore();
+      }
+    }
+
+    // 4. Vẽ nhãn tên các đỉnh (A, B, C, S...)
     context.save();
     context.font = '600 12.5px -apple-system, sans-serif';
     context.fillStyle = geo.color || '#184e3a';
@@ -2711,6 +3681,79 @@ document.addEventListener('DOMContentLoaded', () => {
       context.moveTo(start.x, start.y);
       context.lineTo(end.x, end.y);
       context.stroke();
+
+      if (geo.isSymmetryLine) {
+        const p1 = start;
+        const p3 = end;
+        const p2 = geo.midpoint || { x: (p1.x + p3.x) / 2, y: (p1.y + p3.y) / 2 };
+        const segLen = Math.hypot(p3.x - p1.x, p3.y - p1.y) || 1;
+        const u = { x: (p3.x - p1.x) / segLen, y: (p3.y - p1.y) / segLen };
+        const v = { x: -u.y, y: u.x };
+
+        const M1 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const M2 = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 };
+        const tickLen = 5;
+        const tickSpacing = 2.2;
+
+        context.save();
+        context.beginPath();
+        context.moveTo(M1.x - v.x * tickLen - u.x * tickSpacing, M1.y - v.y * tickLen - u.y * tickSpacing);
+        context.lineTo(M1.x + v.x * tickLen - u.x * tickSpacing, M1.y + v.y * tickLen - u.y * tickSpacing);
+        context.moveTo(M1.x - v.x * tickLen + u.x * tickSpacing, M1.y - v.y * tickLen + u.y * tickSpacing);
+        context.lineTo(M1.x + v.x * tickLen + u.x * tickSpacing, M1.y + v.y * tickLen + u.y * tickSpacing);
+
+        context.moveTo(M2.x - v.x * tickLen - u.x * tickSpacing, M2.y - v.y * tickLen - u.y * tickSpacing);
+        context.lineTo(M2.x + v.x * tickLen - u.x * tickSpacing, M2.y + v.y * tickLen - u.y * tickSpacing);
+        context.moveTo(M2.x - v.x * tickLen + u.x * tickSpacing, M2.y - v.y * tickLen + u.y * tickSpacing);
+        context.lineTo(M2.x + v.x * tickLen + u.x * tickSpacing, M2.y + v.y * tickLen + u.y * tickSpacing);
+        context.lineWidth = 1.4;
+        context.strokeStyle = geo.color || state.color;
+        context.stroke();
+        context.restore();
+      }
+
+      if (geo.isAxisSymmetryLine) {
+        const p1 = start;
+        const p2 = end;
+        const H = geo.midpoint || { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const segLen = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+        const vPerp = { x: (p2.x - p1.x) / segLen, y: (p2.y - p1.y) / segLen };
+        let uAxis = geo.axisDir;
+        if (!uAxis) {
+          uAxis = { x: -vPerp.y, y: vPerp.x };
+        }
+
+        context.save();
+        // 1. Ký hiệu góc vuông tại chân đường vuông góc H
+        const s = 11;
+        context.beginPath();
+        context.moveTo(H.x + uAxis.x * s, H.y + uAxis.y * s);
+        context.lineTo(H.x + uAxis.x * s + vPerp.x * s, H.y + uAxis.y * s + vPerp.y * s);
+        context.lineTo(H.x + vPerp.x * s, H.y + vPerp.y * s);
+        context.lineWidth = 1.3;
+        context.strokeStyle = geo.color || state.color;
+        context.stroke();
+
+        // 2. Ký hiệu 2 vạch bằng nhau trên 2 nửa P1-H và H-P2
+        const M1 = { x: (p1.x + H.x) / 2, y: (p1.y + H.y) / 2 };
+        const M2 = { x: (H.x + p2.x) / 2, y: (H.y + p2.y) / 2 };
+        const tickLen = 5;
+        const tickSpacing = 2.2;
+
+        context.beginPath();
+        context.moveTo(M1.x - uAxis.x * tickLen - vPerp.x * tickSpacing, M1.y - uAxis.y * tickLen - vPerp.y * tickSpacing);
+        context.lineTo(M1.x + uAxis.x * tickLen - vPerp.x * tickSpacing, M1.y + uAxis.y * tickLen - vPerp.y * tickSpacing);
+        context.moveTo(M1.x - uAxis.x * tickLen + vPerp.x * tickSpacing, M1.y - uAxis.y * tickLen + vPerp.y * tickSpacing);
+        context.lineTo(M1.x + uAxis.x * tickLen + vPerp.x * tickSpacing, M1.y + uAxis.y * tickLen + vPerp.y * tickSpacing);
+
+        context.moveTo(M2.x - uAxis.x * tickLen - vPerp.x * tickSpacing, M2.y - uAxis.y * tickLen - vPerp.y * tickSpacing);
+        context.lineTo(M2.x + uAxis.x * tickLen - vPerp.x * tickSpacing, M2.y + uAxis.y * tickLen - vPerp.y * tickSpacing);
+        context.moveTo(M2.x - uAxis.x * tickLen + vPerp.x * tickSpacing, M2.y - uAxis.y * tickLen + vPerp.y * tickSpacing);
+        context.lineTo(M2.x + uAxis.x * tickLen + vPerp.x * tickSpacing, M2.y + uAxis.y * tickLen + vPerp.y * tickSpacing);
+        context.lineWidth = 1.4;
+        context.stroke();
+        context.restore();
+      }
     } else if (shape === 'circle') {
       const radius = Math.hypot(end.x - start.x, end.y - start.y);
       context.beginPath();
@@ -3814,7 +4857,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 3. Kiểm tra các mặt phẳng chéo / thiết diện đối xứng đặc biệt
-    if (el.shape === 'pyramid-regular' || el.shape === 'pyramid-quad' || el.shape === 'pyramid-parallelogram' || el.shape === 'pyramid-trapezoid') {
+    if (el.shape === 'pyramid-regular' || el.shape === 'pyramid-quad' || el.shape === 'pyramid-parallelogram' || el.shape === 'pyramid-trapezoid' || el.shape === 'pyramid-sa-parallelogram' || el.shape === 'pyramid-sa-trapezoid' || el.shape === 'pyramid-sa-quad') {
       const diagPlanes = [
         [0, 1, 3], // Mặt đối xứng qua đường chéo AC
         [0, 2, 4]  // Mặt đối xứng qua đường chéo BD
@@ -4204,6 +5247,466 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
     return constructPerpendicularBisector(start, end, bindingInfo, parent);
+  }
+
+  // Dựng đối xứng điểm: Điểm 3 là điểm đối xứng của Điểm 1 qua Điểm 2, nối đoạn thẳng qua 3 điểm
+  function constructPointSymmetry(pt1, pt2, el1 = null, el2 = null) {
+    if (!pt1 || !pt2) return null;
+    const x3 = 2 * pt2.x - pt1.x;
+    const y3 = 2 * pt2.y - pt1.y;
+
+    const elementsToAdd = [];
+
+    // 1. Đảm bảo Điểm 1 tồn tại trên trang
+    let p1El = (el1 && el1.shape === 'point') ? el1 : null;
+    if (!p1El) {
+      p1El = {
+        type: 'geo',
+        shape: 'point',
+        start: { x: pt1.x, y: pt1.y },
+        end: { x: pt1.x, y: pt1.y },
+        color: state.color,
+        width: state.strokeWidth || 3,
+        dash: 'solid'
+      };
+      ensureElementId(p1El);
+      elementsToAdd.push(p1El);
+    } else {
+      ensureElementId(p1El);
+    }
+
+    // 2. Đảm bảo Điểm 2 tồn tại trên trang (tâm đối xứng)
+    let p2El = (el2 && el2.shape === 'point') ? el2 : null;
+    if (!p2El) {
+      p2El = {
+        type: 'geo',
+        shape: 'point',
+        start: { x: pt2.x, y: pt2.y },
+        end: { x: pt2.x, y: pt2.y },
+        color: state.color,
+        width: state.strokeWidth || 3,
+        dash: 'solid'
+      };
+      ensureElementId(p2El);
+      elementsToAdd.push(p2El);
+    } else {
+      ensureElementId(p2El);
+    }
+
+    // 3. Tạo Điểm 3 là điểm đối xứng của Điểm 1 qua Điểm 2
+    const p3El = {
+      type: 'geo',
+      shape: 'point',
+      binding: {
+        type: 'point_symmetry_pt3',
+        pt1Id: p1El.id,
+        pt2Id: p2El.id
+      },
+      start: { x: x3, y: y3 },
+      end: { x: x3, y: y3 },
+      color: state.color,
+      width: state.strokeWidth || 3,
+      dash: 'solid'
+    };
+    ensureElementId(p3El);
+    elementsToAdd.push(p3El);
+
+    // 4. Nối đoạn thẳng qua 3 điểm (từ Điểm 1 qua Điểm 2 đến Điểm 3)
+    const lineEl = {
+      type: 'geo',
+      shape: 'line',
+      isSymmetryLine: true,
+      binding: {
+        type: 'point_symmetry_line',
+        pt1Id: p1El.id,
+        pt2Id: p2El.id,
+        pt3Id: p3El.id
+      },
+      midpoint: { x: pt2.x, y: pt2.y },
+      start: { x: pt1.x, y: pt1.y },
+      end: { x: x3, y: y3 },
+      color: state.color,
+      width: state.strokeWidth,
+      dash: state.dashStyle || 'solid'
+    };
+    ensureElementId(lineEl);
+    elementsToAdd.push(lineEl);
+
+    // 5. Gắn kết toàn bộ thành 1 nhóm để dịch chuyển và biến đổi đồng bộ
+    linkGroupMulti([p1El, p2El, p3El], lineEl);
+
+    // 6. Đưa các phần tử mới vào trang và lưu lịch sử hoàn tác Undo
+    if (!state.pages[state.currentPage]) state.pages[state.currentPage] = [];
+    for (const el of elementsToAdd) {
+      state.pages[state.currentPage].push(el);
+    }
+    pushCommand({
+      type: 'add-multiple',
+      elements: elementsToAdd
+    });
+
+    // 7. Chuyển sang công cụ Chọn và chọn Điểm 3 vừa tạo
+    finishGeoTask(p3El);
+    statusToolInfo.textContent = '✨ Đã tạo Điểm 3 đối xứng với Điểm 1 qua Điểm 2 và nối đoạn thẳng qua 3 điểm (chuẩn ký hiệu SGK).';
+    showPageToast('✨ Đã dựng Đối xứng điểm & Nối đoạn thẳng qua 3 điểm!');
+    return { p1: p1El, p2: p2El, p3: p3El, line: lineEl };
+  }
+
+  // Dựng đối xứng trục: Điểm đối xứng của một điểm qua một đường thẳng (trục đối xứng)
+  function constructAxisSymmetry(point, edge, elPoint = null, elEdge = null) {
+    if (!point || !edge) return null;
+
+    const px = (point.x !== undefined) ? point.x : (point.start ? point.start.x : 0);
+    const py = (point.y !== undefined) ? point.y : (point.start ? point.start.y : 0);
+
+    const A = edge.start || (edge.points ? edge.points[0] : null);
+    const B = edge.end || (edge.points ? edge.points[1] : null);
+    if (!A || !B) return null;
+
+    const vx = B.x - A.x;
+    const vy = B.y - A.y;
+    const len = Math.hypot(vx, vy) || 1;
+    const ux = vx / len;
+    const uy = vy / len;
+
+    // Chiếu điểm P1 lên trục AB tìm chân đường vuông góc H
+    const t = (px - A.x) * ux + (py - A.y) * uy;
+    const H = { x: A.x + t * ux, y: A.y + t * uy };
+
+    // Tọa độ điểm đối xứng P2 qua trục: P2 = 2H - P1
+    const p2x = 2 * H.x - px;
+    const p2y = 2 * H.y - py;
+
+    const axisEl = elEdge || edge.element || null;
+    const ptEl = elPoint || (point.element ? point.element : (point.shape === 'point' ? point : null));
+
+    const elementsToAdd = [];
+
+    // 1. Đảm bảo Điểm 1 tồn tại trên trang
+    let p1El = (ptEl && ptEl.shape === 'point') ? ptEl : null;
+    if (!p1El) {
+      p1El = {
+        type: 'geo',
+        shape: 'point',
+        start: { x: px, y: py },
+        end: { x: px, y: py },
+        color: state.color,
+        width: state.strokeWidth || 3,
+        dash: 'solid'
+      };
+      ensureElementId(p1El);
+      elementsToAdd.push(p1El);
+    } else {
+      ensureElementId(p1El);
+    }
+
+    // 2. Tạo Điểm chân vuông góc H (trung điểm trên trục)
+    const hEl = {
+      type: 'geo',
+      shape: 'point',
+      isMidpoint: true,
+      binding: {
+        type: 'axis_symmetry_h',
+        ptId: p1El.id,
+        axisId: axisEl ? axisEl.id : null,
+        v1Index: edge.v1Index,
+        v2Index: edge.v2Index,
+        axisStart: { x: A.x, y: A.y },
+        axisEnd: { x: B.x, y: B.y }
+      },
+      start: { x: H.x, y: H.y },
+      end: { x: H.x, y: H.y },
+      color: state.color,
+      width: state.strokeWidth || 3,
+      dash: 'solid'
+    };
+    ensureElementId(hEl);
+    elementsToAdd.push(hEl);
+
+    // 3. Tạo Điểm 2 là điểm đối xứng của Điểm 1 qua trục
+    const p2El = {
+      type: 'geo',
+      shape: 'point',
+      binding: {
+        type: 'axis_symmetry_point',
+        ptId: p1El.id,
+        axisId: axisEl ? axisEl.id : null,
+        v1Index: edge.v1Index,
+        v2Index: edge.v2Index,
+        axisStart: { x: A.x, y: A.y },
+        axisEnd: { x: B.x, y: B.y }
+      },
+      start: { x: p2x, y: p2y },
+      end: { x: p2x, y: p2y },
+      color: state.color,
+      width: state.strokeWidth || 3,
+      dash: 'solid'
+    };
+    ensureElementId(p2El);
+    elementsToAdd.push(p2El);
+
+    // 4. Đoạn thẳng vuông góc nối Điểm 1 và Điểm 2 (đi qua H)
+    const lineEl = {
+      type: 'geo',
+      shape: 'line',
+      isAxisSymmetryLine: true,
+      binding: {
+        type: 'axis_symmetry_line',
+        ptId: p1El.id,
+        axisId: axisEl ? axisEl.id : null,
+        v1Index: edge.v1Index,
+        v2Index: edge.v2Index,
+        axisStart: { x: A.x, y: A.y },
+        axisEnd: { x: B.x, y: B.y }
+      },
+      midpoint: { x: H.x, y: H.y },
+      axisDir: { x: ux, y: uy },
+      start: { x: px, y: py },
+      end: { x: p2x, y: p2y },
+      color: state.color,
+      width: state.strokeWidth,
+      dash: state.dashStyle || 'solid'
+    };
+    ensureElementId(lineEl);
+    elementsToAdd.push(lineEl);
+
+    // 5. Gắn kết toàn bộ thành 1 nhóm để dịch chuyển và biến đổi đồng bộ
+    const groupParents = [p1El, axisEl, hEl, p2El].filter(Boolean);
+    linkGroupMulti(groupParents, lineEl);
+
+    // 6. Đưa các phần tử mới vào trang và lưu lịch sử hoàn tác Undo
+    if (!state.pages[state.currentPage]) state.pages[state.currentPage] = [];
+    for (const el of elementsToAdd) {
+      state.pages[state.currentPage].push(el);
+    }
+    pushCommand({
+      type: 'add-multiple',
+      elements: elementsToAdd
+    });
+
+    // 7. Chuyển sang công cụ Chọn và chọn Điểm đối xứng vừa tạo
+    finishGeoTask(p2El);
+    statusToolInfo.textContent = '✨ Đã tạo Điểm đối xứng qua trục và nối đoạn thẳng vuông góc (chuẩn ký hiệu SGK).';
+    showPageToast('✨ Đã dựng Đối xứng trục & Nối đoạn thẳng vuông góc!');
+    return { p1: p1El, p2: p2El, h: hEl, line: lineEl };
+  }
+
+  // Dựng Đường tròn ngoại tiếp (qua 3 điểm hoặc tam giác)
+  function constructCircumcircle(p1, p2, p3, el1 = null, el2 = null, el3 = null, triangleEl = null) {
+    if (!p1 || !p2 || !p3) return null;
+
+    const x1 = (p1.x !== undefined) ? p1.x : (p1.start ? p1.start.x : 0);
+    const y1 = (p1.y !== undefined) ? p1.y : (p1.start ? p1.start.y : 0);
+    const x2 = (p2.x !== undefined) ? p2.x : (p2.start ? p2.start.x : 0);
+    const y2 = (p2.y !== undefined) ? p2.y : (p2.start ? p2.start.y : 0);
+    const x3 = (p3.x !== undefined) ? p3.x : (p3.start ? p3.start.x : 0);
+    const y3 = (p3.y !== undefined) ? p3.y : (p3.start ? p3.start.y : 0);
+
+    const D = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+    if (Math.abs(D) < 1e-4) {
+      showPageToast('⚠️ 3 điểm thẳng hàng, không thể tạo đường tròn ngoại tiếp!');
+      return null;
+    }
+
+    const sq1 = x1 * x1 + y1 * y1;
+    const sq2 = x2 * x2 + y2 * y2;
+    const sq3 = x3 * x3 + y3 * y3;
+
+    const x0 = (sq1 * (y2 - y3) + sq2 * (y3 - y1) + sq3 * (y1 - y2)) / D;
+    const y0 = (sq1 * (x3 - x2) + sq2 * (x1 - x3) + sq3 * (x2 - x1)) / D;
+    const R = Math.hypot(x1 - x0, y1 - y0);
+
+    const elementsToAdd = [];
+
+    let ptEl1 = el1 || (p1.shape === 'point' ? p1 : (p1.element ? p1.element : null));
+    let ptEl2 = el2 || (p2.shape === 'point' ? p2 : (p2.element ? p2.element : null));
+    let ptEl3 = el3 || (p3.shape === 'point' ? p3 : (p3.element ? p3.element : null));
+
+    if (!triangleEl) {
+      if (!ptEl1) {
+        ptEl1 = { type: 'geo', shape: 'point', start: { x: x1, y: y1 }, end: { x: x1, y: y1 }, color: state.color, width: state.strokeWidth || 3, dash: 'solid' };
+        ensureElementId(ptEl1); elementsToAdd.push(ptEl1);
+      } else { ensureElementId(ptEl1); }
+
+      if (!ptEl2) {
+        ptEl2 = { type: 'geo', shape: 'point', start: { x: x2, y: y2 }, end: { x: x2, y: y2 }, color: state.color, width: state.strokeWidth || 3, dash: 'solid' };
+        ensureElementId(ptEl2); elementsToAdd.push(ptEl2);
+      } else { ensureElementId(ptEl2); }
+
+      if (!ptEl3) {
+        ptEl3 = { type: 'geo', shape: 'point', start: { x: x3, y: y3 }, end: { x: x3, y: y3 }, color: state.color, width: state.strokeWidth || 3, dash: 'solid' };
+        ensureElementId(ptEl3); elementsToAdd.push(ptEl3);
+      } else { ensureElementId(ptEl3); }
+    } else {
+      ensureElementId(triangleEl);
+    }
+
+    const centerEl = {
+      type: 'geo',
+      shape: 'point',
+      binding: {
+        type: 'circumcircle_center',
+        triangleId: triangleEl ? triangleEl.id : null,
+        pt1Id: ptEl1 ? ptEl1.id : null,
+        pt2Id: ptEl2 ? ptEl2.id : null,
+        pt3Id: ptEl3 ? ptEl3.id : null
+      },
+      start: { x: x0, y: y0 },
+      end: { x: x0, y: y0 },
+      color: state.color,
+      width: state.strokeWidth || 3,
+      dash: 'solid'
+    };
+    ensureElementId(centerEl);
+    elementsToAdd.push(centerEl);
+
+    const circleEl = {
+      type: 'geo',
+      shape: 'circle',
+      binding: {
+        type: 'circumcircle',
+        triangleId: triangleEl ? triangleEl.id : null,
+        pt1Id: ptEl1 ? ptEl1.id : null,
+        pt2Id: ptEl2 ? ptEl2.id : null,
+        pt3Id: ptEl3 ? ptEl3.id : null
+      },
+      start: { x: x0, y: y0 },
+      end: { x: x0 + R, y: y0 },
+      radius: R,
+      color: state.color,
+      width: state.strokeWidth || 2.5,
+      dash: state.dashStyle || 'solid'
+    };
+    ensureElementId(circleEl);
+    elementsToAdd.push(circleEl);
+
+    const groupParents = [triangleEl, ptEl1, ptEl2, ptEl3, centerEl].filter(Boolean);
+    linkGroupMulti(groupParents, circleEl);
+
+    if (!state.pages[state.currentPage]) state.pages[state.currentPage] = [];
+    for (const el of elementsToAdd) {
+      state.pages[state.currentPage].push(el);
+    }
+    pushCommand({
+      type: 'add-multiple',
+      elements: elementsToAdd
+    });
+
+    finishGeoTask(circleEl);
+    statusToolInfo.textContent = '✨ Đã dựng Đường tròn ngoại tiếp đi qua 3 điểm (tâm O xác định chuẩn xác).';
+    showPageToast('✨ Đã dựng Đường tròn ngoại tiếp!');
+    return { center: centerEl, circle: circleEl, pt1: ptEl1, pt2: ptEl2, pt3: ptEl3 };
+  }
+
+  // Dựng Đường tròn nội tiếp tam giác
+  function constructIncircle(p1, p2, p3, triangleEl = null, el1 = null, el2 = null, el3 = null) {
+    if (!p1 || !p2 || !p3) return null;
+
+    const x1 = (p1.x !== undefined) ? p1.x : (p1.start ? p1.start.x : 0);
+    const y1 = (p1.y !== undefined) ? p1.y : (p1.start ? p1.start.y : 0);
+    const x2 = (p2.x !== undefined) ? p2.x : (p2.start ? p2.start.x : 0);
+    const y2 = (p2.y !== undefined) ? p2.y : (p2.start ? p2.start.y : 0);
+    const x3 = (p3.x !== undefined) ? p3.x : (p3.start ? p3.start.x : 0);
+    const y3 = (p3.y !== undefined) ? p3.y : (p3.start ? p3.start.y : 0);
+
+    const a = Math.hypot(x3 - x2, y3 - y2);
+    const b = Math.hypot(x1 - x3, y1 - y3);
+    const c = Math.hypot(x2 - x1, y2 - y1);
+    const peri = a + b + c;
+
+    if (peri < 1e-4) return null;
+
+    const xI = (a * x1 + b * x2 + c * x3) / peri;
+    const yI = (a * y1 + b * y2 + c * y3) / peri;
+
+    const S = 0.5 * Math.abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+    if (S < 1e-4) {
+      showPageToast('⚠️ 3 điểm thẳng hàng, không thể tạo đường tròn nội tiếp!');
+      return null;
+    }
+    const pHalf = peri / 2;
+    const r = S / pHalf;
+
+    const elementsToAdd = [];
+
+    let ptEl1 = el1 || (p1.shape === 'point' ? p1 : (p1.element ? p1.element : null));
+    let ptEl2 = el2 || (p2.shape === 'point' ? p2 : (p2.element ? p2.element : null));
+    let ptEl3 = el3 || (p3.shape === 'point' ? p3 : (p3.element ? p3.element : null));
+
+    if (!triangleEl) {
+      if (!ptEl1) {
+        ptEl1 = { type: 'geo', shape: 'point', start: { x: x1, y: y1 }, end: { x: x1, y: y1 }, color: state.color, width: state.strokeWidth || 3, dash: 'solid' };
+        ensureElementId(ptEl1); elementsToAdd.push(ptEl1);
+      } else { ensureElementId(ptEl1); }
+
+      if (!ptEl2) {
+        ptEl2 = { type: 'geo', shape: 'point', start: { x: x2, y: y2 }, end: { x: x2, y: y2 }, color: state.color, width: state.strokeWidth || 3, dash: 'solid' };
+        ensureElementId(ptEl2); elementsToAdd.push(ptEl2);
+      } else { ensureElementId(ptEl2); }
+
+      if (!ptEl3) {
+        ptEl3 = { type: 'geo', shape: 'point', start: { x: x3, y: y3 }, end: { x: x3, y: y3 }, color: state.color, width: state.strokeWidth || 3, dash: 'solid' };
+        ensureElementId(ptEl3); elementsToAdd.push(ptEl3);
+      } else { ensureElementId(ptEl3); }
+    } else {
+      ensureElementId(triangleEl);
+    }
+
+    const centerEl = {
+      type: 'geo',
+      shape: 'point',
+      binding: {
+        type: 'incircle_center',
+        triangleId: triangleEl ? triangleEl.id : null,
+        pt1Id: ptEl1 ? ptEl1.id : null,
+        pt2Id: ptEl2 ? ptEl2.id : null,
+        pt3Id: ptEl3 ? ptEl3.id : null
+      },
+      start: { x: xI, y: yI },
+      end: { x: xI, y: yI },
+      color: state.color,
+      width: state.strokeWidth || 3,
+      dash: 'solid'
+    };
+    ensureElementId(centerEl);
+    elementsToAdd.push(centerEl);
+
+    const circleEl = {
+      type: 'geo',
+      shape: 'circle',
+      binding: {
+        type: 'incircle',
+        triangleId: triangleEl ? triangleEl.id : null,
+        pt1Id: ptEl1 ? ptEl1.id : null,
+        pt2Id: ptEl2 ? ptEl2.id : null,
+        pt3Id: ptEl3 ? ptEl3.id : null
+      },
+      start: { x: xI, y: yI },
+      end: { x: xI + r, y: yI },
+      radius: r,
+      color: state.color,
+      width: state.strokeWidth || 2.5,
+      dash: state.dashStyle || 'solid'
+    };
+    ensureElementId(circleEl);
+    elementsToAdd.push(circleEl);
+
+    const groupParents = [triangleEl, ptEl1, ptEl2, ptEl3, centerEl].filter(Boolean);
+    linkGroupMulti(groupParents, circleEl);
+
+    if (!state.pages[state.currentPage]) state.pages[state.currentPage] = [];
+    for (const el of elementsToAdd) {
+      state.pages[state.currentPage].push(el);
+    }
+    pushCommand({
+      type: 'add-multiple',
+      elements: elementsToAdd
+    });
+
+    finishGeoTask(circleEl);
+    statusToolInfo.textContent = '✨ Đã dựng Đường tròn nội tiếp tiếp xúc 3 cạnh tam giác (tâm I xác định chuẩn xác).';
+    showPageToast('✨ Đã dựng Đường tròn nội tiếp!');
+    return { center: centerEl, circle: circleEl, pt1: ptEl1, pt2: ptEl2, pt3: ptEl3 };
   }
 
   // Tìm giao điểm của tia (V, dir) với đoạn thẳng (p1, p2)
@@ -4716,6 +6219,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!selectedList || selectedList.length === 0) return false;
 
+    // Trường hợp 0: Người dùng đã chọn từ 3 đối tượng trở lên
+    if (selectedList.length >= 3) {
+      if (geoShape === 'circumcircle' || geoShape === 'incircle') {
+        const ptA = getPointFromElement(selectedList[0]);
+        const ptB = getPointFromElement(selectedList[1]);
+        const ptC = getPointFromElement(selectedList[2]);
+        if (ptA && ptB && ptC) {
+          if (geoShape === 'circumcircle') {
+            constructCircumcircle(ptA, ptB, ptC, selectedList[0], selectedList[1], selectedList[2]);
+          } else {
+            constructIncircle(ptA, ptB, ptC, null, selectedList[0], selectedList[1], selectedList[2]);
+          }
+          return true;
+        }
+      }
+    }
+
     // Trường hợp 1: Người dùng đã chọn 2 đối tượng
     if (selectedList.length === 2) {
       const elA = selectedList[0];
@@ -4825,6 +6345,37 @@ document.addEventListener('DOMContentLoaded', () => {
           constructPerpendicularBisector(ptA, ptB, bindingInfo, parentEl);
           return true;
         }
+      } else if (geoShape === 'point-symmetry') {
+        const ptA = getPointFromElement(elA) || (elA.shape === 'point' ? elA.start : null) || elA.start;
+        const ptB = getPointFromElement(elB) || (elB.shape === 'point' ? elB.start : null) || elB.start;
+        if (ptA && ptB) {
+          constructPointSymmetry(ptA, ptB, elA, elB);
+          return true;
+        }
+      } else if (geoShape === 'axis-symmetry') {
+        const ptA = getPointFromElement(elA) || (elA.shape === 'point' ? elA.start : null);
+        const ptB = getPointFromElement(elB) || (elB.shape === 'point' ? elB.start : null);
+        const lineA = getLineOrEdgeFromElement(elA, ptB);
+        const lineB = getLineOrEdgeFromElement(elB, ptA);
+        let point = null;
+        let line = null;
+        let elPoint = null;
+        let elEdge = null;
+        if (ptA && lineB) {
+          point = ptA;
+          line = lineB;
+          elPoint = elA;
+          elEdge = elB;
+        } else if (ptB && lineA) {
+          point = ptB;
+          line = lineA;
+          elPoint = elB;
+          elEdge = elA;
+        }
+        if (point && line) {
+          constructAxisSymmetry(point, line, elPoint, elEdge);
+          return true;
+        }
       } else if (geoShape === 'angle') {
         const ptA = getPointFromElement(elA);
         const ptB = getPointFromElement(elB);
@@ -4837,6 +6388,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (point && line) {
           constructAngleFromLineAndPoint(line, point);
+          return true;
+        }
+      } else if (geoShape === 'circumcircle' || geoShape === 'incircle') {
+        const ptA = getPointFromElement(elA);
+        const ptB = getPointFromElement(elB);
+        if (ptA && ptB) {
+          state.construction = { p1: ptA, p2: ptB, el1: elA, el2: elB, points: [ptA, ptB] };
+          const toolName = geoShape === 'circumcircle' ? 'ngoại tiếp' : 'nội tiếp';
+          statusToolInfo.textContent = `Đường tròn ${toolName}: Đã nhận 2 điểm. Hãy bấm chọn tiếp Điểm thứ 3 trên bảng vẽ.`;
+          showPageToast(`✓ Đã nhận 2 điểm. Bấm chọn tiếp Điểm 3!`);
+          renderPage();
           return true;
         }
       } else if (geoShape === 'intersection') {
@@ -4912,6 +6474,56 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pt) {
           state.construction = { point: pt, circle: null, line: null, edges: [], point1El: el };
           statusToolInfo.textContent = 'Đường trung trực: Đã nhận 1 điểm. Hãy bấm chọn tiếp điểm thứ 2 (hoặc đoạn thẳng) trên bảng vẽ.';
+          renderPage();
+          return true;
+        }
+      }
+
+      if (geoShape === 'point-symmetry') {
+        if (pt) {
+          state.construction = { point: pt, circle: null, line: null, edges: [], point1El: el };
+          statusToolInfo.textContent = '✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2 (tâm đối xứng) để tạo điểm đối xứng.';
+          showPageToast('✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2 (tâm đối xứng)!');
+          renderPage();
+          return true;
+        }
+      }
+
+      if (geoShape === 'axis-symmetry') {
+        if (pt) {
+          state.construction = { point: pt, circle: null, line: null, edges: [], point1El: el };
+          statusToolInfo.textContent = '✓ Đã nhận Điểm 1. Bấm chọn tiếp Trục đối xứng (đoạn thẳng / cạnh) để tạo điểm đối xứng.';
+          showPageToast('✓ Đã nhận Điểm 1. Bấm chọn tiếp Trục đối xứng!');
+          renderPage();
+          return true;
+        } else if (line) {
+          state.construction = { point: null, circle: null, line: line, edges: [], lineEl: el };
+          statusToolInfo.textContent = '✓ Đã nhận Trục đối xứng. Bấm chọn tiếp Điểm cần lấy đối xứng.';
+          showPageToast('✓ Đã nhận Trục đối xứng. Bấm chọn tiếp Điểm!');
+          renderPage();
+          return true;
+        }
+      }
+
+      if (geoShape === 'circumcircle' || geoShape === 'incircle') {
+        if (el.shape === 'triangle' || el.shape === 'right-triangle' || el.shape === 'isosceles-triangle' || (el.points && el.points.length === 3)) {
+          const pts = (el.points && el.points.length >= 3) ? el.points : [
+            { x: (el.start.x + el.end.x) / 2, y: el.start.y },
+            { x: el.start.x, y: el.end.y },
+            { x: el.end.x, y: el.end.y }
+          ];
+          if (geoShape === 'circumcircle') {
+            constructCircumcircle(pts[0], pts[1], pts[2], null, null, null, el);
+          } else {
+            constructIncircle(pts[0], pts[1], pts[2], el);
+          }
+          return true;
+        }
+        if (pt) {
+          state.construction = { p1: pt, el1: el, points: [pt] };
+          const toolName = geoShape === 'circumcircle' ? 'ngoại tiếp' : 'nội tiếp';
+          statusToolInfo.textContent = `Đường tròn ${toolName}: Đã nhận Điểm 1. Hãy bấm chọn tiếp Điểm thứ 2.`;
+          showPageToast(`✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2!`);
           renderPage();
           return true;
         }
@@ -5004,29 +6616,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // TÁC VỤ: ĐƯỜNG TRUNG TRỰC (1 đoạn thẳng hoặc 2 điểm)
     // ==========================================================
     if (task === 'perpendicular-bisector') {
-      // 1. Tiện ích siêu nhanh: Nhấp trực tiếp vào cạnh hoặc đoạn thẳng -> Dựng ngay đường trung trực!
-      if (hitEdge && (!hitPoint || hitPoint.element !== hitEdge.element)) {
-        constructPerpendicularBisectorFromEdge(hitEdge);
-        state.pendingConstruction = null;
-        return true;
-      }
-
-      const directEl = findElementAt(point.x, point.y);
-      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel')) {
-        constructPerpendicularBisector(directEl.start, directEl.end, { type: 'perpendicular_bisector', parentId: directEl.id }, directEl);
-        state.pendingConstruction = null;
-        return true;
-      }
-
-      // 2. Chọn lần lượt 2 điểm
-      if (!state.construction.point) {
-        state.construction.point = hitPoint || { x: point.x, y: point.y };
-        state.construction.point1El = hitPoint ? hitPoint.element : null;
-        statusToolInfo.textContent = '✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm thứ 2 (hoặc đoạn thẳng) để dựng đường trung trực.';
-        showPageToast('✓ Đã nhận Điểm 1. Chọn tiếp Điểm 2!');
-        renderPage();
-        return true;
-      } else {
+      // 1. NẾU ĐÃ CHỌN ĐIỂM 1 -> LẦN NHẤP TIẾP THEO BẮT BUỘC LÀ ĐIỂM 2!
+      if (state.construction.point) {
         const pt1 = state.construction.point;
         const pt2 = hitPoint || { x: point.x, y: point.y };
         if (Math.hypot(pt2.x - pt1.x, pt2.y - pt1.y) < 6) return true;
@@ -5058,8 +6649,228 @@ document.addEventListener('DOMContentLoaded', () => {
           parentEl = el2;
         }
 
+        // Tự động nối đoạn thẳng nếu là 2 điểm rời chưa có đoạn thẳng nối
+        if ((!el1 || el1.shape === 'point') && (!el2 || el2.shape === 'point')) {
+          const segLine = {
+            type: 'geo',
+            shape: 'line',
+            start: { x: pt1.x, y: pt1.y },
+            end: { x: pt2.x, y: pt2.y },
+            color: state.color,
+            width: state.strokeWidth,
+            dash: 'solid'
+          };
+          ensureElementId(segLine);
+          pushNewElement(segLine);
+          if (!bindingInfo) {
+            bindingInfo = { type: 'perpendicular_bisector', parentId: segLine.id };
+            parentEl = segLine;
+          }
+        }
+
         constructPerpendicularBisector(pt1, pt2, bindingInfo, parentEl);
         state.pendingConstruction = null;
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return true;
+      }
+
+      // 2. CHƯA CHỌN ĐIỂM 1: Tiện ích nhấp trực tiếp vào cạnh hoặc đoạn thẳng
+      if (hitEdge && (!hitPoint || hitPoint.element !== hitEdge.element)) {
+        constructPerpendicularBisectorFromEdge(hitEdge);
+        state.pendingConstruction = null;
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return true;
+      }
+
+      const directEl = findElementAt(point.x, point.y);
+      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel') && !hitPoint) {
+        constructPerpendicularBisector(directEl.start, directEl.end, { type: 'perpendicular_bisector', parentId: directEl.id }, directEl);
+        state.pendingConstruction = null;
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return true;
+      }
+
+      // 3. CHỌN ĐIỂM 1 (BƯỚC 1 CỦA CHỌN 2 ĐIỂM)
+      state.construction.point = hitPoint || { x: point.x, y: point.y };
+      state.construction.point1El = hitPoint ? hitPoint.element : null;
+      statusToolInfo.textContent = '✓ Đã chọn Điểm 1. Bấm chọn tiếp Điểm 2 để dựng đường trung trực.';
+      showPageToast('✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2!');
+      renderPage();
+      return true;
+    }
+
+    // ==========================================================
+    // TÁC VỤ: ĐỐI XỨNG ĐIỂM (Chọn Điểm 1 -> Chọn Điểm 2)
+    // ==========================================================
+    if (task === 'point-symmetry') {
+      // 1. NẾU ĐÃ CHỌN ĐIỂM 1 -> LẦN NHẤP TIẾP THEO BẮT BUỘC LÀ ĐIỂM 2 (TÂM ĐỐI XỨNG)!
+      if (state.construction.point) {
+        const pt1 = state.construction.point;
+        const pt2 = hitPoint || { x: point.x, y: point.y };
+        if (Math.hypot(pt2.x - pt1.x, pt2.y - pt1.y) < 6) return true;
+
+        const el1 = state.construction.point1El;
+        const el2 = hitPoint ? hitPoint.element : null;
+
+        constructPointSymmetry(pt1, pt2, el1, el2);
+        state.pendingConstruction = null;
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return true;
+      }
+
+      // 2. CHỌN ĐIỂM 1 (BƯỚC 1 CỦA ĐỐI XỨNG ĐIỂM)
+      state.construction.point = hitPoint || { x: point.x, y: point.y };
+      state.construction.point1El = hitPoint ? hitPoint.element : null;
+      statusToolInfo.textContent = '✓ Đã chọn Điểm 1. Bấm chọn tiếp Điểm 2 (tâm đối xứng) để tạo điểm đối xứng.';
+      showPageToast('✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2 (tâm đối xứng)!');
+      renderPage();
+      return true;
+    }
+
+    // ==========================================================
+    // TÁC VỤ: ĐỐI XỨNG TRỤC (Chọn Điểm -> Chọn Trục hoặc ngược lại)
+    // ==========================================================
+    if (task === 'axis-symmetry') {
+      // 1. NẾU ĐÃ CHỌN ĐIỂM 1 -> LẦN NHẤP TIẾP THEO LÀ TRỤC ĐỐI XỨNG
+      if (state.construction.point) {
+        let edge = hitEdge;
+        let edgeEl = hitEdge ? hitEdge.element : null;
+        if (!edge) {
+          const directEl = findElementAt(point.x, point.y);
+          if (directEl && directEl.type === 'geo') {
+            edge = getLineOrEdgeFromElement(directEl, point);
+            edgeEl = directEl;
+          }
+        }
+        if (edge) {
+          const pt1 = state.construction.point;
+          const el1 = state.construction.point1El;
+          constructAxisSymmetry(pt1, edge, el1, edgeEl);
+          state.pendingConstruction = null;
+          state.construction = { point: null, circle: null, line: null, edges: [] };
+          state.constructionHoverPoint = null;
+          state.constructionHoverEdge = null;
+          return true;
+        }
+        return true;
+      }
+
+      // 2. NẾU ĐÃ CHỌN TRỤC ĐỐI XỨNG -> LẦN NHẤP TIẾP THEO LÀ ĐIỂM
+      if (state.construction.line) {
+        const edge = state.construction.line;
+        const edgeEl = state.construction.lineEl || edge.element;
+        const pt1 = hitPoint || { x: point.x, y: point.y };
+        const el1 = hitPoint ? hitPoint.element : null;
+        constructAxisSymmetry(pt1, edge, el1, edgeEl);
+        state.pendingConstruction = null;
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        state.constructionHoverEdge = null;
+        return true;
+      }
+
+      // 3. CHƯA CHỌN GÌ -> ƯU TIÊN KIỂM TRA CLICK TRÚNG TRỤC ĐỐI XỨNG TRƯỚC
+      let edge = hitEdge;
+      let edgeEl = hitEdge ? hitEdge.element : null;
+      if (!edge && !hitPoint) {
+        const directEl = findElementAt(point.x, point.y);
+        if (directEl && directEl.type === 'geo' && directEl.shape !== 'point') {
+          edge = getLineOrEdgeFromElement(directEl, point);
+          edgeEl = directEl;
+        }
+      }
+
+      if (edge && !hitPoint) {
+        state.construction.line = edge;
+        state.construction.lineEl = edgeEl;
+        statusToolInfo.textContent = '✓ Đã chọn Trục đối xứng. Bấm chọn tiếp Điểm cần lấy đối xứng.';
+        showPageToast('✓ Đã nhận Trục đối xứng. Bấm chọn tiếp Điểm!');
+        renderPage();
+        return true;
+      }
+
+      // 4. CHỌN ĐIỂM 1
+      state.construction.point = hitPoint || { x: point.x, y: point.y };
+      state.construction.point1El = hitPoint ? hitPoint.element : null;
+      statusToolInfo.textContent = '✓ Đã chọn Điểm 1. Bấm chọn tiếp Trục đối xứng (đoạn thẳng / cạnh) để tạo điểm đối xứng.';
+      showPageToast('✓ Đã nhận Điểm 1. Bấm chọn tiếp Trục đối xứng!');
+      renderPage();
+      return true;
+    }
+
+    // ==========================================================
+    // TÁC VỤ: ĐƯỜNG TRÒN NGOẠI TIẾP & NỘI TIẾP (Chọn tam giác HOẶC chọn 3 điểm)
+    // ==========================================================
+    if (task === 'circumcircle' || task === 'incircle') {
+      const isCircum = (task === 'circumcircle');
+      const toolLabel = isCircum ? 'ngoại tiếp' : 'nội tiếp';
+
+      // 1. Nếu click vào một tam giác có sẵn: dựng ngay lập tức!
+      const directEl = findElementAt(point.x, point.y);
+      let triEl = null;
+      if (directEl && directEl.type === 'geo' && (directEl.shape === 'triangle' || directEl.shape === 'right-triangle' || directEl.shape === 'isosceles-triangle' || (directEl.points && directEl.points.length === 3))) {
+        triEl = directEl;
+      }
+      if (triEl) {
+        const pts = (triEl.points && triEl.points.length >= 3) ? triEl.points : [
+          { x: (triEl.start.x + triEl.end.x) / 2, y: triEl.start.y },
+          { x: triEl.start.x, y: triEl.end.y },
+          { x: triEl.end.x, y: triEl.end.y }
+        ];
+        if (isCircum) {
+          constructCircumcircle(pts[0], pts[1], pts[2], null, null, null, triEl);
+        } else {
+          constructIncircle(pts[0], pts[1], pts[2], triEl);
+        }
+        state.pendingConstruction = null;
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return true;
+      }
+
+      // 2. Chọn từng điểm trong 3 điểm
+      const curPt = hitPoint || { x: point.x, y: point.y };
+      const curEl = hitPoint ? hitPoint.element : null;
+
+      if (!state.construction.p1) {
+        // ĐÃ CHỌN ĐIỂM 1
+        state.construction.p1 = curPt;
+        state.construction.el1 = curEl;
+        statusToolInfo.textContent = `✓ Đã chọn Điểm 1. Bấm chọn tiếp Điểm 2 để dựng đường tròn ${toolLabel}.`;
+        showPageToast(`✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2!`);
+        renderPage();
+        return true;
+      } else if (!state.construction.p2) {
+        // ĐÃ CHỌN ĐIỂM 2
+        if (Math.hypot(curPt.x - state.construction.p1.x, curPt.y - state.construction.p1.y) < 6) return true;
+        state.construction.p2 = curPt;
+        state.construction.el2 = curEl;
+        statusToolInfo.textContent = `✓ Đã chọn Điểm 2. Bấm chọn tiếp Điểm 3 để hoàn thành đường tròn ${toolLabel}.`;
+        showPageToast(`✓ Đã nhận Điểm 2. Bấm chọn tiếp Điểm 3!`);
+        renderPage();
+        return true;
+      } else {
+        // ĐÃ CHỌN ĐIỂM 3 -> THỰC HIỆN DỰNG HÌNH!
+        if (Math.hypot(curPt.x - state.construction.p2.x, curPt.y - state.construction.p2.y) < 6) return true;
+        const p1 = state.construction.p1;
+        const p2 = state.construction.p2;
+        const p3 = curPt;
+        const el1 = state.construction.el1;
+        const el2 = state.construction.el2;
+        const el3 = curEl;
+
+        if (isCircum) {
+          constructCircumcircle(p1, p2, p3, el1, el2, el3);
+        } else {
+          constructIncircle(p1, p2, p3, null, el1, el2, el3);
+        }
+        state.pendingConstruction = null;
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
         return true;
       }
     }
@@ -5333,29 +7144,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Xử lý thao tác nhấp chuột/bút khi đang ở chế độ dựng hình (Vuông góc, Song song, Phân giác)
   function handleConstructionClick(point) {
     if (state.activeGeo === 'perpendicular-bisector') {
-      const edge = findEdgeAt(point.x, point.y, 28);
-      if (edge && (!state.construction.point)) {
-        constructPerpendicularBisectorFromEdge(edge);
-        return;
-      }
-
-      const directEl = findElementAt(point.x, point.y);
-      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel') && !state.construction.point) {
-        constructPerpendicularBisector(directEl.start, directEl.end, { type: 'perpendicular_bisector', parentId: directEl.id }, directEl);
-        return;
-      }
-
       const vertex = findPointAt(point.x, point.y, 25);
+      const directEl = findElementAt(point.x, point.y);
       const clickedPt = vertex || { x: point.x, y: point.y };
       const clickedEl = vertex ? vertex.element : (directEl && directEl.shape === 'point' ? directEl : null);
 
-      if (!state.construction.point) {
-        state.construction.point = clickedPt;
-        state.construction.point1El = clickedEl;
-        statusToolInfo.textContent = 'Đường trung trực: Đã chọn điểm 1. Hãy nhấp tiếp điểm thứ 2 (hoặc đoạn thẳng) để vẽ đường trung trực.';
-        renderPage();
-        return;
-      } else {
+      // Nếu đã có Điểm 1 -> bắt buộc nhấp lần này là Điểm 2!
+      if (state.construction.point) {
         const pt1 = state.construction.point;
         const pt2 = clickedPt;
         if (Math.hypot(pt2.x - pt1.x, pt2.y - pt1.y) < 6) return;
@@ -5377,6 +7172,191 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         constructPerpendicularBisector(pt1, pt2, bindingInfo, parentEl);
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return;
+      }
+
+      // Chưa có Điểm 1: Tiện ích nhấp vào cạnh hoặc đoạn thẳng
+      const edge = findEdgeAt(point.x, point.y, 28);
+      if (edge && (!vertex)) {
+        constructPerpendicularBisectorFromEdge(edge);
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return;
+      }
+
+      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel') && !vertex) {
+        constructPerpendicularBisector(directEl.start, directEl.end, { type: 'perpendicular_bisector', parentId: directEl.id }, directEl);
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return;
+      }
+
+      // Nhấp chọn Điểm 1:
+      state.construction.point = clickedPt;
+      state.construction.point1El = clickedEl;
+      statusToolInfo.textContent = 'Đường trung trực: Đã chọn Điểm 1. Hãy nhấp tiếp Điểm 2 để vẽ đường trung trực.';
+      showPageToast('✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2!');
+      renderPage();
+      return;
+    }
+
+    if (state.activeGeo === 'point-symmetry') {
+      const vertex = findPointAt(point.x, point.y, 25);
+      const directEl = findElementAt(point.x, point.y);
+      const clickedPt = vertex || { x: point.x, y: point.y };
+      const clickedEl = vertex ? vertex.element : (directEl && directEl.shape === 'point' ? directEl : null);
+
+      if (state.construction.point) {
+        const pt1 = state.construction.point;
+        const pt2 = clickedPt;
+        if (Math.hypot(pt2.x - pt1.x, pt2.y - pt1.y) < 6) return;
+
+        const el1 = state.construction.point1El;
+        const el2 = clickedEl;
+
+        constructPointSymmetry(pt1, pt2, el1, el2);
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return;
+      }
+
+      state.construction.point = clickedPt;
+      state.construction.point1El = clickedEl;
+      statusToolInfo.textContent = '✓ Đã chọn Điểm 1. Bấm chọn tiếp Điểm 2 (tâm đối xứng) để tạo điểm đối xứng.';
+      showPageToast('✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2 (tâm đối xứng)!');
+      renderPage();
+      return;
+    }
+
+    if (state.activeGeo === 'axis-symmetry') {
+      const vertex = findPointAt(point.x, point.y, 25);
+      const edge = findEdgeAt(point.x, point.y, 25);
+      const directEl = findElementAt(point.x, point.y);
+
+      // TH 1: Đã có Điểm 1 -> Tìm trục đối xứng
+      if (state.construction.point) {
+        let chosenEdge = edge;
+        let chosenEl = edge ? edge.element : null;
+        if (!chosenEdge && directEl && directEl.type === 'geo' && directEl.shape !== 'point') {
+          chosenEdge = getLineOrEdgeFromElement(directEl, point);
+          chosenEl = directEl;
+        }
+        if (chosenEdge) {
+          const pt1 = state.construction.point;
+          const el1 = state.construction.point1El;
+          constructAxisSymmetry(pt1, chosenEdge, el1, chosenEl);
+          state.construction = { point: null, circle: null, line: null, edges: [] };
+          state.constructionHoverPoint = null;
+          state.constructionHoverEdge = null;
+          return;
+        }
+        return;
+      }
+
+      // TH 2: Đã có Trục -> Tìm điểm
+      if (state.construction.line) {
+        const clickedPt = vertex || { x: point.x, y: point.y };
+        const clickedEl = vertex ? vertex.element : (directEl && directEl.shape === 'point' ? directEl : null);
+        const chosenEdge = state.construction.line;
+        const chosenEl = state.construction.lineEl || chosenEdge.element;
+        constructAxisSymmetry(clickedPt, chosenEdge, clickedEl, chosenEl);
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        state.constructionHoverEdge = null;
+        return;
+      }
+
+      // TH 3: Chưa có gì
+      let chosenEdge = edge;
+      let chosenEl = edge ? edge.element : null;
+      if (!chosenEdge && !vertex && directEl && directEl.type === 'geo' && directEl.shape !== 'point') {
+        chosenEdge = getLineOrEdgeFromElement(directEl, point);
+        chosenEl = directEl;
+      }
+
+      if (chosenEdge && !vertex) {
+        state.construction.line = chosenEdge;
+        state.construction.lineEl = chosenEl;
+        statusToolInfo.textContent = '✓ Đã chọn Trục đối xứng. Bấm chọn tiếp Điểm cần lấy đối xứng.';
+        showPageToast('✓ Đã nhận Trục đối xứng. Bấm chọn tiếp Điểm!');
+        renderPage();
+        return;
+      }
+
+      const clickedPt = vertex || { x: point.x, y: point.y };
+      const clickedEl = vertex ? vertex.element : (directEl && directEl.shape === 'point' ? directEl : null);
+      state.construction.point = clickedPt;
+      state.construction.point1El = clickedEl;
+      statusToolInfo.textContent = '✓ Đã chọn Điểm 1. Bấm chọn tiếp Trục đối xứng (đoạn thẳng / cạnh) để tạo điểm đối xứng.';
+      showPageToast('✓ Đã nhận Điểm 1. Bấm chọn tiếp Trục đối xứng!');
+      renderPage();
+      return;
+    }
+
+    if (state.activeGeo === 'circumcircle' || state.activeGeo === 'incircle') {
+      const isCircum = (state.activeGeo === 'circumcircle');
+      const toolLabel = isCircum ? 'ngoại tiếp' : 'nội tiếp';
+
+      // 1. Kiểm tra nhấp vào tam giác có sẵn
+      const directEl = findElementAt(point.x, point.y);
+      let triEl = null;
+      if (directEl && directEl.type === 'geo' && (directEl.shape === 'triangle' || directEl.shape === 'right-triangle' || directEl.shape === 'isosceles-triangle' || (directEl.points && directEl.points.length === 3))) {
+        triEl = directEl;
+      }
+      if (triEl) {
+        const pts = (triEl.points && triEl.points.length >= 3) ? triEl.points : [
+          { x: (triEl.start.x + triEl.end.x) / 2, y: triEl.start.y },
+          { x: triEl.start.x, y: triEl.end.y },
+          { x: triEl.end.x, y: triEl.end.y }
+        ];
+        if (isCircum) {
+          constructCircumcircle(pts[0], pts[1], pts[2], null, null, null, triEl);
+        } else {
+          constructIncircle(pts[0], pts[1], pts[2], triEl);
+        }
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return;
+      }
+
+      // 2. Nhấp chọn 3 điểm
+      const vertex = findPointAt(point.x, point.y, 25);
+      const clickedPt = vertex || { x: point.x, y: point.y };
+      const clickedEl = vertex ? vertex.element : (directEl && directEl.shape === 'point' ? directEl : null);
+
+      if (!state.construction.p1) {
+        state.construction.p1 = clickedPt;
+        state.construction.el1 = clickedEl;
+        statusToolInfo.textContent = `✓ Đã chọn Điểm 1. Bấm chọn tiếp Điểm 2 để dựng đường tròn ${toolLabel}.`;
+        showPageToast(`✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2!`);
+        renderPage();
+        return;
+      } else if (!state.construction.p2) {
+        if (Math.hypot(clickedPt.x - state.construction.p1.x, clickedPt.y - state.construction.p1.y) < 6) return;
+        state.construction.p2 = clickedPt;
+        state.construction.el2 = clickedEl;
+        statusToolInfo.textContent = `✓ Đã chọn Điểm 2. Bấm chọn tiếp Điểm 3 để hoàn thành đường tròn ${toolLabel}.`;
+        showPageToast(`✓ Đã nhận Điểm 2. Bấm chọn tiếp Điểm 3!`);
+        renderPage();
+        return;
+      } else {
+        if (Math.hypot(clickedPt.x - state.construction.p2.x, clickedPt.y - state.construction.p2.y) < 6) return;
+        const p1 = state.construction.p1;
+        const p2 = state.construction.p2;
+        const p3 = clickedPt;
+        const el1 = state.construction.el1;
+        const el2 = state.construction.el2;
+        const el3 = clickedEl;
+
+        if (isCircum) {
+          constructCircumcircle(p1, p2, p3, el1, el2, el3);
+        } else {
+          constructIncircle(p1, p2, p3, null, el1, el2, el3);
+        }
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
         return;
       }
     }
@@ -5748,7 +7728,182 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillStyle = '#184e3a';
       ctx.fill();
 
-      drawSharpArrowIndicator(ctx, p.x, p.y, '✓ Đã chọn: Điểm', true);
+      const isPB = (state.pendingConstruction === 'perpendicular-bisector' || state.activeGeo === 'perpendicular-bisector');
+      const isPS = (state.pendingConstruction === 'point-symmetry' || state.activeGeo === 'point-symmetry');
+      const isAS = (state.pendingConstruction === 'axis-symmetry' || state.activeGeo === 'axis-symmetry');
+      const ptLabel = (isPB || isPS || isAS) ? '✓ Đã chọn: Điểm 1' : '✓ Đã chọn: Điểm';
+      drawSharpArrowIndicator(ctx, p.x, p.y, ptLabel, true);
+
+      // Hiệu ứng xem trước thời gian thực cho Đối xứng trục (khi đã chọn Điểm 1 và rê chuột qua một trục/cạnh)
+      if (isAS && state.constructionHoverEdge) {
+        const edge = state.constructionHoverEdge;
+        const A = edge.start || (edge.points ? edge.points[0] : null);
+        const B = edge.end || (edge.points ? edge.points[1] : null);
+        if (A && B) {
+          const vx = B.x - A.x;
+          const vy = B.y - A.y;
+          const len = Math.hypot(vx, vy) || 1;
+          const ux = vx / len;
+          const uy = vy / len;
+          const t = (p.x - A.x) * ux + (p.y - A.y) * uy;
+          const H = { x: A.x + t * ux, y: A.y + t * uy };
+          const p2 = { x: 2 * H.x - p.x, y: 2 * H.y - p.y };
+          const distH = Math.hypot(p2.x - p.x, p2.y - p.y);
+
+          ctx.save();
+          // Đoạn thẳng nét đứt mờ nối Điểm 1 -> H -> Điểm 2
+          ctx.beginPath();
+          ctx.setLineDash([5, 4]);
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.lineWidth = 1.8;
+          ctx.strokeStyle = 'rgba(22, 163, 74, 0.7)';
+          ctx.stroke();
+
+          // Chân vuông góc H tạm thời
+          ctx.beginPath();
+          ctx.arc(H.x, H.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#15803d';
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+
+          // Ký hiệu góc vuông tại H
+          if (distH > 14) {
+            const sqLen = 8;
+            const dirX = (p.x - H.x) / (distH / 2 || 1);
+            const dirY = (p.y - H.y) / (distH / 2 || 1);
+            ctx.beginPath();
+            ctx.setLineDash([]);
+            ctx.moveTo(H.x + dirX * sqLen, H.y + dirY * sqLen);
+            ctx.lineTo(H.x + dirX * sqLen + ux * sqLen, H.y + dirY * sqLen + uy * sqLen);
+            ctx.lineTo(H.x + ux * sqLen, H.y + uy * sqLen);
+            ctx.lineWidth = 1.4;
+            ctx.strokeStyle = '#15803d';
+            ctx.stroke();
+          }
+
+          // Điểm 2 tạm thời (điểm đối xứng)
+          ctx.beginPath();
+          ctx.arc(p2.x, p2.y, 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#dc2626';
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+
+          // Nhãn chỉ dẫn
+          drawSharpArrowIndicator(ctx, H.x, H.y, '📐 Giao điểm trục (H)', true);
+          drawSharpArrowIndicator(ctx, p2.x, p2.y, '✨ Điểm đối xứng qua trục', true);
+
+          ctx.restore();
+        }
+      }
+
+      // Hiệu ứng xem trước thời gian thực cho Đối xứng điểm
+      if (isPS && state.constructionHoverPoint) {
+        const p2 = state.constructionHoverPoint;
+        const dist = Math.hypot(p2.x - p.x, p2.y - p.y);
+        if (dist > 8) {
+          const p3 = { x: 2 * p2.x - p.x, y: 2 * p2.y - p.y };
+          ctx.save();
+          // Đoạn thẳng nét đứt mờ nối Điểm 1 -> Điểm 2 -> Điểm 3
+          ctx.beginPath();
+          ctx.setLineDash([5, 4]);
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p3.x, p3.y);
+          ctx.lineWidth = 1.8;
+          ctx.strokeStyle = 'rgba(22, 163, 74, 0.7)';
+          ctx.stroke();
+
+          // Điểm 2 tạm thời (tâm đối xứng)
+          ctx.beginPath();
+          ctx.arc(p2.x, p2.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#15803d';
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+
+          // Điểm 3 tạm thời (điểm đối xứng)
+          ctx.beginPath();
+          ctx.arc(p3.x, p3.y, 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#dc2626';
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+
+          // Vạch bằng nhau đôi trên P1-P2 và P2-P3
+          const u = { x: (p3.x - p.x) / (dist * 2), y: (p3.y - p.y) / (dist * 2) };
+          const v = { x: -u.y, y: u.x };
+          const M1 = { x: (p.x + p2.x) / 2, y: (p.y + p2.y) / 2 };
+          const M2 = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 };
+          const tickLen = 5;
+          const tickSpacing = 2.2;
+
+          ctx.beginPath();
+          ctx.setLineDash([]);
+          ctx.moveTo(M1.x - v.x * tickLen - u.x * tickSpacing, M1.y - v.y * tickLen - u.y * tickSpacing);
+          ctx.lineTo(M1.x + v.x * tickLen - u.x * tickSpacing, M1.y + v.y * tickLen - u.y * tickSpacing);
+          ctx.moveTo(M1.x - v.x * tickLen + u.x * tickSpacing, M1.y - v.y * tickLen + u.y * tickSpacing);
+          ctx.lineTo(M1.x + v.x * tickLen + u.x * tickSpacing, M1.y + v.y * tickLen + u.y * tickSpacing);
+
+          ctx.moveTo(M2.x - v.x * tickLen - u.x * tickSpacing, M2.y - v.y * tickLen - u.y * tickSpacing);
+          ctx.lineTo(M2.x + v.x * tickLen - u.x * tickSpacing, M2.y + v.y * tickLen - u.y * tickSpacing);
+          ctx.moveTo(M2.x - v.x * tickLen + u.x * tickSpacing, M2.y - v.y * tickLen + u.y * tickSpacing);
+          ctx.lineTo(M2.x + v.x * tickLen + u.x * tickSpacing, M2.y + v.y * tickLen + u.y * tickSpacing);
+          ctx.lineWidth = 1.4;
+          ctx.strokeStyle = '#15803d';
+          ctx.stroke();
+
+          // Nhãn chỉ dẫn cho Điểm 2 và Điểm 3
+          drawSharpArrowIndicator(ctx, p2.x, p2.y, '🎯 Tâm đối xứng (Điểm 2)', true);
+          drawSharpArrowIndicator(ctx, p3.x, p3.y, '✨ Điểm đối xứng (Điểm 3)', true);
+
+          ctx.restore();
+        }
+      }
+
+      // Hiệu ứng xem trước thời gian thực cho Đường trung trực (nối từ Điểm 1 tới con trỏ chuột)
+      if (isPB && state.constructionHoverPoint) {
+        const p2 = state.constructionHoverPoint;
+        const dist = Math.hypot(p2.x - p.x, p2.y - p.y);
+        if (dist > 8) {
+          ctx.save();
+          // Đoạn thẳng nét đứt mờ nối 2 điểm
+          ctx.beginPath();
+          ctx.setLineDash([5, 4]);
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = 'rgba(22, 163, 74, 0.45)';
+          ctx.stroke();
+
+          // Trung điểm M tạm thời
+          const Mx = (p.x + p2.x) / 2;
+          const My = (p.y + p2.y) / 2;
+          ctx.beginPath();
+          ctx.arc(Mx, My, 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#15803d';
+          ctx.fill();
+
+          // Đường vuông góc trung trực xem trước
+          const nx = -(p2.y - p.y) / dist;
+          const ny = (p2.x - p.x) / dist;
+          const halfL = Math.max(50, dist * 0.65);
+          ctx.beginPath();
+          ctx.setLineDash([7, 4]);
+          ctx.moveTo(Mx - halfL * nx, My - halfL * ny);
+          ctx.lineTo(Mx + halfL * nx, My + halfL * ny);
+          ctx.lineWidth = 2.2;
+          ctx.strokeStyle = '#16a34a';
+          ctx.stroke();
+
+          ctx.restore();
+        }
+      }
     }
 
     // 2. Vẽ đường thẳng đã chọn
@@ -5771,7 +7926,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const midX = (l.start.x + l.end.x) / 2;
       const midY = (l.start.y + l.end.y) / 2;
-      const lineLabel = (state.pendingConstruction === 'intersection' || state.activeGeo === 'intersection') ? '✓ Đã nhận: Đường 1' : '✓ Đã chọn: Đường thẳng';
+      const isASLine = (state.pendingConstruction === 'axis-symmetry' || state.activeGeo === 'axis-symmetry');
+      const lineLabel = (state.pendingConstruction === 'intersection' || state.activeGeo === 'intersection') ? '✓ Đã nhận: Đường 1' : (isASLine ? '✓ Đã chọn: Trục đối xứng' : '✓ Đã chọn: Đường thẳng');
       drawSharpArrowIndicator(ctx, midX, midY, lineLabel, true);
     }
 
@@ -5959,6 +8115,130 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 5. Hiển thị các điểm p1, p2 và hiệu ứng xem trước cho Đường tròn ngoại tiếp / nội tiếp
+    const isCircum = (state.pendingConstruction === 'circumcircle' || state.activeGeo === 'circumcircle');
+    const isIncircle = (state.pendingConstruction === 'incircle' || state.activeGeo === 'incircle');
+    if (isCircum || isIncircle) {
+      if (state.construction.p1) {
+        const p1 = state.construction.p1;
+        ctx.beginPath();
+        ctx.arc(p1.x, p1.y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#16a34a';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(p1.x, p1.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#184e3a';
+        ctx.fill();
+        drawSharpArrowIndicator(ctx, p1.x, p1.y, '✓ Đã chọn: Điểm 1', true);
+      }
+      if (state.construction.p2) {
+        const p2 = state.construction.p2;
+        ctx.beginPath();
+        ctx.arc(p2.x, p2.y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#16a34a';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(p2.x, p2.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#184e3a';
+        ctx.fill();
+        drawSharpArrowIndicator(ctx, p2.x, p2.y, '✓ Đã chọn: Điểm 2', true);
+      }
+
+      // Khi đã có p1, p2 và đang rê chuột (p3 tạm thời)
+      if (state.construction.p1 && state.construction.p2 && state.constructionHoverPoint) {
+        const p1 = state.construction.p1;
+        const p2 = state.construction.p2;
+        const p3 = state.constructionHoverPoint;
+        const dist = Math.hypot(p3.x - p2.x, p3.y - p2.y);
+
+        if (dist > 8) {
+          if (isCircum) {
+            const D = 2 * (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y));
+            if (Math.abs(D) > 1e-4) {
+              const sq1 = p1.x * p1.x + p1.y * p1.y;
+              const sq2 = p2.x * p2.x + p2.y * p2.y;
+              const sq3 = p3.x * p3.x + p3.y * p3.y;
+              const x0 = (sq1 * (p2.y - p3.y) + sq2 * (p3.y - p1.y) + sq3 * (p1.y - p2.y)) / D;
+              const y0 = (sq1 * (p3.x - p2.x) + sq2 * (p1.x - p3.x) + sq3 * (p2.x - p1.x)) / D;
+              const R = Math.hypot(p1.x - x0, p1.y - y0);
+
+              if (R < 2500) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.setLineDash([5, 4]);
+                ctx.arc(x0, y0, R, 0, Math.PI * 2);
+                ctx.lineWidth = 1.8;
+                ctx.strokeStyle = 'rgba(22, 163, 74, 0.7)';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.setLineDash([]);
+                ctx.arc(x0, y0, 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#dc2626';
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+                drawSharpArrowIndicator(ctx, x0, y0, '🎯 Tâm ngoại tiếp (O)', true);
+                drawSharpArrowIndicator(ctx, p3.x, p3.y, 'Điểm 3 (Bấm để hoàn tất)', true);
+                ctx.restore();
+              }
+            }
+          } else if (isIncircle) {
+            const a = Math.hypot(p3.x - p2.x, p3.y - p2.y);
+            const b = Math.hypot(p1.x - p3.x, p1.y - p3.y);
+            const c = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            const peri = a + b + c;
+            if (peri > 1e-4) {
+              const xI = (a * p1.x + b * p2.x + c * p3.x) / peri;
+              const yI = (a * p1.y + b * p2.y + c * p3.y) / peri;
+              const S = 0.5 * Math.abs(p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y));
+              const r = S / (peri / 2);
+
+              if (r > 3 && r < 1000) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.lineTo(p3.x, p3.y);
+                ctx.closePath();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(22, 163, 74, 0.5)';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(xI, yI, r, 0, Math.PI * 2);
+                ctx.lineWidth = 1.8;
+                ctx.strokeStyle = 'rgba(22, 163, 74, 0.75)';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.setLineDash([]);
+                ctx.arc(xI, yI, 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#dc2626';
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+                drawSharpArrowIndicator(ctx, xI, yI, '🎯 Tâm nội tiếp (I)', true);
+                drawSharpArrowIndicator(ctx, p3.x, p3.y, 'Điểm 3 (Bấm để hoàn tất)', true);
+                ctx.restore();
+              }
+            }
+          }
+        }
+      }
+    }
+
     ctx.restore();
   }
 
@@ -6135,6 +8415,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cập nhật trạng thái lực nhấn
     // Nếu người dùng đang nhấp vào khung nhập số đo góc nổi trên canvas
     if (e.target && e.target.closest && e.target.closest('.floating-angle-box')) {
+      return;
+    }
+
+    // Xử lý công cụ OCR: Nhấn chuột bắt đầu khoanh vùng nhận dạng chữ viết tay
+    if (state.activeTool === 'ocr') {
+      state.isOcrScanning = true;
+      state.ocrScanStart = { x: point.x, y: point.y };
+      state.ocrScanCurrent = { x: point.x, y: point.y };
+      state.isDrawing = false;
+      renderPage();
       return;
     }
 
@@ -6393,16 +8683,7 @@ document.addEventListener('DOMContentLoaded', () => {
         eraseElementAt(point.x, point.y);
       }
     } else if (state.activeTool === 'text') {
-      const userText = prompt('Nhập chữ cần chèn vào ghi chú:');
-      if (userText) {
-        pushNewElement({
-          type: 'text',
-          text: userText,
-          x: point.x,
-          y: point.y,
-          color: state.color
-        });
-      }
+      openInlineTextEditor(point.x, point.y);
       state.isDrawing = false;
     } else if (state.activeTool === 'graph') {
       const inputFunc = document.getElementById('input-graph-func');
@@ -6509,6 +8790,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     ctx = targetCanvas.getContext('2d');
     const point = getCanvasCoordinates(e);
+
+    // Xử lý công cụ OCR: Cập nhật vùng quét chữ viết tay theo con trỏ chuột
+    if (state.activeTool === 'ocr') {
+      if (state.isOcrScanning) {
+        state.ocrScanCurrent = { x: point.x, y: point.y };
+        renderPage();
+      }
+      return;
+    }
 
     // 1. Kéo điều chỉnh từng chấm tròn điều khiển (Control Handle)
     if (state.activeHandle && state.isDrawing) {
@@ -6743,29 +9033,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (isSolidShape(el.shape)) {
         const snap = findSnapTargetForHandle(point, el, h, 24);
         const target = snap ? { x: snap.x, y: snap.y } : { x: point.x, y: point.y };
-        if (el.points && el.points[h.index]) {
-          const p = el.points[h.index];
-          el.points[h.index] = { x: target.x, y: target.y, name: p.name, offX: p.offX, offY: p.offY };
-
-          // Nếu là hình chóp tứ giác đều (pyramid-regular), khi kéo đỉnh đáy A, B, C, D thì O tự động là tâm AC và BD
-          if (el.shape === 'pyramid-regular' && el.points.length >= 6) {
-            if (h.index >= 1 && h.index <= 4) {
-              const A = el.points[1], C = el.points[3];
-              el.points[5] = {
-                x: Math.round((A.x + C.x) / 2),
-                y: Math.round((A.y + C.y) / 2),
-                name: 'O',
-                offX: 6,
-                offY: 12
-              };
-            }
-          }
-          const xs = el.points.map(pt => pt.x);
-          const ys = el.points.map(pt => pt.y);
-          el.start = { x: Math.min(...xs), y: Math.min(...ys) };
-          el.end = { x: Math.max(...xs), y: Math.max(...ys) };
-          state.hoverSnapPoint = snap ? { x: snap.x, y: snap.y, label: snap.label } : null;
-        }
+        handleSolidShapeDrag(el, h, target);
+        state.hoverSnapPoint = snap ? { x: snap.x, y: snap.y, label: snap.label } : null;
       } else if (el.shape === 'ellipse') {
         if (h.id === 'center') {
           const dx = point.x - el.start.x;
@@ -6985,6 +9254,47 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPage();
           }
         }
+
+        if ((state.pendingConstruction === 'perpendicular-bisector' || state.activeGeo === 'perpendicular-bisector' || state.pendingConstruction === 'point-symmetry' || state.activeGeo === 'point-symmetry') && state.construction && state.construction.point) {
+          const oldX = state.constructionHoverPoint ? state.constructionHoverPoint.x : null;
+          const oldY = state.constructionHoverPoint ? state.constructionHoverPoint.y : null;
+          if (oldX !== point.x || oldY !== point.y) {
+            state.constructionHoverPoint = { x: point.x, y: point.y };
+            renderPage();
+          }
+        }
+
+        if ((state.pendingConstruction === 'axis-symmetry' || state.activeGeo === 'axis-symmetry') && state.construction) {
+          if (state.construction.point) {
+            let edge = findEdgeAt(point.x, point.y, 25);
+            if (!edge) {
+              const directEl = findElementAt(point.x, point.y);
+              if (directEl && directEl.type === 'geo' && directEl.shape !== 'point') {
+                edge = getLineOrEdgeFromElement(directEl, point);
+              }
+            }
+            if (state.constructionHoverEdge !== edge) {
+              state.constructionHoverEdge = edge;
+              renderPage();
+            }
+          } else if (state.construction.line) {
+            const oldX = state.constructionHoverPoint ? state.constructionHoverPoint.x : null;
+            const oldY = state.constructionHoverPoint ? state.constructionHoverPoint.y : null;
+            if (oldX !== point.x || oldY !== point.y) {
+              state.constructionHoverPoint = { x: point.x, y: point.y };
+              renderPage();
+            }
+          }
+        }
+
+        if ((state.pendingConstruction === 'circumcircle' || state.activeGeo === 'circumcircle' || state.pendingConstruction === 'incircle' || state.activeGeo === 'incircle') && state.construction) {
+          const oldX = state.constructionHoverPoint ? state.constructionHoverPoint.x : null;
+          const oldY = state.constructionHoverPoint ? state.constructionHoverPoint.y : null;
+          if (oldX !== point.x || oldY !== point.y) {
+            state.constructionHoverPoint = { x: point.x, y: point.y };
+            renderPage();
+          }
+        }
       }
       return;
     }
@@ -7145,7 +9455,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     } else if (state.activeTool === 'geo' && state.geoStartPoint) {
-      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector') {
+      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector' || state.activeGeo === 'point-symmetry' || state.activeGeo === 'axis-symmetry' || state.activeGeo === 'circumcircle' || state.activeGeo === 'incircle') {
         return;
       }
       let previewEnd = point;
@@ -7289,6 +9599,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (targetCanvas) ctx = targetCanvas.getContext('2d');
     const point = getCanvasCoordinates(e);
 
+    // Kết thúc quét vùng OCR
+    if (state.activeTool === 'ocr') {
+      if (state.isOcrScanning) {
+        state.isOcrScanning = false;
+        const start = state.ocrScanStart;
+        const current = state.ocrScanCurrent;
+        state.ocrScanStart = null;
+        state.ocrScanCurrent = null;
+        renderPage();
+
+        if (start && current) {
+          const minX = Math.min(start.x, current.x);
+          const maxX = Math.max(start.x, current.x);
+          const minY = Math.min(start.y, current.y);
+          const maxY = Math.max(start.y, current.y);
+          const w = maxX - minX;
+          const h = maxY - minY;
+
+          if (w >= 16 && h >= 16) {
+            processOcrCropBox(minX, minY, w, h);
+          } else {
+            showPageToast('💡 Vui lòng kéo một vùng quét lớn hơn quanh phần chữ viết tay');
+          }
+        }
+      }
+      return;
+    }
+
     // Kết thúc kéo chỉnh chấm điều khiển
     if (state.activeHandle) {
       const el = state.activeHandle.element;
@@ -7390,7 +9728,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.isDrawing = false;
 
     if (state.activeTool === 'geo') {
-      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector') {
+      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector' || state.activeGeo === 'point-symmetry' || state.activeGeo === 'axis-symmetry' || state.activeGeo === 'circumcircle' || state.activeGeo === 'incircle') {
         const d = state.geoStartPoint ? Math.hypot(point.x - state.geoStartPoint.x, point.y - state.geoStartPoint.y) : 0;
         state.geoStartPoint = null;
         if (d < 25) {
@@ -7602,6 +9940,10 @@ document.addEventListener('DOMContentLoaded', () => {
     targetCanvas.addEventListener('dblclick', (e) => {
       const point = getCanvasCoordinates(e);
       const el = findElementAt(point.x, point.y);
+      if (el && el.type === 'text') {
+        openInlineTextEditor(el.x, el.y, el);
+        return;
+      }
       if (el && el.type === 'graph-widget' && window.__GraphWidget) {
         window.__GraphWidget.openGraphSettingsModal(el, (updated) => {
           const before = JSON.parse(JSON.stringify(el));
@@ -7963,6 +10305,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.selectedElement === cmd.element) {
           state.selectedElement = (state.selectedElements && state.selectedElements.length > 0) ? state.selectedElements[0] : null;
         }
+      } else if (cmd.type === 'add-multiple') {
+        for (const el of cmd.elements) {
+          const idx = elements.indexOf(el);
+          if (idx !== -1) elements.splice(idx, 1);
+          if (state.selectedElements) {
+            const sIdx = state.selectedElements.indexOf(el);
+            if (sIdx !== -1) state.selectedElements.splice(sIdx, 1);
+          }
+        }
+        if (state.selectedElement && cmd.elements.includes(state.selectedElement)) {
+          state.selectedElement = (state.selectedElements && state.selectedElements.length > 0) ? state.selectedElements[0] : null;
+        }
       } else if (cmd.type === 'move') {
         translateElement(cmd.element, -cmd.dx, -cmd.dy);
       } else if (cmd.type === 'move-multiple') {
@@ -8013,6 +10367,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (cmd.type === 'add') {
         elements.push(cmd.element);
+      } else if (cmd.type === 'add-multiple') {
+        for (const el of cmd.elements) {
+          elements.push(el);
+        }
       } else if (cmd.type === 'move') {
         translateElement(cmd.element, cmd.dx, cmd.dy);
       } else if (cmd.type === 'move-multiple') {
@@ -8389,7 +10747,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function activateGeoTool(geoName, targetGroupBtn, targetItemBtn) {
     if (!geoName) return;
 
-    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'angle', 'intersection', 'perpendicular-bisector'].includes(geoName);
+    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'angle', 'intersection', 'perpendicular-bisector', 'point-symmetry', 'axis-symmetry', 'circumcircle', 'incircle'].includes(geoName);
 
     // 1. Tắt trạng thái active ở các công cụ khác
     toolButtons.forEach(b => b.classList.remove('active'));
@@ -8412,7 +10770,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // NẾU LÀ CÁC TÁC VỤ DỰNG HÌNH: PHÂN GIÁC, VUÔNG GÓC, SONG SONG, TIẾP TUYẾN, 2 TIẾP TUYẾN, CHỌN GÓC, GIAO ĐIỂM, TRUNG TRỰC
+    // NẾU LÀ CÁC TÁC VỤ DỰNG HÌNH: PHÂN GIÁC, VUÔNG GÓC, SONG SONG, TIẾP TUYẾN, 2 TIẾP TUYẾN, CHỌN GÓC, GIAO ĐIỂM, TRUNG TRỰC, ĐỐI XỨNG ĐIỂM, ĐỐI XỨNG TRỤC, NGOẠI TIẾP, NỘI TIẾP
     // Thực hiện đúng quy trình 4 bước theo yêu cầu:
     // 1. Chọn 1 tác vụ -> 2. Chuyển sang chế độ "Chọn" -> 3. Chọn điểm/đường rồi chọn đối tượng còn lại -> 4. Thực hiện tác vụ
     if (isConstructionTask) {
@@ -8428,7 +10786,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.activeGeo === 'perpendicular') {
         statusToolInfo.textContent = 'Vuông góc: Bấm chọn 1 điểm (hoặc đường), rồi tiếp tục chọn đối tượng còn lại để thực hiện tác vụ';
       } else if (state.activeGeo === 'perpendicular-bisector') {
-        statusToolInfo.textContent = 'Đường trung trực: Bấm chọn 1 đoạn thẳng (hoặc chọn 2 điểm) để dựng đường trung trực';
+        statusToolInfo.textContent = 'Đường trung trực: Bước 1 — Bấm chọn Điểm 1 (hoặc chọn 1 đoạn thẳng)';
+      } else if (state.activeGeo === 'point-symmetry') {
+        statusToolInfo.textContent = 'Đối xứng điểm: Bước 1 — Bấm chọn Điểm 1 (điểm cần lấy đối xứng)';
+      } else if (state.activeGeo === 'axis-symmetry') {
+        statusToolInfo.textContent = 'Đối xứng trục: Bước 1 — Bấm chọn Điểm (hoặc chọn Trục đối xứng)';
+      } else if (state.activeGeo === 'circumcircle') {
+        statusToolInfo.textContent = 'Đường tròn ngoại tiếp: Bấm chọn tam giác HOẶC lần lượt chọn 3 điểm trên bảng vẽ';
+      } else if (state.activeGeo === 'incircle') {
+        statusToolInfo.textContent = 'Đường tròn nội tiếp: Bấm chọn tam giác HOẶC lần lượt chọn 3 đỉnh trên bảng vẽ';
       } else if (state.activeGeo === 'parallel') {
         statusToolInfo.textContent = 'Song song: Bấm chọn 1 điểm (hoặc đường), rồi tiếp tục chọn đối tượng còn lại để thực hiện tác vụ';
       } else if (state.activeGeo === 'bisector') {
@@ -8443,7 +10809,19 @@ document.addEventListener('DOMContentLoaded', () => {
         statusToolInfo.textContent = 'Giao điểm: Bấm chọn đường thứ nhất (hoặc đường tròn), rồi chọn tiếp hình thứ 2 để xác định giao điểm';
       }
 
-      showPageToast('🎯 Đã chuyển sang chế độ Chọn: Bấm chọn các đối tượng trên bảng vẽ');
+      if (geoName === 'perpendicular-bisector') {
+        showPageToast('🎯 Chế độ Chọn: Bấm chọn Điểm 1 để dựng đường trung trực');
+      } else if (geoName === 'point-symmetry') {
+        showPageToast('🎯 Chế độ Chọn: Bấm chọn Điểm 1 để lấy đối xứng qua Điểm 2');
+      } else if (geoName === 'axis-symmetry') {
+        showPageToast('🎯 Chế độ Chọn: Bấm chọn Điểm hoặc Trục để lấy đối xứng qua trục');
+      } else if (geoName === 'circumcircle') {
+        showPageToast('🎯 Chế độ Chọn: Bấm chọn tam giác hoặc 3 điểm để vẽ đường tròn ngoại tiếp');
+      } else if (geoName === 'incircle') {
+        showPageToast('🎯 Chế độ Chọn: Bấm chọn tam giác hoặc 3 đỉnh để vẽ đường tròn nội tiếp');
+      } else {
+        showPageToast('🎯 Đã chuyển sang chế độ Chọn: Bấm chọn các đối tượng trên bảng vẽ');
+      }
       updateContextualToolbar('select');
       renderPage();
       return;
@@ -8506,6 +10884,26 @@ document.addEventListener('DOMContentLoaded', () => {
       statusToolInfo.textContent = 'Hình chóp đáy ngũ giác: Kéo chuột để vẽ hình chóp S.ABCDE đáy ngũ giác';
     } else if (state.activeGeo === 'pyramid-regular') {
       statusToolInfo.textContent = 'Hình chóp tứ giác đều: Kéo chuột để vẽ hình chóp đều S.ABCD (đường cao SO ⟂ đáy)';
+    } else if (state.activeGeo === 'pyramid-sa-triangle') {
+      statusToolInfo.textContent = 'Chóp SA ⊥ đáy tam giác: Kéo chuột để vẽ hình chóp S.ABC (đường cao SA ⟂ đáy, ký hiệu vuông góc)';
+    } else if (state.activeGeo === 'pyramid-sa-parallelogram') {
+      statusToolInfo.textContent = 'Chóp SA ⊥ đáy hình bình hành: Kéo chuột để vẽ hình chóp S.ABCD (SA ⟂ đáy, đáy hình bình hành)';
+    } else if (state.activeGeo === 'pyramid-sa-trapezoid') {
+      statusToolInfo.textContent = 'Chóp SA ⊥ đáy hình thang: Kéo chuột để vẽ hình chóp S.ABCD (SA ⟂ đáy, đáy hình thang)';
+    } else if (state.activeGeo === 'pyramid-sa-quad') {
+      statusToolInfo.textContent = 'Chóp SA ⊥ đáy tứ giác: Kéo chuột để vẽ hình chóp S.ABCD (SA ⟂ đáy, đáy tứ giác)';
+    } else if (state.activeGeo === 'prism-stand') {
+      statusToolInfo.textContent = 'Lăng trụ đứng / đều: Kéo chuột để vẽ lăng trụ đứng ABC.A\'B\'C\' (các cạnh bên ⟂ đáy)';
+    } else if (state.activeGeo === 'prism-oblique') {
+      statusToolInfo.textContent = 'Lăng trụ xiên: Kéo chuột để vẽ hình lăng trụ xiên ABC.A\'B\'C\'';
+    } else if (state.activeGeo === 'box-rect') {
+      statusToolInfo.textContent = 'Hình hộp chữ nhật / Lập phương: Kéo chuột để vẽ hình hộp ABCD.A\'B\'C\'D\'';
+    } else if (state.activeGeo === 'cone') {
+      statusToolInfo.textContent = 'Hình nón tròn xoay: Kéo chuột để vẽ hình nón (đỉnh S, trục SO ⟂ đáy, đáy elip phối cảnh)';
+    } else if (state.activeGeo === 'cylinder') {
+      statusToolInfo.textContent = 'Hình trụ tròn xoay: Kéo chuột để vẽ hình trụ (2 đáy elip phối cảnh, trục O\'O ⟂ đáy)';
+    } else if (state.activeGeo === 'sphere') {
+      statusToolInfo.textContent = 'Mặt cầu / Khối cầu: Kéo chuột để vẽ mặt cầu (đường tròn lớn, tâm O, bán kính R, xích đạo elip)';
     } else {
       statusToolInfo.textContent = `Hình học: ${geoName} (Màu: ${state.color})`;
     }
@@ -9147,7 +11545,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================================================
   // MENU TỆP ▾ THỐNG NHẤT (Lưu, Lưu thành..., Nhập, Xuất, Tiện ích)
   // ==========================================================================
+  const btnFileDropdown = document.getElementById('btn-file-dropdown');
   const btnFileMenu = document.getElementById('btn-file-menu');
+  const btnFileArrow = document.getElementById('btn-file-dropdown-arrow');
+  const docFileChip = document.getElementById('doc-file-chip');
   const menuFile = document.getElementById('menu-file');
   const btnFileSave = document.getElementById('btn-file-save');
   const btnFileSaveAs = document.getElementById('btn-file-save-as');
@@ -9156,12 +11557,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveBadge = document.getElementById('save-badge');
   const docTitleInput = document.getElementById('doc-title');
 
+  // Hàm tự động căn chỉnh độ rộng ô tiêu đề theo số lượng chữ
+  function adjustDocTitleWidth() {
+    if (!docTitleInput) return;
+    const len = docTitleInput.value ? docTitleInput.value.length : 11;
+    docTitleInput.style.width = Math.max(88, Math.min(220, len * 8.2 + 14)) + 'px';
+  }
+
   // Mở/đóng dropdown Menu Tệp
-  if (btnFileMenu && menuFile) {
-    btnFileMenu.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleDropdownMenu(btnFileMenu, menuFile);
-    });
+  const handleToggleFileMenu = (e) => {
+    if (e) e.stopPropagation();
+    if (menuFile) {
+      toggleDropdownMenu(btnFileDropdown || docFileChip || btnFileMenu, menuFile);
+    }
+  };
+
+  if (btnFileDropdown) {
+    btnFileDropdown.addEventListener('click', handleToggleFileMenu);
+  }
+  if (btnFileMenu) {
+    btnFileMenu.addEventListener('click', handleToggleFileMenu);
+  }
+  if (btnFileArrow) {
+    btnFileArrow.addEventListener('click', handleToggleFileMenu);
   }
 
   // Thu thập dữ liệu toàn bộ tài liệu Nét (Schema chuẩn v1)
@@ -9235,6 +11653,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (docTitleInput && data.title) {
           docTitleInput.value = data.title;
+          adjustDocTitleWidth();
         }
         state.pages = data.state.pages || {};
         if (data.state.orientation && data.state.orientation !== state.orientation) {
@@ -9342,6 +11761,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. Đặt lại tiêu đề tài liệu về "Ghi chú mới"
     if (docTitleInput) {
       docTitleInput.value = 'Ghi chú mới';
+      adjustDocTitleWidth();
     }
 
     // 5. Ẩn widget đồ thị nếu đang mở
@@ -9435,7 +11855,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (docTitleInput) {
-    docTitleInput.addEventListener('input', markUnsaved);
+    docTitleInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    docTitleInput.addEventListener('input', () => {
+      adjustDocTitleWidth();
+      markUnsaved();
+    });
+    adjustDocTitleWidth();
   }
 
   // Phím tắt bàn phím toàn cục cho menu Tệp (⌘N, ⌘S, ⌘⇧S, ⌘O, ⌘P)
@@ -9464,6 +11891,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (inputProjectFile) inputProjectFile.click();
       return;
     }
+    // ⌘P hoặc Ctrl+P -> Xuất PDF (Print / Export PDF)
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'p') {
+      e.preventDefault();
+      const btnExportPdf = document.getElementById('btn-export-pdf');
+      if (btnExportPdf) btnExportPdf.click();
+      return;
+    }
   });
 
   // Tự động khôi phục bản ghi chú đã lưu từ lần trước khi mở app (nếu có)
@@ -9475,7 +11909,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalElements = Object.values(state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0);
         if (totalElements === 0 && Object.keys(parsed.state.pages).length > 0) {
           state.pages = parsed.state.pages;
-          if (docTitleInput && parsed.title) docTitleInput.value = parsed.title;
+          if (docTitleInput && parsed.title) {
+            docTitleInput.value = parsed.title;
+            adjustDocTitleWidth();
+          }
           if (parsed.state.currentPage) state.currentPage = parsed.state.currentPage;
           updatePageListBar();
           renderPage();
@@ -9776,6 +12213,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function updatePageNav() {
+    const totalPages = Object.keys(state.pages).length || 1;
+    const cur = state.currentPage || 1;
+    if (pageNavTotal) pageNavTotal.textContent = totalPages;
+    if (inputPageNumber && document.activeElement !== inputPageNumber) {
+      inputPageNumber.value = cur;
+      const digits = String(cur).length;
+      inputPageNumber.style.width = Math.max(28, digits * 9 + 12) + 'px';
+    }
+    if (btnPagePrev) {
+      const isFirst = (cur <= 1);
+      btnPagePrev.disabled = isFirst;
+      btnPagePrev.classList.toggle('disabled', isFirst);
+    }
+    if (btnPageNext) {
+      const isLast = (cur >= totalPages);
+      btnPageNext.disabled = isLast;
+      btnPageNext.classList.toggle('disabled', isLast);
+    }
+
+    // Tự động tối ưu hiển thị: Khi có nhiều hơn 3 trang (như tài liệu PDF),
+    // ẩn danh sách các nút tab dàn trải để thanh điều hướng luôn tinh gọn, chuẩn mực
+    if (pagesList) {
+      if (totalPages > 3) {
+        pagesList.style.display = 'none';
+      } else {
+        pagesList.style.display = 'flex';
+      }
+    }
+  }
+
   function updatePageTabsActive(pageNumber, scrollTabs = false) {
     document.querySelectorAll('.page-tab').forEach(tab => {
       const isCurrent = parseInt(tab.dataset.page, 10) === pageNumber;
@@ -9785,12 +12253,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     updateThumbnailActive(pageNumber, scrollTabs);
+    updatePageNav();
   }
 
   function renderAllTabs() {
+    updatePageNav();
     if (!pagesList) return;
-    pagesList.innerHTML = '';
     const pageNums = Object.keys(state.pages).map(Number).sort((a, b) => a - b);
+    const totalPages = pageNums.length;
+    if (totalPages > 3) {
+      pagesList.style.display = 'none';
+      return;
+    }
+    pagesList.style.display = 'flex';
+    pagesList.innerHTML = '';
     for (const p of pageNums) {
       const tab = document.createElement('button');
       tab.className = `page-tab ${p === state.currentPage ? 'active' : ''}`;
@@ -10059,6 +12535,78 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tab && tab.dataset.page) {
         const p = parseInt(tab.dataset.page, 10);
         if (!isNaN(p)) switchPage(p, true);
+      }
+    });
+  }
+
+  // Xử lý sự kiện cụm điều hướng trang: [ ‹ ] Trang [ 1 ] / 25 [ › ]
+  function commitPageInput() {
+    if (!inputPageNumber) return;
+    const val = parseInt(inputPageNumber.value.trim(), 10);
+    const totalPages = Object.keys(state.pages).length || 1;
+    if (isNaN(val)) {
+      inputPageNumber.value = state.currentPage;
+      return;
+    }
+    const targetPage = Math.max(1, Math.min(totalPages, val));
+    inputPageNumber.value = targetPage;
+    const digits = String(targetPage).length;
+    inputPageNumber.style.width = Math.max(28, digits * 9 + 12) + 'px';
+
+    if (targetPage !== state.currentPage) {
+      switchPage(targetPage, true);
+      showPageToast(`📄 Đã chuyển đến Trang ${targetPage} / ${totalPages}`);
+    }
+  }
+
+  if (inputPageNumber) {
+    // Tự động bôi đen toàn bộ số cũ khi người dùng nhấp vào để gõ ngay số mới
+    inputPageNumber.addEventListener('focus', () => {
+      inputPageNumber.select();
+    });
+
+    // Khi người dùng bấm Enter: chuyển ngay đến trang đó
+    inputPageNumber.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitPageInput();
+        inputPageNumber.blur();
+      } else if (e.key === 'Escape') {
+        inputPageNumber.value = state.currentPage;
+        inputPageNumber.blur();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (state.currentPage > 1) switchPage(state.currentPage - 1, true);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const totalPages = Object.keys(state.pages).length;
+        if (state.currentPage < totalPages) switchPage(state.currentPage + 1, true);
+      }
+    });
+
+    // Khi người dùng click ra ngoài (blur): chuyển đến trang nếu số hợp lệ
+    inputPageNumber.addEventListener('blur', () => {
+      commitPageInput();
+    });
+  }
+
+  // Nút lùi về trang trước [ ‹ ]
+  if (btnPagePrev) {
+    btnPagePrev.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.currentPage > 1) {
+        switchPage(state.currentPage - 1, true);
+      }
+    });
+  }
+
+  // Nút tiến tới trang tiếp theo [ › ]
+  if (btnPageNext) {
+    btnPageNext.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const totalPages = Object.keys(state.pages).length;
+      if (state.currentPage < totalPages) {
+        switchPage(state.currentPage + 1, true);
       }
     });
   }
@@ -10407,7 +12955,175 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 12. Xử lý Nhận dạng chữ viết tay (OCR) & Xuất tệp văn bản (.txt)
+  // ==========================================================================
+  // HỘP THOẠI SOẠN THẢO CHỮ TRỰC TIẾP TRÊN TRANG (INLINE TEXT EDITOR)
+  // ==========================================================================
+  let activeInlineTextEditor = null;
+  function closeInlineTextEditor() {
+    if (activeInlineTextEditor && activeInlineTextEditor.parentNode) {
+      activeInlineTextEditor.parentNode.removeChild(activeInlineTextEditor);
+    }
+    activeInlineTextEditor = null;
+  }
+
+  function openInlineTextEditor(x, y, existingElement = null) {
+    closeInlineTextEditor();
+
+    const currentSheet = document.querySelector(`.paper-sheet-${state.currentPage}`) || document.querySelector('.paper-sheet') || document.body;
+    const dims = getCanvasDimensions();
+
+    const editor = document.createElement('div');
+    editor.className = 'inline-text-editor-container';
+
+    let currentFontSize = existingElement ? (existingElement.fontSize || 22) : (state.lastTextFontSize || 22);
+    let currentColor = existingElement ? (existingElement.color || state.color) : (state.color || '#28634e');
+    let currentFontFamily = existingElement ? (existingElement.fontFamily || '"Caveat", cursive') : (state.lastTextFontFamily || '"Caveat", cursive');
+
+    editor.innerHTML = `
+      <div class="inline-text-toolbar">
+        <div class="inline-text-sizes">
+          <button type="button" class="btn-inline-size ${currentFontSize === 16 ? 'active' : ''}" data-size="16">16</button>
+          <button type="button" class="btn-inline-size ${currentFontSize === 22 ? 'active' : ''}" data-size="22">22</button>
+          <button type="button" class="btn-inline-size ${currentFontSize === 30 ? 'active' : ''}" data-size="30">30</button>
+          <button type="button" class="btn-inline-size ${currentFontSize === 40 ? 'active' : ''}" data-size="40">40</button>
+        </div>
+        <button type="button" class="btn-inline-size btn-inline-font" title="Đổi phông chữ Viết tay ⇋ Tiêu chuẩn">Aa</button>
+      </div>
+      <textarea class="inline-text-textarea" placeholder="Gõ văn bản ghi chú (Enter để xuống dòng)..."></textarea>
+      <div class="inline-text-actions">
+        ${existingElement ? '<button type="button" class="btn-inline-action btn-inline-cancel btn-inline-delete" style="color:#ef4444;margin-right:auto;">Xóa</button>' : ''}
+        <button type="button" class="btn-inline-action btn-inline-cancel btn-inline-close">Hủy</button>
+        <button type="button" class="btn-inline-action btn-inline-save">✓ Xong</button>
+      </div>
+    `;
+
+    const textarea = editor.querySelector('.inline-text-textarea');
+    if (existingElement) {
+      textarea.value = existingElement.text || '';
+    }
+    textarea.style.fontSize = currentFontSize + 'px';
+    textarea.style.color = currentColor;
+    textarea.style.fontFamily = currentFontFamily;
+
+    // Giới hạn tọa độ để không tràn ra ngoài trang
+    const posX = Math.max(10, Math.min(x, dims.width - 260));
+    const posY = Math.max(10, Math.min(y, dims.height - 180));
+    editor.style.left = posX + 'px';
+    editor.style.top = posY + 'px';
+
+    currentSheet.appendChild(editor);
+    activeInlineTextEditor = editor;
+
+    setTimeout(() => {
+      textarea.focus();
+      if (existingElement) {
+        textarea.select();
+      }
+    }, 50);
+
+    // Đổi cỡ chữ
+    editor.querySelectorAll('.btn-inline-size[data-size]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        editor.querySelectorAll('.btn-inline-size[data-size]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFontSize = parseInt(btn.dataset.size, 10);
+        state.lastTextFontSize = currentFontSize;
+        textarea.style.fontSize = currentFontSize + 'px';
+      });
+    });
+
+    // Đổi font
+    const btnFont = editor.querySelector('.btn-inline-font');
+    if (btnFont) {
+      btnFont.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentFontFamily.includes('Caveat')) {
+          currentFontFamily = 'var(--font-main, sans-serif)';
+        } else {
+          currentFontFamily = '"Caveat", "Dancing Script", cursive';
+        }
+        state.lastTextFontFamily = currentFontFamily;
+        textarea.style.fontFamily = currentFontFamily;
+      });
+    }
+
+    const saveText = () => {
+      const val = textarea.value.trim();
+      if (val) {
+        if (existingElement) {
+          const before = JSON.parse(JSON.stringify(existingElement));
+          existingElement.text = val;
+          existingElement.fontSize = currentFontSize;
+          existingElement.fontFamily = currentFontFamily;
+          existingElement.color = currentColor;
+          pushCommand({
+            type: 'modify-element',
+            element: existingElement,
+            before: before,
+            after: JSON.parse(JSON.stringify(existingElement))
+          });
+        } else {
+          const newEl = {
+            id: 'el_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 5),
+            type: 'text',
+            text: val,
+            x: x,
+            y: y,
+            fontSize: currentFontSize,
+            fontFamily: currentFontFamily,
+            color: currentColor
+          };
+          pushNewElement(newEl);
+        }
+        renderPage();
+      }
+      closeInlineTextEditor();
+    };
+
+    editor.querySelector('.btn-inline-save').addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveText();
+    });
+
+    editor.querySelector('.btn-inline-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeInlineTextEditor();
+    });
+
+    const btnDel = editor.querySelector('.btn-inline-delete');
+    if (btnDel && existingElement) {
+      btnDel.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const list = state.pages[state.currentPage] || [];
+        const idx = list.indexOf(existingElement);
+        if (idx !== -1) {
+          list.splice(idx, 1);
+          pushCommand({
+            type: 'erase',
+            element: existingElement,
+            index: idx
+          });
+          renderPage();
+        }
+        closeInlineTextEditor();
+      });
+    }
+
+    textarea.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        saveText();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeInlineTextEditor();
+      }
+    });
+  }
+
+  // ==========================================================================
+  // XỬ LÝ NHẬN DẠNG CHỮ VIẾT TAY (OCR) & QUÉT VÙNG
+  // ==========================================================================
   const btnOcr = document.getElementById('btn-ocr');
   const btnExportTxt = document.getElementById('btn-export-txt');
   const ocrModal = document.getElementById('ocr-modal');
@@ -10422,96 +13138,212 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectOcrLang = document.getElementById('select-ocr-lang');
 
   function openOcrModal() {
+    if (!ocrModal) return;
     ocrModal.style.display = 'flex';
-    // Thu thập các đoạn chữ đã có trên trang
+
+    // Hiển thị ảnh xem trước vùng quét nếu có
+    const previewWrap = document.getElementById('ocr-crop-preview-wrap');
+    const previewImg = document.getElementById('ocr-crop-preview-img');
+    const previewDims = document.getElementById('ocr-crop-dimensions');
+    if (state.lastOcrCrop && state.lastOcrCrop.canvas && previewWrap && previewImg) {
+      previewImg.src = state.lastOcrCrop.canvas.toDataURL('image/png');
+      if (previewDims) {
+        previewDims.textContent = `${Math.round(state.lastOcrCrop.box.width)} × ${Math.round(state.lastOcrCrop.box.height)} px`;
+      }
+      previewWrap.style.display = 'block';
+    } else if (previewWrap) {
+      previewWrap.style.display = 'none';
+    }
+
+    // Thu thập các đoạn chữ đã có trên trang nếu ô kết quả chưa có gì
     const textElements = (state.pages[state.currentPage] || [])
       .filter(el => el.type === 'text')
       .map(el => el.text);
 
-    if (textElements.length > 0 && !ocrResultText.value.trim()) {
+    if (textElements.length > 0 && !ocrResultText.value.trim() && !state.lastOcrCrop) {
       ocrResultText.value = textElements.join('\n');
       updateCharCount();
     }
   }
 
   function closeOcrModal() {
+    if (!ocrModal) return;
     ocrModal.style.display = 'none';
   }
 
   function updateCharCount() {
+    if (!ocrCharCount || !ocrResultText) return;
     const len = ocrResultText.value.length;
     ocrCharCount.textContent = `${len} ký tự`;
   }
 
-  ocrResultText.addEventListener('input', updateCharCount);
-  btnOcr.addEventListener('click', openOcrModal);
-  btnCloseOcrModal.addEventListener('click', closeOcrModal);
-  ocrModal.addEventListener('click', (e) => {
-    if (e.target === ocrModal) closeOcrModal();
-  });
+  // Xử lý cắt ảnh đúng vùng người dùng vừa khoanh quét trên mặt giấy
+  function processOcrCropBox(x, y, w, h) {
+    const activeCanvas = getCanvasForPage(state.currentPage) || canvas;
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = Math.round(w);
+    cropCanvas.height = Math.round(h);
+    const cropCtx = cropCanvas.getContext('2d');
 
-  // Bắt đầu quá trình nhận dạng chữ từ Canvas
-  btnRunOcr.addEventListener('click', async () => {
-    btnRunOcr.disabled = true;
-    ocrSpinner.style.display = 'inline-block';
-    ocrSpinner.textContent = 'Đang nhận dạng chữ viết tay...';
+    // Nền trắng, vẽ đúng vùng khoanh
+    cropCtx.fillStyle = '#ffffff';
+    cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+    cropCtx.drawImage(activeCanvas, x, y, w, h, 0, 0, cropCanvas.width, cropCanvas.height);
 
-    const lang = selectOcrLang.value; // 'vie' hoặc 'eng'
+    state.lastOcrCrop = {
+      canvas: cropCanvas,
+      box: { x, y, width: w, height: h },
+      page: state.currentPage
+    };
 
-    try {
-      // 1. Thu thập văn bản gõ sẵn (nếu có)
-      const existingTexts = (state.pages[state.currentPage] || [])
-        .filter(el => el.type === 'text')
-        .map(el => el.text);
+    openOcrModal();
+    // Tự động kích hoạt nhận dạng tức thì cho vùng vừa quét
+    if (btnRunOcr) {
+      btnRunOcr.click();
+    }
+  }
 
-      let recognizedLines = [...existingTexts];
+  if (ocrResultText) ocrResultText.addEventListener('input', updateCharCount);
+  if (btnCloseOcrModal) btnCloseOcrModal.addEventListener('click', closeOcrModal);
+  if (ocrModal) {
+    ocrModal.addEventListener('click', (e) => {
+      if (e.target === ocrModal) closeOcrModal();
+    });
+  }
 
-      // 2. Nhận dạng hình ảnh nét vẽ trên Canvas bằng Tesseract cục bộ
-      if (window.Tesseract) {
-        // Tạo canvas phụ tối ưu độ tương phản cho OCR
-        const activeCanvas = getCanvasForPage(state.currentPage) || canvas;
-        const ocrCanvas = document.createElement('canvas');
-        ocrCanvas.width = activeCanvas.width;
-        ocrCanvas.height = activeCanvas.height;
-        const ocrCtx = ocrCanvas.getContext('2d');
-
-        // Nền trắng, vẽ lại canvas
-        ocrCtx.fillStyle = '#ffffff';
-        ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
-        ocrCtx.drawImage(activeCanvas, 0, 0);
-
-        const result = await window.Tesseract.recognize(ocrCanvas, lang, {
-          logger: m => {
-            if (m.status === 'recognizing text') {
-              ocrSpinner.textContent = `Đang nhận dạng: ${Math.round(m.progress * 100)}%`;
-            }
-          }
-        });
-
-        const textOutput = result.data.text.trim();
-        if (textOutput) {
-          recognizedLines.push(textOutput);
-        }
-      } else {
-        // Dự phòng nếu không có mạng tải CDN Tesseract
-        if (recognizedLines.length === 0) {
-          recognizedLines.push('[Trang hiện tại chưa có văn bản ký tự số. Khi đóng gói thành App macOS, Nét sẽ sử dụng trực tiếp Apple Vision Handwriting Recognition tích hợp sẵn trong máy].');
-        }
+  // Khi bấm nút OCR trên thanh công cụ: Kích hoạt chế độ quét vùng khoanh chữ
+  if (btnOcr) {
+    btnOcr.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.activeTool === 'ocr') {
+        // Nếu đang ở OCR mà bấm lại: chuyển về bút
+        setPenToolMode('pen');
+        showPageToast('✏️ Đã quay lại Bút viết');
+        return;
       }
 
-      ocrResultText.value = recognizedLines.join('\n\n');
-      updateCharCount();
-      ocrSpinner.textContent = 'Hoàn thành!';
-      setTimeout(() => {
-        ocrSpinner.style.display = 'none';
-      }, 1500);
-    } catch (err) {
-      console.error('Lỗi nhận dạng:', err);
-      ocrSpinner.textContent = 'Không thể quét nét chữ. Vui lòng thử lại!';
-    } finally {
-      btnRunOcr.disabled = false;
-    }
-  });
+      toolButtons.forEach(b => b.classList.remove('active'));
+      btnOcr.classList.add('active');
+      state.activeTool = 'ocr';
+      setCanvasCursor('crosshair');
+      showPageToast('🔍 Nhấn và kéo chuột khoanh vùng chữ viết tay cần nhận dạng');
+      if (statusToolInfo) {
+        statusToolInfo.textContent = '✍️ Công cụ OCR: Nhấn và kéo chuột trên mặt giấy để khoanh vùng chữ viết tay cần chuyển thành văn bản.';
+      }
+    });
+  }
+
+  // Bắt đầu quá trình nhận dạng chữ từ Canvas (Ưu tiên vùng crop vừa quét)
+  if (btnRunOcr) {
+    btnRunOcr.addEventListener('click', async () => {
+      btnRunOcr.disabled = true;
+      if (ocrSpinner) {
+        ocrSpinner.style.display = 'inline-block';
+        ocrSpinner.textContent = 'Đang nhận dạng chữ viết tay...';
+      }
+
+      const lang = selectOcrLang ? selectOcrLang.value : 'vie'; // 'vie' hoặc 'eng'
+
+      try {
+        let recognizedLines = [];
+
+        // 1. Nhận dạng hình ảnh nét vẽ trên Canvas bằng Tesseract cục bộ
+        if (window.Tesseract) {
+          let ocrTarget = null;
+          if (state.lastOcrCrop && state.lastOcrCrop.canvas) {
+            ocrTarget = state.lastOcrCrop.canvas;
+          } else {
+            const activeCanvas = getCanvasForPage(state.currentPage) || canvas;
+            const ocrCanvas = document.createElement('canvas');
+            ocrCanvas.width = activeCanvas.width;
+            ocrCanvas.height = activeCanvas.height;
+            const ocrCtx = ocrCanvas.getContext('2d');
+            ocrCtx.fillStyle = '#ffffff';
+            ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
+            ocrCtx.drawImage(activeCanvas, 0, 0);
+            ocrTarget = ocrCanvas;
+          }
+
+          const result = await window.Tesseract.recognize(ocrTarget, lang, {
+            logger: m => {
+              if (m.status === 'recognizing text' && ocrSpinner) {
+                ocrSpinner.textContent = `Đang nhận dạng: ${Math.round(m.progress * 100)}%`;
+              }
+            }
+          });
+
+          const textOutput = result.data.text.trim();
+          if (textOutput) {
+            recognizedLines.push(textOutput);
+          }
+        } else {
+          // Thông báo trung thực nếu Tesseract CDN chưa tải về hoặc offline
+          recognizedLines.push('[Trang hiện tại chưa tải được thư viện OCR offline. Khi đóng gói thành App macOS, Nét sẽ sử dụng trực tiếp Apple Vision Handwriting Recognition tích hợp sẵn trong máy].');
+        }
+
+        if (ocrResultText) {
+          ocrResultText.value = recognizedLines.join('\n\n');
+        }
+        updateCharCount();
+        if (ocrSpinner) {
+          ocrSpinner.textContent = 'Hoàn thành!';
+          setTimeout(() => {
+            ocrSpinner.style.display = 'none';
+          }, 1500);
+        }
+      } catch (err) {
+        console.error('Lỗi nhận dạng:', err);
+        if (ocrSpinner) ocrSpinner.textContent = 'Không thể quét nét chữ. Vui lòng thử lại!';
+      } finally {
+        btnRunOcr.disabled = false;
+      }
+    });
+  }
+
+  // Chèn văn bản đã nhận dạng vào lại trang ghi chú
+  if (btnInsertOcr) {
+    btnInsertOcr.addEventListener('click', () => {
+      const content = ocrResultText ? ocrResultText.value.trim() : '';
+      if (!content) {
+        showPageToast('⚠️ Chưa có nội dung văn bản để chèn vào ghi chú!');
+        return;
+      }
+
+      let insertX = 120;
+      let insertY = 200;
+      if (state.lastOcrCrop && state.lastOcrCrop.box) {
+        insertX = Math.round(state.lastOcrCrop.box.x);
+        insertY = Math.round(state.lastOcrCrop.box.y + state.lastOcrCrop.box.height + 14);
+      } else {
+        const dims = getCanvasDimensions();
+        insertX = Math.round(dims.width / 4);
+        insertY = 250;
+      }
+
+      const newTextEl = {
+        id: 'el_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 5),
+        type: 'text',
+        text: content,
+        x: insertX,
+        y: insertY,
+        fontSize: 22,
+        fontFamily: '"Caveat", "Dancing Script", cursive',
+        color: state.color || '#28634e'
+      };
+
+      pushNewElement(newTextEl);
+      closeOcrModal();
+      renderPage();
+
+      // Tự động chọn đối tượng và chuyển sang công cụ Chọn để người dùng kéo chỉnh
+      setSelectedElements([newTextEl]);
+      state.activeTool = 'select';
+      toolButtons.forEach(b => b.classList.toggle('active', b.getAttribute('data-tool') === 'select'));
+      setCanvasCursor(SHARP_ARROW_CURSOR);
+      updateContextualToolbar('select');
+      showPageToast('✨ Đã chèn văn bản OCR vào ghi chú! Bạn có thể kéo di chuyển hoặc nhấp đúp để sửa.');
+    });
+  }
 
   // Sao chép văn bản vào Clipboard
   btnCopyOcr.addEventListener('click', async () => {
@@ -10738,16 +13570,19 @@ document.addEventListener('DOMContentLoaded', () => {
           if (p === 1 && isCurrentEmpty) {
             targetPageNum = startPage;
           } else {
-            targetPageNum = createNewPage();
+            targetPageNum = createNewPage(false);
           }
 
           if (!state.pages[targetPageNum]) state.pages[targetPageNum] = [];
           state.pages[targetPageNum].push(imgEl);
         }
 
-        switchPage(startPage);
+        renderAllTabs();
+        renderThumbnails();
+        updatePageNav();
+        switchPage(startPage, true);
         renderPage();
-        showPageToast(`✅ Đã nhập thành công ${numPages} trang PDF! Bạn có thể viết và chú thích trực tiếp.`);
+        showPageToast(`✅ Đã nhập thành công ${numPages} trang PDF! Bạn có thể gõ số trang để chuyển nhanh.`);
       } catch (err) {
         console.error('Lỗi nạp tệp PDF:', err);
         alert('Không thể mở tệp PDF này: ' + (err.message || 'Lỗi không xác định'));
@@ -10831,11 +13666,17 @@ document.addEventListener('DOMContentLoaded', () => {
       constructParallel,
       constructPerpendicularBisector,
       constructPerpendicularBisectorFromEdge,
+      constructPointSymmetry,
+      constructAxisSymmetry,
+      constructCircumcircle,
+      constructIncircle,
       updateSingleBinding,
       translateElement,
       SOLID_SHAPES,
       isSolidShape,
       computeSolidShapeData,
+      handleSolidShapeDrag,
+      updateRegularPyramidCenterAndApex,
       DEFAULT_GEO_GROUPS,
       erasePartialAt,
       eraseElementAt,

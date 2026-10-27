@@ -5120,38 +5120,192 @@ class CasioApp {
   startStat() {
     this.osState = 'STAT_INPUT';
     this.stat.buffer = '';
-    this.stat.scrollIdx = 0;
+    if (this.stat.selectedRow === undefined) {
+      this.stat.selectedRow = this.stat.list ? this.stat.list.length : 0;
+    }
+    this.stat.scrollOffset = 2; // Dòng 3 (giá trị 12) hiển thị sẵn giống ảnh mẫu
     this.renderStatInput();
   }
 
   handleStatKey(key) {
+    // 0. Phím MENU và ON toàn cục
+    if (key === 'MENU') {
+      this.openMenu();
+      return;
+    }
+    if (key === 'ON') {
+      this.handleOnKey();
+      return;
+    }
+
+    // 1. Phím AC
     if (key === 'AC') {
-      this.selectMode(1);
+      if (this.osState === 'STAT_INPUT' && this.stat.buffer !== '') {
+        this.stat.buffer = '';
+        this.renderStatInput();
+        return;
+      }
+      this.osState = 'STAT_CALC';
+      this.renderStatCalc();
       return;
     }
+
+    // 2. Phím OPTN
     if (key === 'optn') {
-      // Calculate 1-Var
-      this.stat.results = this.engine.calc1VarStat(this.stat.list);
-      this.stat.resScroll = 0;
-      this.osState = 'STAT_RESULT';
-      this.renderStatResult();
+      if (this.osState === 'STAT_OPTN') {
+        this.osState = this.stat.prevOsState || 'STAT_INPUT';
+        if (this.osState === 'STAT_INPUT') this.renderStatInput();
+        else if (this.osState === 'STAT_RESULT') this.renderStatResult();
+        else this.renderStatCalc();
+        return;
+      }
+      this.stat.prevOsState = this.osState;
+      this.osState = 'STAT_OPTN';
+      this.renderStatOptnMenu();
       return;
     }
+
+    // 3. Trạng thái MENU OPTN
+    if (this.osState === 'STAT_OPTN') {
+      if (key === '1') {
+        this.osState = 'STAT_TYPE';
+        this.renderStatTypeMenu();
+        return;
+      } else if (key === '2') {
+        this.osState = 'STAT_INPUT';
+        this.stat.buffer = '';
+        this.renderStatInput();
+        return;
+      } else if (key === '3') {
+        this.stat.results = this.engine.calc1VarStat(this.stat.list || []);
+        this.stat.resScroll = 0;
+        this.osState = 'STAT_RESULT';
+        this.renderStatResult();
+        return;
+      } else if (key === '4') {
+        this.osState = 'STAT_CALC';
+        this.renderStatCalc();
+        return;
+      }
+      return;
+    }
+
+    // 4. Trạng thái CHỌN LOẠI THỐNG KÊ (STAT_TYPE)
+    if (this.osState === 'STAT_TYPE') {
+      if (key === '1') {
+        // 1: 1-Biến -> Khởi tạo bảng dữ liệu mới (làm sạch dữ liệu cũ theo chuẩn Casio fx-580)
+        this.osState = 'STAT_INPUT';
+        this.stat.list = [];
+        this.stat.selectedRow = 0;
+        this.stat.scrollOffset = 0;
+        this.stat.buffer = '';
+        this.stat.results = null;
+        this.renderStatInput();
+        return;
+      }
+      if (key === 'AC' || key === 'optn') {
+        this.osState = 'STAT_INPUT';
+        this.renderStatInput();
+        return;
+      }
+      return;
+    }
+
+    // 5. Trạng thái NHẬP LIỆU BẢNG (STAT_INPUT)
     if (this.osState === 'STAT_INPUT') {
       if (['0','1','2','3','4','5','6','7','8','9','.'].includes(key)) {
         this.stat.buffer += key;
         this.renderStatInput();
-      } else if (key === 'EQUALS') {
-        const val = parseFloat(this.stat.buffer);
-        if (!isNaN(val)) {
-          this.stat.list.push(val);
-          this.stat.buffer = '';
+        return;
+      }
+
+      if (key === 'x10x') {
+        if (this.stat.buffer !== '' && !this.stat.buffer.includes('e')) {
+          this.stat.buffer += 'e';
+          this.renderStatInput();
+        }
+        return;
+      }
+
+      if (key === 'neg' || key === 'sub' || key === '-') {
+        if (!this.stat.buffer.startsWith('-')) {
+          this.stat.buffer = '-' + this.stat.buffer;
+        } else {
+          this.stat.buffer = this.stat.buffer.slice(1);
         }
         this.renderStatInput();
+        return;
       }
-    } else if (this.osState === 'STAT_RESULT') {
+
+      if (key === 'DEL') {
+        if (this.stat.buffer.length > 0) {
+          this.stat.buffer = this.stat.buffer.slice(0, -1);
+        } else if (this.stat.selectedRow < this.stat.list.length) {
+          this.stat.list.splice(this.stat.selectedRow, 1);
+          if (this.stat.selectedRow > this.stat.list.length) {
+            this.stat.selectedRow = this.stat.list.length;
+          }
+          this.stat.scrollOffset = Math.min(this.stat.selectedRow, Math.max(0, this.stat.list.length - 1));
+        }
+        this.renderStatInput();
+        return;
+      }
+
+      if (key === 'EQUALS' || key === '=') {
+        if (this.stat.buffer !== '') {
+          const val = parseFloat(this.stat.buffer);
+          if (!isNaN(val)) {
+            if (this.stat.selectedRow < this.stat.list.length) {
+              this.stat.list[this.stat.selectedRow] = val;
+            } else {
+              this.stat.list.push(val);
+            }
+          }
+          this.stat.buffer = '';
+          this.stat.selectedRow++;
+          this.stat.scrollOffset = Math.max(0, this.stat.list.length - 1);
+        } else {
+          this.stat.selectedRow = Math.min(this.stat.list.length, this.stat.selectedRow + 1);
+          this.stat.scrollOffset = Math.min(this.stat.selectedRow, Math.max(0, this.stat.list.length - 1));
+        }
+        this.renderStatInput();
+        return;
+      }
+
+      if (key === 'UP') {
+        this.stat.buffer = '';
+        this.stat.selectedRow = Math.max(0, (this.stat.selectedRow || 0) - 1);
+        this.stat.scrollOffset = this.stat.selectedRow;
+        this.renderStatInput();
+        return;
+      }
+
       if (key === 'DOWN') {
-        if (this.stat.resScroll < 6) {
+        this.stat.buffer = '';
+        this.stat.selectedRow = Math.min(this.stat.list.length, (this.stat.selectedRow || 0) + 1);
+        this.stat.scrollOffset = Math.min(this.stat.selectedRow, Math.max(0, this.stat.list.length - 1));
+        this.renderStatInput();
+        return;
+      }
+    }
+
+    // 6. Trạng thái MÀN HÌNH TÍNH TOÁN STAT (STAT_CALC)
+    if (this.osState === 'STAT_CALC') {
+      if (key === 'optn') {
+        this.stat.prevOsState = 'STAT_CALC';
+        this.osState = 'STAT_OPTN';
+        this.renderStatOptnMenu();
+        return;
+      }
+      if (['0','1','2','3','4','5','6','7','8','9','.','+','-','*','/'].includes(key)) {
+        // Cho phép tính toán biểu thức nếu người dùng gõ
+      }
+    }
+
+    // 7. Trạng thái KẾT QUẢ THỐNG KÊ (STAT_RESULT)
+    if (this.osState === 'STAT_RESULT') {
+      if (key === 'DOWN') {
+        if (this.stat.resScroll < 8) {
           this.stat.resScroll++;
           this.renderStatResult();
         }
@@ -5165,28 +5319,97 @@ class CasioApp {
   }
 
   renderStatInput() {
-    let rows = '';
-    const slice = this.stat.list.slice(-3);
-    slice.forEach((val, i) => {
-      const idx = this.stat.list.length - slice.length + i + 1;
-      rows += `<div style="display:flex;justify-content:space-between;padding:1px 4px;border-bottom:1px solid rgba(18,24,17,0.15);"><span>${idx}</span><span>${val}</span></div>`;
-    });
+    const list = this.stat.list || [];
+    if (this.stat.selectedRow === undefined) {
+      this.stat.selectedRow = list.length;
+    }
+    this.stat.selectedRow = Math.max(0, Math.min(list.length, this.stat.selectedRow));
+
+    if (this.stat.scrollOffset === undefined) {
+      this.stat.scrollOffset = Math.min(2, Math.max(0, list.length - 1));
+    }
+
+    let displayRowIdx = this.stat.selectedRow < list.length ? this.stat.selectedRow : this.stat.scrollOffset;
+    if (displayRowIdx >= list.length) {
+      displayRowIdx = Math.max(0, list.length - 1);
+    }
+
+    const displayRowNum = list.length > 0 ? (displayRowIdx + 1) : 1;
+    const displayRowVal = list.length > 0 && displayRowIdx < list.length ? list[displayRowIdx] : '';
+
+    const currentRowNum = this.stat.selectedRow + 1;
+    let displayVal = '';
+    if (this.stat.buffer !== '') {
+      displayVal = this.stat.buffer;
+    } else if (this.stat.selectedRow < list.length) {
+      displayVal = list[this.stat.selectedRow];
+    }
+
     this.display.renderCustom(`
-      <div style="font-size:11px;padding:3px 4px;font-family:var(--font-lcd);color:var(--lcd-dark);display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;">
-        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:10px;border-bottom:1px solid var(--lcd-dark);padding-bottom:1px;">
-          <span>#</span><span>x</span>
+      <div class="stat-table-screen">
+        <div class="stat-header-row">
+          <span>#</span>
+          <span class="stat-col-x">x</span>
         </div>
-        <div style="flex:1;overflow-y:hidden;margin:2px 0;">${rows}</div>
-        <div style="font-size:11px;font-weight:bold;border-top:1px solid rgba(18,24,17,0.2);padding-top:1px;display:flex;justify-content:space-between;">
-          <span>${this.stat.list.length + 1}=</span>
-          <span>${this.stat.buffer}<span class="cursor"></span></span>
+        <div class="stat-data-row">
+          <span>${displayRowNum}</span>
+          <span style="font-family:var(--font-lcd);letter-spacing:0.5px;">${displayRowVal}</span>
+        </div>
+        <div class="stat-input-row">
+          <span>${currentRowNum}=</span>
+          <span style="font-family:var(--font-lcd);letter-spacing:0.5px;">${displayVal}<span class="cursor"></span></span>
         </div>
       </div>
     `);
   }
 
+  renderStatOptnMenu() {
+    const isVi = this.display.language === 'VI';
+    this.display.renderList(isVi ? 'Thống kê' : 'Statistics', isVi ? [
+      '1:Chọn dạng',
+      '2:Dữ liệu',
+      '3:Tính 1-Biến'
+    ] : [
+      '1:Select Type',
+      '2:Data',
+      '3:1-Variable Calc'
+    ], false, false);
+  }
+
+  renderStatTypeMenu() {
+    const isVi = this.display.language === 'VI';
+    this.display.renderList(isVi ? 'Thống kê' : 'Statistics', isVi ? [
+      '1:1-Biến',
+      '2:y=a+bx',
+      '3:y=a+bx+cx²'
+    ] : [
+      '1:1-Variable',
+      '2:y=a+bx',
+      '3:y=a+bx+cx²'
+    ], false, false);
+  }
+
+  renderStatCalc() {
+    this.display.renderCustom(`
+      <div style="height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:4px 6px;font-family:var(--font-lcd);color:var(--lcd-dark);box-sizing:border-box;">
+        <div style="font-size:10px;color:rgba(18,24,17,0.5);">[STAT] Bấm OPTN để xem kết quả</div>
+        <div style="text-align:right;font-size:16px;font-weight:bold;margin-top:auto;"><span class="cursor"></span>0</div>
+      </div>
+    `);
+  }
+
   renderStatResult() {
-    const s = this.stat.results;
+    const list = this.stat.list || [];
+    if (list.length === 0) {
+      this.display.renderCustom(`
+        <div style="font-size:11px;padding:6px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">
+          <div style="font-weight:bold;margin-bottom:4px;">Chưa có dữ liệu</div>
+          <div style="font-size:10px;opacity:0.75;">Bấm OPTN 2 để nhập số liệu</div>
+        </div>
+      `);
+      return;
+    }
+    const s = this.stat.results || this.engine.calc1VarStat(list);
     if (!s) return;
     const all = [
       `x̄ = ${s.mean}`,
@@ -5196,16 +5419,21 @@ class CasioApp {
       `sx = ${s.s}`,
       `n = ${s.n}`,
       `min(x) = ${s.min}`,
+      `Q₁ = ${s.q1}`,
       `Med = ${s.median}`,
+      `Q₃ = ${s.q3}`,
       `max(x) = ${s.max}`
     ];
     const slice = all.slice(this.stat.resScroll, this.stat.resScroll + 3);
     this.display.setScrollArrows(this.stat.resScroll > 0, this.stat.resScroll + 3 < all.length);
 
     this.display.renderCustom(`
-      <div style="font-size:11px;padding:3px 6px;font-family:var(--font-lcd);color:var(--lcd-dark);line-height:1.5;height:100%;box-sizing:border-box;">
-        <div style="font-weight:bold;font-size:10px;border-bottom:1px solid var(--lcd-dark);padding-bottom:1px;margin-bottom:2px;">1-Variable</div>
-        ${slice.map(l => `<div>${l}</div>`).join('')}
+      <div style="font-size:11px;padding:2px 6px;font-family:var(--font-lcd);color:var(--lcd-dark);line-height:1.45;height:100%;box-sizing:border-box;">
+        <div style="font-weight:bold;font-size:10px;border-bottom:1.5px solid var(--lcd-dark);padding-bottom:1px;margin-bottom:2px;display:flex;justify-content:space-between;">
+          <span>1-Variable</span>
+          <span style="font-size:9px;opacity:0.8;">${this.stat.resScroll + 1}~${Math.min(all.length, this.stat.resScroll + 3)}/${all.length}</span>
+        </div>
+        ${slice.map(l => `<div style="padding:1px 0;border-bottom:1px dotted rgba(18,24,17,0.15);">${l}</div>`).join('')}
       </div>
     `);
   }
