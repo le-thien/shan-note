@@ -1409,6 +1409,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Kiểm tra 2 đối tượng hình học có gắn kết hoặc liên kết ràng buộc với nhau hay không
+  function areElementsLinked(a, b) {
+    if (!a || !b || a === b) return false;
+    // 1. Cùng chung groupId
+    if (a.groupId && b.groupId && a.groupId === b.groupId) return true;
+
+    // 2. Liên kết binding từ a tới b (quét mọi trường ID trong binding)
+    if (a.binding) {
+      for (const k in a.binding) {
+        if (a.binding[k] && a.binding[k] === b.id) return true;
+      }
+    }
+
+    // 3. Liên kết binding từ b tới a
+    if (b.binding) {
+      for (const k in b.binding) {
+        if (b.binding[k] && b.binding[k] === a.id) return true;
+      }
+    }
+
+    // 4. Liên kết startBinding / endBinding
+    const checkSE = (binding, target) => {
+      return binding && (binding.parentId === target.id || binding.elementId === target.id);
+    };
+    if (checkSE(a.startBinding, b) || checkSE(a.endBinding, b)) return true;
+    if (checkSE(b.startBinding, a) || checkSE(b.endBinding, a)) return true;
+
+    return false;
+  }
+
   // Lấy tất cả các đối tượng cùng nhóm và liên kết phụ thuộc với el trên trang hiện tại
   function getGroupElements(el) {
     if (!el) return [];
@@ -1425,44 +1455,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (const item of pageEls) {
         if (!item || groupSet.has(item)) continue;
-
-        let isLinked = false;
-        // Cùng groupId
-        if (curr.groupId && item.groupId && curr.groupId === item.groupId) {
-          isLinked = true;
-        }
-        // Liên kết binding (item là con của curr)
-        if (item.binding && (
-          item.binding.parentId === curr.id ||
-          item.binding.ptAId === curr.id ||
-          item.binding.ptBId === curr.id ||
-          item.binding.parent1Id === curr.id ||
-          item.binding.parent2Id === curr.id ||
-          item.binding.pointElId === curr.id
-        )) {
-          isLinked = true;
-        }
-        // Liên kết binding (curr là con của item)
-        if (curr.binding && (
-          curr.binding.parentId === item.id ||
-          curr.binding.ptAId === item.id ||
-          curr.binding.ptBId === item.id ||
-          curr.binding.parent1Id === item.id ||
-          curr.binding.parent2Id === item.id ||
-          curr.binding.pointElId === item.id
-        )) {
-          isLinked = true;
-        }
-        // Liên kết startBinding / endBinding của đoạn thẳng
-        const hasStartEndBindingToItem = (curr.startBinding && (curr.startBinding.parentId === item.id || curr.startBinding.elementId === item.id)) ||
-          (curr.endBinding && (curr.endBinding.parentId === item.id || curr.endBinding.elementId === item.id));
-        const itemHasStartEndBindingToCurr = (item.startBinding && (item.startBinding.parentId === curr.id || item.startBinding.elementId === curr.id)) ||
-          (item.endBinding && (item.endBinding.parentId === curr.id || item.endBinding.elementId === curr.id));
-        if (hasStartEndBindingToItem || itemHasStartEndBindingToCurr) {
-          isLinked = true;
-        }
-
-        if (isLinked) {
+        if (areElementsLinked(curr, item)) {
           groupSet.add(item);
           queue.push(item);
         }
@@ -1570,28 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageEls = state.pages[state.currentPage] || [];
     for (const child of pageEls) {
       if (child && !movedSet.has(child)) {
-        const isChildBinding = child.binding && (
-          child.binding.parentId === el.id ||
-          child.binding.ptAId === el.id ||
-          child.binding.ptBId === el.id ||
-          child.binding.parent1Id === el.id ||
-          child.binding.parent2Id === el.id ||
-          child.binding.pointElId === el.id
-        );
-        const isParentBinding = el.binding && (
-          el.binding.parentId === child.id ||
-          el.binding.ptAId === child.id ||
-          el.binding.ptBId === child.id ||
-          el.binding.parent1Id === child.id ||
-          el.binding.parent2Id === child.id ||
-          el.binding.pointElId === child.id
-        );
-        const isChildStartEnd = (child.startBinding && (child.startBinding.parentId === el.id || child.startBinding.elementId === el.id)) ||
-          (child.endBinding && (child.endBinding.parentId === el.id || child.endBinding.elementId === el.id));
-        const isParentStartEnd = (el.startBinding && (el.startBinding.parentId === child.id || el.startBinding.elementId === child.id)) ||
-          (el.endBinding && (el.endBinding.parentId === child.id || el.endBinding.elementId === child.id));
-        const isSameGroup = el.groupId && child.groupId && child.groupId === el.groupId;
-        if (isChildBinding || isParentBinding || isChildStartEnd || isParentStartEnd || isSameGroup) {
+        if (areElementsLinked(el, child)) {
           translateElement(child, dx, dy, movedSet);
         }
       }
@@ -1653,28 +1625,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageEls = state.pages[state.currentPage] || [];
     for (const child of pageEls) {
       if (child && !rotatedSet.has(child)) {
-        const isChildBinding = child.binding && (
-          child.binding.parentId === el.id ||
-          child.binding.ptAId === el.id ||
-          child.binding.ptBId === el.id ||
-          child.binding.parent1Id === el.id ||
-          child.binding.parent2Id === el.id ||
-          child.binding.pointElId === el.id
-        );
-        const isParentBinding = el.binding && (
-          el.binding.parentId === child.id ||
-          el.binding.ptAId === child.id ||
-          el.binding.ptBId === child.id ||
-          el.binding.parent1Id === child.id ||
-          el.binding.parent2Id === child.id ||
-          el.binding.pointElId === child.id
-        );
-        const isChildStartEnd = (child.startBinding && (child.startBinding.parentId === el.id || child.startBinding.elementId === el.id)) ||
-          (child.endBinding && (child.endBinding.parentId === el.id || child.endBinding.elementId === el.id));
-        const isParentStartEnd = (el.startBinding && (el.startBinding.parentId === child.id || el.startBinding.elementId === child.id)) ||
-          (el.endBinding && (el.endBinding.parentId === child.id || el.endBinding.elementId === child.id));
-        const isSameGroup = el.groupId && child.groupId && child.groupId === el.groupId;
-        if (isChildBinding || isParentBinding || isChildStartEnd || isParentStartEnd || isSameGroup) {
+        if (areElementsLinked(el, child)) {
           rotateElement2D(child, cx, cy, rad, rotatedSet);
         }
       }
@@ -1833,25 +1784,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } else if (b.type === 'two_tangents') {
-      const O = { x: parentEl.start.x, y: parentEl.start.y };
-      const R = parentEl.radius || Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y);
-      child.start = { x: O.x, y: O.y };
-      child.radius = R;
+      if (parentEl.shape === 'circle') {
+        const O = { x: parentEl.start.x, y: parentEl.start.y };
+        const R = parentEl.radius || Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y);
+        child.start = { x: O.x, y: O.y };
+        child.radius = R;
+      }
+      if (b.pointElId) {
+        const ptEl = findElementById(b.pointElId);
+        if (ptEl) {
+          const pt = ptEl.start || ptEl;
+          child.end = { x: pt.x, y: pt.y };
+        }
+      }
     }
 
     // 4. Đường vuông góc (Perpendicular)
     else if (b.type === 'perpendicular') {
       let A = null, B = null;
-      if (parentEl.shape === 'line' || parentEl.shape === 'perpendicular' || parentEl.shape === 'parallel') {
-        A = parentEl.start; B = parentEl.end;
-      } else if (parentEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
-        A = parentEl.points[b.v1Index]; B = parentEl.points[b.v2Index];
+      const baseEl = b.parentId ? findElementById(b.parentId) : parentEl;
+      if (baseEl) {
+        if (baseEl.shape === 'line' || baseEl.shape === 'perpendicular' || baseEl.shape === 'parallel') {
+          A = baseEl.start; B = baseEl.end;
+        } else if (baseEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
+          A = baseEl.points[b.v1Index]; B = baseEl.points[b.v2Index];
+        }
       }
       if (A && B) {
         const vx = B.x - A.x, vy = B.y - A.y;
         const lenV = Math.hypot(vx, vy) || 1;
         const uBase = { x: vx / lenV, y: vy / lenV };
-        const P = b.pointRef || child.start;
+        let P = b.pointRef || child.start;
+        if (b.pointElId) {
+          const ptEl = findElementById(b.pointElId);
+          if (ptEl) P = ptEl.start || ptEl;
+        }
         const t = (P.x - A.x) * uBase.x + (P.y - A.y) * uBase.y;
         const H = { x: A.x + t * uBase.x, y: A.y + t * uBase.y };
         child.foot = H;
@@ -2229,6 +2196,34 @@ document.addEventListener('DOMContentLoaded', () => {
         child.secondPoint = { x: child.start.x + armLen * Math.cos(secondAngle), y: child.start.y + armLen * Math.sin(secondAngle) };
       }
     }
+
+    // 10. Giao điểm giữa 2 đối tượng hình học (Intersection)
+    else if (b.type === 'intersection') {
+      const elA = findElementById(b.objAId);
+      const elB = findElementById(b.objBId);
+      if (elA && elB) {
+        const gA = extractGeoGeometry(elA);
+        const gB = extractGeoGeometry(elB);
+        if (gA && gB) {
+          let pts = [];
+          if (gA.type === 'line' && gB.type === 'line') {
+            const pt = findLineLineIntersection(gA.start, gA.end, gB.start, gB.end);
+            if (pt) pts = [pt];
+          } else if (gA.type === 'line' && gB.type === 'circle') {
+            pts = findLineCircleIntersection(gA.start, gA.end, gB.center, gB.radius);
+          } else if (gA.type === 'circle' && gB.type === 'line') {
+            pts = findLineCircleIntersection(gB.start, gB.end, gA.center, gA.radius);
+          } else if (gA.type === 'circle' && gB.type === 'circle') {
+            pts = findCircleCircleIntersection(gA.center, gA.radius, gB.center, gB.radius);
+          }
+          const ptIdx = b.ptIndex || 0;
+          if (pts && pts[ptIdx]) {
+            child.start = { x: pts[ptIdx].x, y: pts[ptIdx].y };
+            child.end = { x: pts[ptIdx].x, y: pts[ptIdx].y };
+          }
+        }
+      }
+    }
   }
 
   // Cập nhật đầu mút của đoạn thẳng gắn vào cạnh hoặc đường tròn khi hình cha bị thay đổi
@@ -2275,21 +2270,14 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const child of pageEls) {
       if (!child) continue;
       if (child.binding) {
-        const b = child.binding;
-        if (
-          b.parentId === parentEl.id ||
-          b.ptAId === parentEl.id ||
-          b.ptBId === parentEl.id ||
-          b.pt1Id === parentEl.id ||
-          b.pt2Id === parentEl.id ||
-          b.pt3Id === parentEl.id ||
-          b.triangleId === parentEl.id ||
-          b.ptId === parentEl.id ||
-          b.axisId === parentEl.id ||
-          b.parent1Id === parentEl.id ||
-          b.parent2Id === parentEl.id ||
-          b.pointElId === parentEl.id
-        ) {
+        let isDep = false;
+        for (const k in child.binding) {
+          if (child.binding[k] && child.binding[k] === parentEl.id) {
+            isDep = true;
+            break;
+          }
+        }
+        if (isDep) {
           updateSingleBinding(child, parentEl);
         }
       }
@@ -4426,9 +4414,10 @@ document.addEventListener('DOMContentLoaded', () => {
       updateContextualToolbar('select');
     }
 
-    // 5. Nếu có đối tượng vừa tạo, chỉ chọn đơn lẻ đối tượng đó
+    // 5. Nếu có đối tượng vừa tạo, tự động chọn toàn bộ nhóm gắn kết để người dùng kéo di chuyển đồng bộ
     if (createdElement) {
-      setSelectedElements([createdElement]);
+      const grp = getGroupElements(createdElement);
+      setSelectedElements(grp);
     }
 
     renderPage();
@@ -4996,14 +4985,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (extendedB && !parentElements.includes(extendedB)) parentElements.push(extendedB);
 
     const createdPoints = [];
-    pts.forEach(pt => {
+    pts.forEach((pt, ptIdx) => {
       const newPoint = {
         type: 'geo',
         shape: 'point',
         start: { x: pt.x, y: pt.y },
         end: { x: pt.x, y: pt.y },
         color: state.color || '#184e3a',
-        width: Math.max(state.strokeWidth || 3, 3)
+        width: Math.max(state.strokeWidth || 3, 3),
+        binding: {
+          type: 'intersection',
+          objAId: gA.element ? gA.element.id : null,
+          objBId: gB.element ? gB.element.id : null,
+          ptIndex: ptIdx
+        }
       };
       ensureElementId(newPoint);
       if (parentElements.length > 0) {
@@ -8541,7 +8536,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Kiểm tra trúng điểm hình học rời
         const hitPoint = findElementAt(point.x, point.y);
         if (hitPoint && hitPoint.type === 'geo' && hitPoint.shape === 'point') {
-          setSelectedElements([hitPoint]);
+          const group = getGroupElements(hitPoint);
+          setSelectedElements(group);
           state.isDrawing = true;
           state.dragLast = { x: point.x, y: point.y };
           state.totalMoved = { dx: 0, dy: 0 };
@@ -8654,7 +8650,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
-          setSelectedElements([el]);
+          const group = getGroupElements(el);
+          setSelectedElements(group);
           state.isDrawing = true;
           state.dragLast = { x: point.x, y: point.y };
           state.totalMoved = { dx: 0, dy: 0 };
@@ -13670,6 +13667,8 @@ document.addEventListener('DOMContentLoaded', () => {
       constructAxisSymmetry,
       constructCircumcircle,
       constructIncircle,
+      constructIntersectionFromTwoObjects,
+      areElementsLinked,
       updateSingleBinding,
       translateElement,
       SOLID_SHAPES,

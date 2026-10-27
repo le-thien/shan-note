@@ -2,6 +2,20 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Hoàn Thiện Cơ Chế Gắn Kết & Di Chuyển Theo Nhóm Cho Menu Dựng Hình ▾] - 27/10/2026
+
+- **1. Gắn kết chặt chẽ và di chuyển theo nhóm 100% (Unified Group Movement):**
+  - Mọi đối tượng sinh ra từ các tác vụ Dựng hình (Trung điểm, Đường trung trực, Đối xứng điểm, Đối xứng trục, Đường tròn ngoại tiếp, Đường tròn nội tiếp, Giao điểm, Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc) được gắn kết chặt chẽ vào cùng 1 nhóm với đối tượng ban đầu.
+  - Khi nhấp chọn bất kỳ đối tượng nào trong nhóm (bấm vào hình ban đầu hoặc hình sinh ra), hệ thống tự động nhận diện và chọn toàn bộ nhóm (`setSelectedElements(getGroupElements(el))`).
+  - Khi kéo rê chuột để di chuyển: toàn bộ cụm đối tượng cùng tịnh tiến chính xác theo độ dời `(dx, dy)`, bảo toàn tuyệt đối khoảng cách và tương quan hình học giữa các hình.
+- **2. Ràng buộc động biến đổi theo thời gian thực (Real-time Dynamic Updates):**
+  - Khi kéo các điểm điều khiển (đỉnh tam giác, đầu mút đoạn thẳng, bán kính đường tròn...), các đối tượng sinh ra tự động biến đổi, co giãn, xoay góc bám sát theo thời gian thực (0ms).
+  - Bổ sung ràng buộc giải tích động cho **Giao điểm** (`intersection`): khi 1 trong 2 đường thẳng / đường tròn cắt nhau bị thay đổi vị trí hoặc góc, điểm giao nhau tự động trượt theo vị trí giao mới.
+- **3. Hàm nhận diện liên kết đa chiều `areElementsLinked`:**
+  - Tự động phát hiện liên kết đa chiều giữa các đối tượng qua `groupId`, các trường định danh trong `binding` (`parentId`, `triangleId`, `pt1Id`, `pt2Id`, `pt3Id`, `axisId`, `pointElId`, `objAId`, `objBId`...) và liên kết đầu mút `startBinding` / `endBinding`.
+- **4. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v37` và query string `?v=20261027_2000` trong `web/index.html`.
+
 ## [Tối Ưu Phân Cách Giữa Các Trang — Dòng Kẻ Ngang Nét Đứt & Thu Hẹp Khoảng Cách] - 27/10/2026
 
 - **1. Thu hẹp khoảng cách giữa các trang:**
