@@ -7,11 +7,22 @@
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Bắt Dính Giao Điểm & Sáng Mờ 2 Đối Tượng Khi Thả Điểm Tác Vụ Điểm:**
+    + *Bắt dính giao điểm tự động (Intersection Snapping):* Khi người dùng ở tác vụ Điểm (`activeGeo === 'point'`) và rê chuột đến gần giao điểm của 2 đường thẳng, hoặc giữa đường thẳng và đường tròn (trong bán kính ~24px): tự động bắt dính chính xác vào tọa độ giao điểm giải tích, hiển thị vòng tròn ngắm tâm sắc nét và nhãn chỉ báo định vị `Giao điểm`.
+    + *Hiệu ứng sáng mờ mềm mại trên 2 đối tượng tạo nên giao điểm (Dual Element Glow Highlight):* Ngay khi con trỏ chuột nhắm vào giao điểm, cả 2 đối tượng tạo nên giao điểm (2 đường thẳng hoặc đường thẳng và đường tròn) lập tức phát sáng mờ màu ngọc bích êm dịu (`rgba(16, 185, 129, 0.22)` với shadow mờ nhẹ 7px), giúp người dùng nhận diện trực quan 2 hình mà giao điểm sẽ gắn chặt vào.
+    + *Ràng buộc giải tích & gắn kết nhóm khi thả điểm (Binding & Dynamic Grouping):* Khi bấm/thả chuột tại vị trí giao điểm, hệ thống tạo điểm hình học và tự động thiết lập `binding: { type: 'intersection', objAId, objBId, ptIndex }`, liên kết cả 3 đối tượng vào cùng một nhóm thống nhất (`linkGroupMulti([elementA, elementB], newPoint)`).
+    + *Biến động thời gian thực (0ms):* Khi 1 trong 2 đối tượng ban đầu di chuyển, xoay, thay đổi đầu mút hoặc bán kính, giao điểm tự động tính toán lại và trượt theo thời gian thực (0ms), bảo toàn vị trí giao cắt giải tích.
+    + *Sửa lỗi nhận diện đường tròn trong `extractGeoGeometry`:* Ưu tiên kiểm tra `getCircleFromElement` trước khi xét `start/end` để tránh đường tròn có tâm và bán kính bị hiểu nhầm thành đoạn thẳng.
+    + *Nâng cấp Cache & Service Worker:* Nâng phiên bản cache lên `net-app-v41` và query param `?v=20261027_2135`.
+  - **Chuẩn Hóa Biểu Tượng & Tính Năng Đường Tròn Nội Tiếp Tam Giác:**
+    + *Chuẩn hóa hình học Biểu tượng SVG:* Khắc phục lỗi ở biểu tượng menu "Đường tròn nội tiếp": trước đây hình tròn bị vẽ bán kính quá lớn khiến 2 bên hông vòng tròn cắt xuyên qua 2 cạnh bên tam giác và lòi ra ngoài. Đã thiết kế lại biểu tượng SVG chuẩn mực toán học với đường tròn nội tiếp nằm hoàn toàn bên trong tam giác và tiếp xúc nhẹ nhàng với cả 3 cạnh.
+    + *Đồng bộ biểu tượng Đường tròn ngoại tiếp:* Thiết kế biểu tượng tam giác nội tiếp bên trong đường tròn, 3 đỉnh nằm trên đường tròn, trực quan và đối xứng.
+    + *Tự động dựng tam giác khi chọn 3 điểm rời:* Khi người dùng kích hoạt tác vụ Đường tròn nội tiếp từ 3 điểm rời (chưa có tam giác trên bảng vẽ), hệ thống tự động vẽ tam giác nối 3 đỉnh đó, giúp hiển thị trực quan rõ ràng đường tròn nội tiếp tiếp xúc trọn vẹn với cả 3 cạnh tam giác.
+    + *Nâng cấp Cache & Service Worker:* Nâng phiên bản cache lên `net-app-v40` và query param `?v=20261027_2115`.
   - **Bảo toàn Tuyệt đối Điểm Ban Đầu cho Đường Thẳng Song Song & Vuông Góc:**
     + *Bảo toàn hình học điểm ban đầu (Point Invariance on Dynamic Update):* Khắc phục lỗi khi đường thẳng ban đầu thay đổi (xoay góc, kéo dài, di chuyển đầu mút) hoặc điểm ban đầu di chuyển thì đường song song bị lệch khỏi điểm ban đầu.
     + *Đồng bộ thời gian thực hai chiều (Two-way Real-time Tracking):* Khi kéo hoặc xoay đường thẳng ban đầu, đường song song xoay theo quanh tâm chính là điểm ban đầu $P$, bảo toàn tuyệt đối việc luôn đi qua $P$ (khoảng cách bằng 0). Khi kéo điểm ban đầu $P$, đường song song trượt theo vị trí mới của $P$ và luôn song song với đường thẳng ban đầu.
     + *Tự động tạo điểm hình học:* Nếu người dùng bấm chỉ định vị trí trên khoảng trống, hệ thống tự động sinh một điểm hình học tại đó để người dùng nhìn thấy rõ và tương tác được với điểm.
-    + *Nâng cấp Cache & Service Worker:* Nâng phiên bản cache lên `net-app-v39` và query param `?v=20261027_2045`.
   - **Tối ưu hóa Chọn 1 Đối Tượng (Không vẽ nhiều khung vuông nét đứt & Giữ kéo di chuyển theo nhóm):**
     + *Hiển thị chọn đơn lẻ tinh tế, sạch đẹp:* Khi người dùng nhấp chọn thông thường vào 1 đối tượng (dù là điểm hay đoạn thẳng hay hình học), hệ thống chỉ chọn đúng 1 đối tượng đó (`setSelectedElements([el])` / `[hitPoint]`). Chỉ hiển thị duy nhất khung viền chọn của đúng đối tượng đó, loại bỏ hoàn toàn hiện tượng vẽ 4-5 khung chữ nhật nét đứt đan chéo nhau và 4 nhãn "Điểm đã chọn" gây hiểu lầm là chọn hết.
     + *Khi vừa dựng hình xong (`finishGeoTask`):* Chỉ chọn đơn lẻ đối tượng vừa tạo (`setSelectedElements([createdElement])`), giúp giao diện gọn gàng, trong sáng.

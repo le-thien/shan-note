@@ -244,6 +244,15 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
+        // Làm sáng mờ 2 đối tượng tạo nên giao điểm khi rê chuột vào giao điểm ở tác vụ Điểm
+        if (state.activeTool === 'geo' && state.activeGeo === 'point' && state.hoverIntersectionElements && state.hoverIntersectionElements.length > 0) {
+          for (const hEl of state.hoverIntersectionElements) {
+            if (elements.includes(hEl)) {
+              highlightElementShape(targetCtx, hEl, false);
+            }
+          }
+        }
+
         if (selectedList.length > 0) {
           for (const el of selectedList) {
             if (elements.includes(el)) {
@@ -2254,8 +2263,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const elA = findElementById(b.objAId);
       const elB = findElementById(b.objBId);
       if (elA && elB) {
-        const gA = extractGeoGeometry(elA);
-        const gB = extractGeoGeometry(elB);
+        let gA = null;
+        if (b.v1IndexA !== undefined && b.v2IndexA !== undefined && elA.points && elA.points[b.v1IndexA] && elA.points[b.v2IndexA]) {
+          gA = { type: 'line', start: elA.points[b.v1IndexA], end: elA.points[b.v2IndexA], element: elA };
+        } else {
+          gA = extractGeoGeometry(elA);
+        }
+        let gB = null;
+        if (b.v1IndexB !== undefined && b.v2IndexB !== undefined && elB.points && elB.points[b.v1IndexB] && elB.points[b.v2IndexB]) {
+          gB = { type: 'line', start: elB.points[b.v1IndexB], end: elB.points[b.v2IndexB], element: elB };
+        } else {
+          gB = extractGeoGeometry(elB);
+        }
         if (gA && gB) {
           let pts = [];
           if (gA.type === 'line' && gB.type === 'line') {
@@ -4448,6 +4467,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.activeGeo = null;
     state.geoStartPoint = null;
     state.hoverSnapPoint = null;
+    state.hoverIntersectionElements = null;
     state.construction = { point: null, circle: null, line: null, edges: [] };
     state.pendingConstruction = null;
     state.pendingOptions = null;
@@ -4836,12 +4856,192 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
   }
 
+  // Tìm giao điểm gần nhất giữa 2 đường thẳng hoặc giữa đường thẳng và đường tròn quanh tọa độ point
+  function findIntersectionSnapAtPoint(point, maxDist = 24) {
+    if (!point) return null;
+    const list = state.pages[state.currentPage] || [];
+    if (!list || list.length < 2) return null;
+
+    const lines = [];
+    const circles = [];
+
+    for (let i = 0; i < list.length; i++) {
+      const el = list[i];
+      if (!el || el.type !== 'geo') continue;
+
+      if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent' || el.shape === 'bisector' || el.shape === 'perpendicular-bisector' || el.shape === 'arrow') {
+        if (el.start && el.end) {
+          lines.push({
+            element: el,
+            start: el.start,
+            end: el.end,
+            edgeId: 'main'
+          });
+        }
+      } else if (isSolidShape(el.shape) && el.edges && el.points) {
+        el.edges.forEach((edge, eIdx) => {
+          const v1 = edge[0];
+          const v2 = edge[1];
+          if (el.points[v1] && el.points[v2]) {
+            lines.push({
+              element: el,
+              start: el.points[v1],
+              end: el.points[v2],
+              edgeId: `solid_${eIdx}`,
+              v1Index: v1,
+              v2Index: v2,
+              isSolidEdge: true
+            });
+          }
+        });
+      } else if (el.points && el.points.length >= 3) {
+        const n = el.points.length;
+        for (let j = 0; j < n; j++) {
+          lines.push({
+            element: el,
+            start: el.points[j],
+            end: el.points[(j + 1) % n],
+            edgeId: `edge_${j}`,
+            v1Index: j,
+            v2Index: (j + 1) % n,
+            isPolygonEdge: true
+          });
+        }
+      }
+
+      if (el.shape === 'circle' || el.shape === 'inscribed-triangle' || el.shape === 'two-tangents') {
+        if (el.start) {
+          const r = el.radius || (el.end ? Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y) : 0);
+          if (r > 0) {
+            circles.push({
+              element: el,
+              center: el.start,
+              radius: r
+            });
+          }
+        }
+      }
+    }
+
+    let bestSnap = null;
+    let minDist = maxDist;
+
+    // 1. Cặp Line - Line
+    for (let i = 0; i < lines.length; i++) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const l1 = lines[i];
+        const l2 = lines[j];
+
+        if (l1.element === l2.element) {
+          if (l1.isPolygonEdge && (l1.v1Index === l2.v2Index || l1.v2Index === l2.v1Index)) {
+            continue;
+          }
+          if (l1.isSolidEdge && areSolidEdgesSkew(l1.element, l1.v1Index, l1.v2Index, l2.v1Index, l2.v2Index)) {
+            continue;
+          }
+        }
+
+        const pt = findLineLineIntersection(l1.start, l1.end, l2.start, l2.end);
+        if (!pt) continue;
+
+        const dMouse = Math.hypot(point.x - pt.x, point.y - pt.y);
+        if (dMouse < minDist) {
+          const dSeg1 = distToSegment(pt.x, pt.y, l1.start.x, l1.start.y, l1.end.x, l1.end.y);
+          const dSeg2 = distToSegment(pt.x, pt.y, l2.start.x, l2.start.y, l2.end.x, l2.end.y);
+          if (dSeg1 < 250 && dSeg2 < 250) {
+            minDist = dMouse;
+            bestSnap = {
+              x: pt.x,
+              y: pt.y,
+              type: 'line-line',
+              elementA: l1.element,
+              elementB: l2.element,
+              v1IndexA: l1.v1Index,
+              v2IndexA: l1.v2Index,
+              v1IndexB: l2.v1Index,
+              v2IndexB: l2.v2Index,
+              ptIndex: 0,
+              label: 'Giao điểm'
+            };
+          }
+        }
+      }
+    }
+
+    // 2. Cặp Line - Circle
+    for (let i = 0; i < lines.length; i++) {
+      for (let j = 0; j < circles.length; j++) {
+        const line = lines[i];
+        const circ = circles[j];
+        if (line.element === circ.element) continue;
+
+        const pts = findLineCircleIntersection(line.start, line.end, circ.center, circ.radius);
+        if (!pts || pts.length === 0) continue;
+
+        for (let pIdx = 0; pIdx < pts.length; pIdx++) {
+          const pt = pts[pIdx];
+          const dMouse = Math.hypot(point.x - pt.x, point.y - pt.y);
+          if (dMouse < minDist) {
+            const dSeg = distToSegment(pt.x, pt.y, line.start.x, line.start.y, line.end.x, line.end.y);
+            if (dSeg < 150) {
+              minDist = dMouse;
+              bestSnap = {
+                x: pt.x,
+                y: pt.y,
+                type: 'line-circle',
+                elementA: line.element,
+                elementB: circ.element,
+                v1IndexA: line.v1Index,
+                v2IndexA: line.v2Index,
+                ptIndex: pIdx,
+                label: 'Giao điểm'
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Cặp Circle - Circle
+    for (let i = 0; i < circles.length; i++) {
+      for (let j = i + 1; j < circles.length; j++) {
+        const c1 = circles[i];
+        const c2 = circles[j];
+        if (c1.element === c2.element) continue;
+
+        const pts = findCircleCircleIntersection(c1.center, c1.radius, c2.center, c2.radius);
+        if (!pts || pts.length === 0) continue;
+
+        for (let pIdx = 0; pIdx < pts.length; pIdx++) {
+          const pt = pts[pIdx];
+          const dMouse = Math.hypot(point.x - pt.x, point.y - pt.y);
+          if (dMouse < minDist) {
+            minDist = dMouse;
+            bestSnap = {
+              x: pt.x,
+              y: pt.y,
+              type: 'circle-circle',
+              elementA: c1.element,
+              elementB: c2.element,
+              ptIndex: pIdx,
+              label: 'Giao điểm'
+            };
+          }
+        }
+      }
+    }
+
+    return bestSnap;
+  }
+
   // Trích xuất hình học (line hoặc circle) từ đối tượng được nhấp chọn
   function extractGeoGeometry(obj) {
     if (!obj) return null;
     if (obj.center && obj.radius) {
       return { type: 'circle', center: obj.center, radius: obj.radius, element: obj.element || obj };
     }
+    const circ = getCircleFromElement(obj);
+    if (circ) return { type: 'circle', center: circ.center, radius: circ.radius, element: circ.element || obj };
     if (obj.start && obj.end) {
       return {
         type: 'line',
@@ -4854,8 +5054,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isPolygonEdge: !!obj.isPolygonEdge
       };
     }
-    const circ = getCircleFromElement(obj);
-    if (circ) return { type: 'circle', center: circ.center, radius: circ.radius, element: circ.element || obj };
     const line = getLineOrEdgeFromElement(obj);
     if (line) {
       return {
@@ -5725,6 +5923,21 @@ document.addEventListener('DOMContentLoaded', () => {
         ptEl3 = { type: 'geo', shape: 'point', start: { x: x3, y: y3 }, end: { x: x3, y: y3 }, color: state.color, width: state.strokeWidth || 3, dash: 'solid' };
         ensureElementId(ptEl3); elementsToAdd.push(ptEl3);
       } else { ensureElementId(ptEl3); }
+
+      // Tự động tạo tam giác nối 3 đỉnh để thấy rõ đường tròn tiếp xúc 3 cạnh
+      const autoTriangle = {
+        type: 'geo',
+        shape: 'triangle',
+        points: [{ x: x1, y: y1 }, { x: x2, y: y2 }, { x: x3, y: y3 }],
+        start: { x: Math.min(x1, x2, x3), y: Math.min(y1, y2, y3) },
+        end: { x: Math.max(x1, x2, x3), y: Math.max(y1, y2, y3) },
+        color: state.color,
+        width: state.strokeWidth || 2.5,
+        dash: 'solid'
+      };
+      ensureElementId(autoTriangle);
+      elementsToAdd.push(autoTriangle);
+      triangleEl = autoTriangle;
     } else {
       ensureElementId(triangleEl);
     }
@@ -7636,6 +7849,39 @@ document.addEventListener('DOMContentLoaded', () => {
       state.construction = { point: null, circle: null, line: null, edges: [], firstObject: null };
       return;
     } else if (state.activeGeo === 'point') {
+      const interSnap = findIntersectionSnapAtPoint(point, 24);
+      if (interSnap) {
+        ensureElementId(interSnap.elementA);
+        ensureElementId(interSnap.elementB);
+        const newPoint = {
+          type: 'geo',
+          shape: 'point',
+          start: { x: interSnap.x, y: interSnap.y },
+          end: { x: interSnap.x, y: interSnap.y },
+          color: state.color || '#184e3a',
+          width: Math.max(state.strokeWidth || 3, 3),
+          binding: {
+            type: 'intersection',
+            objAId: interSnap.elementA.id,
+            objBId: interSnap.elementB.id,
+            v1IndexA: interSnap.v1IndexA,
+            v2IndexA: interSnap.v2IndexA,
+            v1IndexB: interSnap.v1IndexB,
+            v2IndexB: interSnap.v2IndexB,
+            ptIndex: interSnap.ptIndex || 0
+          }
+        };
+        ensureElementId(newPoint);
+        linkGroupMulti([interSnap.elementA, interSnap.elementB], newPoint);
+        pushNewElement(newPoint);
+        state.hoverSnapPoint = null;
+        state.hoverIntersectionElements = null;
+        finishGeoTask(newPoint);
+        statusToolInfo.textContent = '✨ Đã tạo giao điểm (tự động gắn kết chặt với cả 2 hình).';
+        renderPage();
+        return;
+      }
+
       const circSnap = checkCircleSnap(point);
       const edgeSnap = findEdgeAt(point.x, point.y, 24);
 
@@ -9405,34 +9651,49 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       if (state.activeTool === 'geo' && state.activeGeo === 'point') {
-        const hoverPt = findPointAt(point.x, point.y, 18);
-        const hoverCirc = !hoverPt ? checkCircleSnap(point) : null;
-        const hoverEdge = (!hoverPt && !hoverCirc) ? findEdgeAt(point.x, point.y, 24) : null;
-
+        const interSnap = findIntersectionSnapAtPoint(point, 24);
         let snapCoord = null;
-        if (hoverPt) {
-          snapCoord = { x: hoverPt.x, y: hoverPt.y, label: 'Điểm' };
-        } else if (hoverCirc) {
-          snapCoord = { x: hoverCirc.x, y: hoverCirc.y, label: 'Điểm trên đường tròn' };
-        } else if (hoverEdge) {
-          const A = hoverEdge.start;
-          const B = hoverEdge.end;
-          const dx = B.x - A.x, dy = B.y - A.y;
-          const lenSq = dx * dx + dy * dy;
-          const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - A.x) * dx + (point.y - A.y) * dy) / lenSq));
-          snapCoord = { x: A.x + t * dx, y: A.y + t * dy, label: 'Điểm trên đường thẳng' };
+        let hoverElements = null;
+
+        if (interSnap) {
+          snapCoord = { x: interSnap.x, y: interSnap.y, label: 'Giao điểm', interSnap };
+          hoverElements = [interSnap.elementA, interSnap.elementB];
+        } else {
+          const hoverPt = findPointAt(point.x, point.y, 18);
+          const hoverCirc = !hoverPt ? checkCircleSnap(point) : null;
+          const hoverEdge = (!hoverPt && !hoverCirc) ? findEdgeAt(point.x, point.y, 24) : null;
+
+          if (hoverPt) {
+            snapCoord = { x: hoverPt.x, y: hoverPt.y, label: 'Điểm' };
+          } else if (hoverCirc) {
+            snapCoord = { x: hoverCirc.x, y: hoverCirc.y, label: 'Điểm trên đường tròn' };
+          } else if (hoverEdge) {
+            const A = hoverEdge.start;
+            const B = hoverEdge.end;
+            const dx = B.x - A.x, dy = B.y - A.y;
+            const lenSq = dx * dx + dy * dy;
+            const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - A.x) * dx + (point.y - A.y) * dy) / lenSq));
+            snapCoord = { x: A.x + t * dx, y: A.y + t * dy, label: 'Điểm trên đường thẳng' };
+          }
         }
 
         const oldCoord = state.hoverSnapPoint ? { x: state.hoverSnapPoint.x, y: state.hoverSnapPoint.y, label: state.hoverSnapPoint.label } : null;
         const newCoord = snapCoord ? { x: snapCoord.x, y: snapCoord.y, label: snapCoord.label } : null;
-        if (JSON.stringify(oldCoord) !== JSON.stringify(newCoord)) {
+        const elementsChanged = JSON.stringify((state.hoverIntersectionElements || []).map(e => e.id)) !== JSON.stringify((hoverElements || []).map(e => e.id));
+
+        if (JSON.stringify(oldCoord) !== JSON.stringify(newCoord) || elementsChanged) {
           state.hoverSnapPoint = snapCoord;
+          state.hoverIntersectionElements = hoverElements;
           renderPage();
         }
         if (snapCoord) {
-          statusToolInfo.textContent = `🎯 Đang nhắm: ${snapCoord.label} (Nhấp để tạo điểm gắn liền với hình)`;
+          if (snapCoord.interSnap) {
+            statusToolInfo.textContent = `🎯 Đang nhắm: Giao điểm (Nhấp để tạo điểm gắn chặt với 2 hình)`;
+          } else {
+            statusToolInfo.textContent = `🎯 Đang nhắm: ${snapCoord.label} (Nhấp để tạo điểm gắn liền với hình)`;
+          }
         } else {
-          statusToolInfo.textContent = 'Điểm: Nhấp vào vị trí bất kỳ để tạo điểm (nhấp trên đường thẳng/đường tròn để gắn liền)';
+          statusToolInfo.textContent = 'Điểm: Nhấp vào vị trí bất kỳ để tạo điểm (rê đến giao điểm, đường thẳng hoặc đường tròn để gắn liền)';
         }
         canvas.style.cursor = snapCoord ? 'pointer' : 'crosshair';
         return;
@@ -9996,9 +10257,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function handlePointerLeave(e) {
-    if (state.hoverPointTarget || state.hoverSnapPoint || state.eraserCursorPoint || state.hoverHandle || state.hoverElement) {
+    if (state.hoverPointTarget || state.hoverSnapPoint || state.eraserCursorPoint || state.hoverHandle || state.hoverElement || state.hoverIntersectionElements) {
       state.hoverPointTarget = null;
       state.hoverSnapPoint = null;
+      state.hoverIntersectionElements = null;
       state.eraserCursorPoint = null;
       state.hoverHandle = null;
       state.hoverElement = null;
@@ -13779,7 +14041,8 @@ document.addEventListener('DOMContentLoaded', () => {
       finishGeoTask,
       updatePendingAngleDegrees,
       showFloatingAngleBox,
-      removeFloatingAngleBox
+      removeFloatingAngleBox,
+      findIntersectionSnapAtPoint
     };
     window.__netRotate2D = rotateElement2D;
     window.__netAnimateSmoothRotation3D = animateSmoothRotation3D;

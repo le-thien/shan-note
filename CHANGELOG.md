@@ -2,6 +2,34 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Bắt Dính Giao Điểm & Sáng Mờ 2 Đối Tượng Khi Thả Điểm Tác Vụ Điểm] - 27/10/2026
+
+- **1. Bắt dính giao điểm tự động trong tác vụ Điểm (Intersection Snapping):**
+  - Khi người dùng ở tác vụ Điểm (`activeGeo === 'point'`) và rê chuột đến gần giao điểm của 2 đường thẳng, hoặc giữa đường thẳng và đường tròn (trong bán kính ~24px):
+    + Tự động bắt dính chính xác vào tọa độ giao điểm giải tích.
+    + Hiển thị vòng tròn ngắm tâm sắc nét và nhãn chỉ báo định vị `Giao điểm`.
+- **2. Hiệu ứng sáng mờ mềm mại trên 2 đối tượng tạo nên giao điểm (Dual Element Glow Highlight):**
+  - Ngay khi con trỏ chuột nhắm vào giao điểm, cả 2 đối tượng tạo nên giao điểm (2 đường thẳng hoặc đường thẳng và đường tròn) lập tức **phát sáng mờ màu ngọc bích êm dịu** (`rgba(16, 185, 129, 0.22)` với shadow mờ nhẹ 7px), giúp người dùng nhận diện ngay lập tức 2 hình mà giao điểm sẽ gắn chặt vào.
+- **3. Ràng buộc giải tích & gắn kết nhóm khi thả điểm (Binding & Dynamic Grouping):**
+  - Khi bấm/thả chuột tại vị trí giao điểm, hệ thống tạo điểm hình học và tự động thiết lập `binding: { type: 'intersection', objAId, objBId, ptIndex }`.
+  - Tự động liên kết cả 3 đối tượng vào cùng một nhóm thống nhất (`linkGroupMulti([elementA, elementB], newPoint)`).
+  - Khi 1 trong 2 đối tượng ban đầu di chuyển, xoay, thay đổi đầu mút hoặc bán kính: Giao điểm tự động tính toán lại và trượt theo thời gian thực (0ms), bảo toàn vị trí giao cắt giải tích.
+- **4. Sửa lỗi nhận diện đường tròn trong `extractGeoGeometry`:**
+  - Khắc phục thứ tự nhận diện: ưu tiên kiểm tra `getCircleFromElement` trước khi xét `start/end` để tránh đường tròn có tâm và bán kính bị hiểu nhầm thành đoạn thẳng.
+- **5. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v41` và query string `?v=20261027_2135` trong `web/index.html`.
+
+## [Chuẩn Hóa Biểu Tượng & Tính Năng Đường Tròn Nội Tiếp Tam Giác] - 27/10/2026
+
+- **1. Chuẩn hóa hình học Biểu tượng SVG (Incircle & Circumcircle Icons):**
+  - Khắc phục lỗi ở biểu tượng menu "Đường tròn nội tiếp": Trước đây hình tròn bị vẽ bán kính quá lớn khiến 2 bên hông vòng tròn cắt xuyên qua 2 cạnh bên tam giác và lòi ra ngoài.
+  - Thiết kế lại biểu tượng SVG chuẩn mực toán học: Tam giác cân đối, đường tròn nội tiếp nằm hoàn toàn bên trong tam giác và tiếp xúc nhẹ nhàng với cả 3 cạnh (đáy và 2 cạnh bên), không một pixel nào bị lòi ra ngoài.
+  - Đồng bộ thiết kế cho biểu tượng "Đường tròn ngoại tiếp": Đường tròn ôm trọn bên ngoài tam giác, đi qua cả 3 đỉnh tam giác rõ ràng, trực quan.
+- **2. Tự động dựng tam giác khi chọn 3 điểm rời:**
+  - Khi người dùng kích hoạt tác vụ Đường tròn nội tiếp từ 3 điểm rời (chưa có tam giác trên bảng vẽ), hệ thống tự động vẽ tam giác nối 3 đỉnh đó, giúp hiển thị trực quan rõ ràng đường tròn nội tiếp tiếp xúc trọn vẹn với cả 3 cạnh tam giác.
+- **3. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v40` và query string `?v=20261027_2115` trong `web/index.html`.
+
 ## [Bảo Toàn Tuyệt Đối Điểm Ban Đầu Cho Đường Thẳng Song Song & Vuông Góc Khi Biến Động] - 27/10/2026
 
 - **1. Bảo toàn hình học điểm ban đầu (Point Invariance on Dynamic Update):**
