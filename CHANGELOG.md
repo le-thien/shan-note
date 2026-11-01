@@ -2,6 +2,140 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Rà Soát Mã Nguồn & Tối Ưu Toàn Diện Tính Năng Nhóm (Group Optimization v50)] - 01/11/2026
+
+- **1. Phân Tách Thông Minh Giữa Nhóm Tự Động Khi Dựng Hình và Nhóm Thủ Công (`⌘G`):**
+  - Nhấp đơn vào một đối tượng trong cụm dựng hình tự động nay chỉ chọn gọn gàng đúng đối tượng đó (không bung chọn cả cụm gây rối mắt hay bật thanh nổi ngoài ý muốn), trong khi kéo rê thân đối tượng vẫn di chuyển đồng bộ toàn bộ cụm hình liên kết.
+  - Đối với Nhóm thủ công (`isManualGroup = true`, tạo bằng `⌘G` hoặc nút **Nhóm**): nhấp đơn chọn toàn bộ nhóm; hỗ trợ **`Alt/Option + Click`** hoặc **Nhấp đúp (`Double-click`)** để chọn sâu riêng 1 phần tử con trong nhóm mà không cần rã nhóm.
+  - Hỗ trợ **Nhấp đúp (`Double-click`)** vào đối tượng trong cụm dựng hình tự động để chọn nhanh toàn bộ cụm liên kết kèm thanh tác vụ nổi; hỗ trợ `⌘/Ctrl + Click` từ 2 đối tượng trở lên tự động hiện nút **Nhóm (`⌘G`)**.
+- **2. Rã Nhóm (`⌘⇧G`) Thực Sự Tách Rời Liên Kết & Hỗ Trợ Đầy Đủ Undo/Redo:**
+  - Nâng cấp `ungroupSelectedElements()` và `areElementsLinked()` với cờ `isUngrouped`: sau khi bấm Rã nhóm (`⌘⇧G`), các đối tượng thực sự tách rời và di chuyển độc lập, không bị tự động gộp lại bởi ràng buộc cũ.
+  - Hoàn tác / Làm lại (`⌘Z` / `⌘⇧Z`) khôi phục đầy đủ `groupId`, `isManualGroup`, `isUngrouped` và cập nhật lại toàn bộ ràng buộc hình học khi Undo/Redo lệnh di chuyển nhóm (`move`, `move-multiple`).
+- **3. Kích Hoạt Kéo Điểm Điều Khiển Động (`point_on_circle`, `point_on_line`, Điểm Tự Do Có Hình Phụ Thuộc):**
+  - Khi bấm kéo điểm trượt trên đường tròn, trên đoạn thẳng hoặc điểm tự do làm gốc dựng hình, hệ thống kích hoạt chế độ kéo điều chỉnh động (`activeHandle`) giúp điểm trượt đúng quỹ đạo và biến đổi thời gian thực các hình con cháu thay vì tịnh tiến cứng cả cụm.
+- **4. Sửa Lỗi Xoay Nhóm 2D (`rotateElement2D`) & Nhân Bản Nhóm (`cloneElementsGroup`):**
+  - Xoay chuẩn xác các vector hướng `{ x, y }` (`baseDir`, `normDir`, `axisDir`), góc xoay `ellipse` và góc `binding.angle`/`offset` trên đường tròn.
+  - Khi sao chép/nhân bản riêng đối tượng con mà không chọn đối tượng cha, tự động gỡ `binding` mồ côi để bản sao độc lập hoàn toàn.
+- **5. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v50` và query string `?v=20261101_2035` trong `web/index.html`.
+
+## [Tối Ưu Hóa Nhóm Đối Tượng & Thao Tác Kéo Điểm Động] - 01/11/2026
+
+- **1. Tính Năng Nhóm (`⌘G`) & Rã Nhóm (`⌘⇧G`) Trực Quan:**
+  - Bổ sung nút bấm **[ 🔗 Nhóm ] (`#fsb-btn-group`)** trên thanh tác vụ nhanh nổi (tự động hiện khi quét chọn từ 2 đối tượng trở lên).
+  - Bổ sung nút bấm **[ 🔓 Rã nhóm ] (`#fsb-btn-ungroup`)** trên thanh tác vụ nhanh nổi (tự động hiện khi vùng chọn có đối tượng đang nằm trong nhóm).
+  - Phím tắt chuẩn Mac: `⌘G` (Nhóm), `⌘⇧G` (Rã nhóm) / Windows: `Ctrl+G`, `Ctrl+Shift+G`.
+  - Khi nhấp chuột vào một đối tượng thuộc nhóm, hệ thống tự động nhận diện và chọn đồng bộ toàn bộ các đối tượng trong cùng nhóm với khung bao tổng thể hợp nhất.
+  - Tích hợp 100% vào hệ thống Hoàn tác & Làm lại (`⌘Z` / `⌘⇧Z`) với các lệnh `group-elements` và `ungroup-elements`.
+- **2. Khắc Phục Hiện Tượng Lệch Khung Chọn & "Nhãn Ma" Khi Kéo Đỉnh:**
+  - Khi người dùng nhấn chuột vào tay cầm đỉnh của hình học (như Đỉnh 3 của tam giác), hệ thống chuyển ngay lập tức vùng chọn sang hình học đó (`setSelectedElements([hitHandle.element])`), xóa lập tức khung bao xanh và tay cầm xoay của đối tượng trước đó.
+  - Xóa sạch `hoverHandle` và `hoverPointTarget`, chấm dứt hoàn toàn hiện tượng nhãn định vị (tooltip `"Đỉnh 3"`) bị đông cứng tại điểm bắt đầu kéo.
+- **3. Đồng Bộ Ràng Buộc Giải Tích Thời Gian Thực Cho Đường Trung Trực và Góc:**
+  - Tác vụ `perpendicular-bisector` tự động gán `startBinding`, `endBinding` cho đoạn thẳng nối và kết nối `linkGroupMulti` đa chiều giữa đoạn nối, đường trung trực và hình gốc.
+  - Nâng cấp `updateSingleBinding` cho nhánh `perpendicular_bisector` (hỗ trợ đỉnh đa giác qua `vAIndex`/`vBIndex`) và nhánh `angle_from_line` (cập nhật đỉnh góc `start` và hướng tia `baseDir` chính xác theo đoạn thẳng cha).
+  - Bổ sung `midpoint`, `segStart`, `segEnd` trong `translateElement` và `rotateElement2D`, đảm bảo ký hiệu vuông góc và vạch chia di chuyển và xoay đồng bộ cùng cụm hình.
+- **4. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v49` và query string `?v=20261101_1010` trong `web/index.html`.
+
+## [Thanh Tác Vụ Nhanh Chỉ Hiển Thị Khi Quét Vùng Chọn] - 01/11/2026
+
+- **1. Giới hạn hiển thị Thanh Tác Vụ Nhanh Nổi (Floating Selection Action Bar):**
+  - Thanh tác vụ nhanh nổi (gồm các nút: Cắt, Chép, Nhân bản, Màu, Nét liền/đứt, Độ dày nét, Xoay 90°, Xóa) hiện **chỉ xuất hiện khi người dùng dùng công cụ "Chọn" để quét khoanh vùng chọn** (Area / Marquee Selection).
+  - Khi người dùng **chỉ nhấp chuột đơn lẻ** vào một đối tượng hoặc điểm nút trên trang để chọn hoặc di chuyển, thanh tác vụ nổi sẽ **hoàn toàn không hiện lên**, giữ cho tầm nhìn trên trang giấy luôn thông thoáng, sạch sẽ và không gây vướng víu.
+- **2. Đồng bộ trạng thái theo nguồn gốc vùng chọn (`isFromAreaSelect`):**
+  - Quản lý trạng thái nguồn gốc vùng chọn chặt chẽ: Sau khi quét vùng, người dùng có thể thao tác (đổi màu, xoay, nhân bản, kéo cụm...) thì thanh nổi vẫn bám theo cụm.
+  - Khi nhấp chuột ra ngoài khoảng trống hoặc nhấp chọn một đối tượng đơn lẻ khác, thanh tác vụ nhanh lập tức ẩn đi ngay lập tức.
+- **3. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v48` và query string `?v=20261101_0900` trong `web/index.html`.
+
+## [Tối Ưu Nhóm Hình Ảnh — Lan Truyền Ràng Buộc Hình Học Đa Cấp (1 ➔ 2 ➔ 3 ➔ 4 ➔ 5...)] - 01/11/2026
+
+- **1. Lan truyền cập nhật hình học chuỗi đa thế hệ (Multi-Level Cascading Updates):**
+  - Khắc phục giới hạn trước đây khi hệ thống chỉ cập nhật các phần tử con trực tiếp cấp 1 ($1 \to 2$).
+  - Nâng cấp `updateDependentBindings` hoạt động theo mô hình hàng đợi BFS (Breadth-First Search). Khi đối tượng 1 thay đổi (kéo đầu mút, kéo biến dạng, xoay hoặc tịnh tiến), đối tượng 2 cập nhật giải tích và tự động kích hoạt cập nhật cho đối tượng 3, đối tượng 3 tiếp tục kích hoạt đối tượng 4, 5... xuyên suốt toàn bộ chuỗi cây phả hệ hình học không giới hạn cấp độ.
+- **2. Đồng bộ hóa chuyển động nhóm & tịnh tiến (Cascading Group Translation & Dragging):**
+  - Khi kéo tịnh tiến đối tượng gốc 1, toàn bộ các thế hệ con cháu $2, 3, 4, 5\dots$ đều di chuyển đồng bộ trơn tru theo hình học cha, bảo toàn tuyệt đối khoảng cách tương đối và tính chất tiếp xúc/giao điểm/vuông góc/song song/trung điểm.
+  - Khi kéo tay cầm xoay hoặc xoay 2D cụm đối tượng, toàn bộ các ràng buộc hình học đa cấp được tính toán lại chính xác thời gian thực.
+- **3. Thu thập toàn bộ cây phả hệ hậu duệ trong `getDependentElements`:**
+  - Nâng cấp thuật toán duyệt BFS trong `getDependentElements(parentEl)` để thu thập toàn bộ các đối tượng con, cháu, chắt... phụ thuộc giải tích, giúp lưu vết lịch sử Hoàn tác / Làm lại (Undo / Redo) trọn vẹn cụm hình mà không bỏ sót bất kỳ đối tượng nào.
+- **4. Định danh chuẩn xác đối tượng gốc trong các nhánh tính toán giải tích:**
+  - Cập nhật các nhánh giải tích (`midpoint_segment`, `midpoint_triangle_edge`, `midpoint_inscribed_edge`, `bisector_triangle`, `bisector_angle`, `circle_tangent`, `two_tangents`, `perpendicular_bisector`, `point_on_circle`, `point_on_line`) tự động tra cứu chính xác đối tượng cha dựa vào `b.parentId` qua `findElementById`, đảm bảo độ chính xác toán học tuyệt đối khi được kích hoạt gián tiếp từ bất kỳ khâu nào trong chuỗi lan truyền.
+- **5. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v47` và query string `?v=20261101_0800` trong `web/index.html`.
+
+## [Tối Ưu Toàn Diện Chọn 1 Đối Tượng Để Thao Tác] - 31/10/2026
+
+- **1. Thanh Tác Vụ Nhanh Nổi Đầy Đủ & Tinh Gọn (Full-Featured Floating Selection Action Bar):**
+  - Bổ sung nút **Đổi kiểu nét: Nét liền ⇋ Nét đứt (`#fsb-btn-dash`)** trực tiếp trên thanh nổi với biểu tượng nét liền / nét đứt SVG chuyển đổi động và thông báo Toast tương ứng (`〰️ Đã chuyển sang Nét đứt` / `➖ Đã chuyển sang Nét liền`).
+  - Bổ sung bộ chọn **Độ dày nét (`#fsb-btn-width`)** với menu popover 4 nấc trực quan: `Mảnh (1.5px)`, `Vừa (2.5px)`, `Đậm (4.0px)`, `Rất đậm (6.0px)`. Bấm 1 chạm để áp dụng ngay cho đối tượng.
+  - Tự động đóng các bảng chọn màu / độ dày khi nhấp chuột ra ngoài bảng vẽ.
+  - Tích hợp 100% vào hệ thống Hoàn tác / Làm lại (`⌘Z` / `⌘⇧Z`) thông qua snapshot `page-replace`.
+- **2. Tự Động Ẩn Thanh Nổi Khi Kéo Rê (Smooth Dragging & Auto-Hide):**
+  - Khi bắt đầu kéo rê di chuyển đối tượng (độ dời > 3px) hoặc khi kéo các điểm nút điều khiển (`activeHandle`), thanh tác vụ nhanh lập tức tự ẩn nhẹ nhàng để tránh che khuất tầm nhìn và tránh giật cục.
+  - Khi nhấc chuột thả đối tượng hoặc thả điểm điều khiển: Tự động tính toán lại hộp bao mới và hiển thị lại thanh tác vụ nổi êm dịu ngay tại vị trí mới của đối tượng.
+- **3. Khung Bao Chọn 1 Đối Tượng Có 4 Tay Cầm Định Vị Tròn & Tay Cầm Xoay 🔄:**
+  - Khung bao chữ nhật viền nét đứt ngọc bích tinh tế (`rgba(40, 99, 78, 0.65)`) kèm 4 góc tay cầm tròn định vị chuẩn xác (như Figma/Canva/Freeform), hiển thị rõ nét biên độ của đối tượng (kể cả nét vẽ tự do `stroke`, chữ viết tay, hình học phẳng, ảnh).
+  - Tích hợp sẵn tay cầm xoay `rot2d` trực quan ở đỉnh phía trên khung bao (`y = box.minY - 32`) cho phép nhấp giữ kéo chuột để xoay đối tượng tự do và mượt mà.
+- **4. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v46` và query string `?v=20261031_2150` trong `web/index.html`.
+
+## [Quét Kéo Chọn Vùng & Thanh Tác Vụ Nhanh] - 31/10/2026
+
+- **1. Thao tác Quét kéo chọn vùng (Marquee / Area Selection):**
+  - Khi ở công cụ **Chọn (`select`)**, người dùng chỉ cần nhấn giữ chuột tại bất kỳ khoảng trống nào trên mặt giấy rồi kéo rê để tạo vùng quét hình chữ nhật.
+  - Vùng quét hiển thị với lớp phủ ngọc bích êm dịu (`rgba(40, 99, 78, 0.08)`), viền nét đứt hiện đại kèm 4 góc định vị camera kiểu scan.
+  - Các đối tượng lọt vào hoặc cắt qua vùng quét lập tức phát sáng xem trước và hiển thị huy hiệu đếm số lượng thời gian thực (`🎯 N đối tượng`).
+  - Khi nhấc chuột: toàn bộ các đối tượng trong vùng được chọn cùng lúc, hiển thị khung bao tổng thể (`Unified Selection Frame`) và kích hoạt Thanh tác vụ nhanh.
+- **2. Thanh Tác Vụ Nhanh Nổi (Floating Selection Action Bar):**
+  - Thanh công cụ nổi bo tròn thanh lịch tự động xuất hiện ngay phía trên (hoặc phía dưới) cụm đối tượng được chọn.
+  - Tích hợp đầy đủ các chức năng thiết yếu:
+    + **✂️ Cắt (Cut)** — `⌘X`: Gỡ đối tượng khỏi trang và lưu vào bộ nhớ tạm.
+    + **📋 Sao chép (Copy)** — `⌘C`: Sao chép đối tượng vào bộ nhớ tạm.
+    + **📑 Nhân bản (Duplicate)** — `⌘D`: Nhân bản ngay cụm đối tượng với độ lệch nhẹ.
+    + **🎨 Đổi màu (Color)**: Bảng màu tròn nhanh và bộ chọn màu tùy biến để đổi màu toàn bộ các nét vẽ, hình học được chọn cùng lúc.
+    + **🔄 Xoay 90° (Rotate)**: Xoay toàn bộ cụm đối tượng 90° quanh tâm hình học.
+    + **🗑️ Xóa (Delete)** — `Delete` / `Backspace`: Xóa sạch các đối tượng đang chọn.
+    + **✕ Bỏ chọn (Deselect)** — `Escape`: Xóa vùng chọn nhanh gọn.
+- **3. Di chuyển đồng bộ cả nhóm và phím tắt chuẩn macOS:**
+  - Kéo bất kỳ đối tượng nào trong nhóm hoặc kéo bên trong khung bao sẽ tịnh tiến toàn bộ cụm đối tượng trơn tru (`translateElement`).
+  - Hỗ trợ đầy đủ phím tắt: `⌘X`, `⌘C`, `⌘V`, `⌘D`, `Delete`, `Backspace`, `Escape`.
+  - Mọi thao tác đều tích hợp đầy đủ vào hệ thống Hoàn tác / Làm lại (`⌘Z` / `⌘⇧Z`).
+- **4. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v45` và query string `?v=20261031_1630` trong `web/index.html`.
+
+## [Tối Ưu Hóa Bút Viết Siêu Mượt - Streamline & Chaikin Smoothing] - 31/10/2026
+
+- **1. Bộ lọc động học Streamline Stabilizer (Lọc quán tính thời gian thực):**
+  - Tích hợp bộ lọc Streamline tương tự Procreate với hệ số bám $\alpha = 0.42$ cho chế độ Siêu mượt.
+  - Ngòi bút di chuyển đầm chắc, lọc sạch mọi rung rinh cơ học của ngón tay, tạo cảm giác lướt bút cực kỳ êm ái ("smooth" tuyệt đối).
+- **2. Thuật toán Chaikin's Corner Smoothing khi nhấc bút:**
+  - Áp dụng thuật toán Chaikin bo tròn toàn bộ các góc ngoặt gấp khúc thành đường cong vector trơn tru hoàn hảo ngay khi nhấc bút.
+- **3. Hiệu ứng Tapering tự nhiên ở hai đầu nét chữ:**
+  - Điểm chạm đầu thanh mảnh tăng dần ($0.45 \to 1.0$) và vuốt nhọn tự nhiên khi nhấc bút ($1.0 \to 0.35$), tạo thần thái chữ viết tay thư pháp thanh thoát.
+- **4. Thuật toán đường cong tiếp xúc qua Trung điểm (Quadratic Bezier Midpoints):**
+  - Tiếp tuyến liên tục cấp $C^1$, loại bỏ hoàn toàn các nếp gấp khúc gồ ghề.
+- **5. Menu Bút ▾ với 3 nấc lựa chọn linh hoạt:**
+  - Bổ sung 3 nấc: `[Tiêu chuẩn]`, `[Mượt mà]` và `[✨ Siêu mượt]` (mặc định luôn kích hoạt mức Siêu mượt Streamline).
+- **6. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v44` và query string `?v=20261031_1515` trong `web/index.html`.
+
+## [Khởi Động Mặc Định Trang Trắng Mới & Tính Năng Mở Ghi Chú Gần Nhất] - 31/10/2026
+
+- **1. Mở máy / khởi động ứng dụng luôn là một trang trắng mới tinh:**
+  - Loại bỏ hoàn toàn cơ chế tự động ghi đè ghi chú cũ lên màn hình khi khởi chạy ứng dụng.
+  - Khi mở máy lên hoặc tải lại ứng dụng, màn hình luôn xuất hiện với trang giấy trắng mới tinh ("Ghi chú mới"), sạch sẽ, sẵn sàng để người dùng ghi chú hoặc giảng dạy bài mới ngay lập tức.
+- **2. Bảo toàn tuyệt đối ghi chú phiên trước (Zero Data Loss):**
+  - Mọi ghi chú có nội dung (nét vẽ, hình học, công thức) được tự động bảo lưu an toàn trong bộ nhớ máy cục bộ (`localStorage`) dưới khóa `net_recent_project`.
+  - Khởi tạo trang trắng mới không ghi đè hay xóa mất ghi chú đã lưu trước đó.
+- **3. Thêm mục "Mở ghi chú gần nhất" trong Menu Tệp (`#btn-file-open-recent`):**
+  - Bổ sung nút **`Mở ghi chú gần nhất`** với biểu tượng lịch sử và nhãn hiển thị trực tiếp tiêu đề bài vẽ gần nhất trong menu `Tệp`.
+  - Nhấp 1 chạm là khôi phục toàn bộ bài vẽ cũ (tiêu đề, các trang, đối tượng hình học, lưới kẻ và hướng giấy).
+  - Tự động hiển thị hộp thoại xác nhận an toàn nếu trang hiện tại đang có nét vẽ mới để tránh ghi đè nhầm.
+- **4. Thống nhất cơ chế nạp dữ liệu bằng hàm `loadProjectData`:**
+  - Dùng chung logic kiểm tra tính toàn vẹn tệp, dọn dẹp các trang phụ DOM và render đồng bộ cho cả tính năng Mở tệp `.net` từ máy tính và Mở ghi chú gần nhất.
+- **5. Nâng cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v42` và query string `?v=20261031_1440` trong `web/index.html`.
+
 ## [Bắt Dính Giao Điểm & Sáng Mờ 2 Đối Tượng Khi Thả Điểm Tác Vụ Điểm] - 27/10/2026
 
 - **1. Bắt dính giao điểm tự động trong tác vụ Điểm (Intersection Snapping):**

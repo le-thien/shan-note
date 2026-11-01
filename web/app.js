@@ -105,6 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
     color: '#30493c',
     strokeWidth: 2.5,
     dashStyle: 'solid', // 'solid' | 'dashed'
+    penSmoothing: 'ultra', // 'normal' | 'smooth' | 'ultra' (mặc định Siêu mượt Streamline)
+    lastSmoothedPressure: 0.5,
+    streamlinePos: null,
     currentPage: 1,
     zoom: 1.0,
     isDrawing: false,
@@ -122,6 +125,14 @@ document.addEventListener('DOMContentLoaded', () => {
     handleAdjustInitial: null,
     dragLast: null,
     totalMoved: { dx: 0, dy: 0 },
+    // Quét kéo chọn vùng (Area / Marquee Selection)
+    isAreaSelecting: false,
+    isFromAreaSelect: false,
+    areaSelectStart: null,
+    areaSelectCurrent: null,
+    areaSelectPage: null,
+    // Bộ nhớ đệm cho Cắt / Sao chép / Dán đối tượng
+    clipboardElements: [],
     // Trạng thái bật hiển thị tay cầm xoay bên ngoài hình (mặc định tắt, cần mới chọn)
     showRotationHandle: false,
     // Chỉ báo mũi tên nhọn khi hover trúng điểm hình học
@@ -200,7 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
       pressure: e.pressure && e.pressure > 0 ? e.pressure : 0.5,
-      pointerType: e.pointerType || 'mouse'
+      pointerType: e.pointerType || 'mouse',
+      time: (e && e.timeStamp) ? e.timeStamp : Date.now()
     };
   }
 
@@ -233,8 +245,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const el of selectedList) {
           if (elements.includes(el)) {
-            drawSelectionOutline(el);
+            if (selectedList.length === 1) {
+              drawSelectionOutline(el);
+            } else {
+              highlightElementShape(targetCtx, el, true);
+            }
           }
+        }
+
+        // Nếu có nhiều hơn 1 đối tượng được chọn: vẽ 1 khung bao tổng thể (Unified Selection Frame)
+        if (selectedList.length > 1 && state.currentPage === p && !state.isAreaSelecting) {
+          drawUnifiedSelectionBoundingBox(targetCtx, selectedList);
         }
 
         // Làm sáng nhẹ hình đang hover nhưng chưa chọn để người dùng dễ hình dung trước khi bấm (chỉ sáng đơn lẻ một đối tượng)
@@ -451,6 +472,11 @@ document.addEventListener('DOMContentLoaded', () => {
         targetCtx.restore();
       }
 
+      // Hiển thị khung quét chọn vùng (Area / Marquee Selection Box)
+      if (state.activeTool === 'select' && state.isAreaSelecting && state.areaSelectStart && state.areaSelectCurrent && state.currentPage === p) {
+        drawAreaSelectionSweepBox(targetCtx, state.areaSelectStart, state.areaSelectCurrent, elements);
+      }
+
       ctx = prevCtx;
 
       if (typeof updateThumbnail === 'function') {
@@ -646,29 +672,24 @@ document.addEventListener('DOMContentLoaded', () => {
       handles.push({ id: 'second_pt', x: p2.x, y: p2.y, name: 'Đầu mút đường thứ hai (kéo xoay số đo góc)' });
     }
 
-    // Tay cầm xoay 2D cho các hình phẳng (tam giác, tứ giác, chữ nhật, bình hành, thoi, đoạn thẳng...)
-    // Đưa ra ngoài hình (cách mép trên 48px) và chỉ hiển thị khi người dùng cần và bấm chọn
-    if (state.showRotationHandle && el.type === 'geo' && !isSolidShape(el.shape) && el.shape !== 'point' && handles.length > 0) {
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const h of handles) {
-        if (h.x < minX) minX = h.x;
-        if (h.x > maxX) maxX = h.x;
-        if (h.y < minY) minY = h.y;
-        if (h.y > maxY) maxY = h.y;
-      }
-      if (minX !== Infinity && (maxX - minX >= 15 || maxY - minY >= 15)) {
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
+    // Tay cầm xoay 2D cho các đối tượng phẳng (tam giác, tứ giác, chữ nhật, bình hành, thoi, đoạn thẳng, nét vẽ, ảnh...)
+    // Hiển thị trực quan khi người dùng chọn 1 đối tượng hoặc bật showRotationHandle
+    const isSingleSelected = state.activeTool === 'select' && state.selectedElements && state.selectedElements.length === 1 && state.selectedElements[0] === el;
+    if ((state.showRotationHandle || isSingleSelected) && (el.type === 'geo' || el.type === 'stroke' || el.type === 'image') && !isSolidShape(el.shape) && el.shape !== 'point') {
+      const box = getElementBoundingBox(el);
+      if (box && ((box.maxX - box.minX >= 15) || (box.maxY - box.minY >= 15))) {
+        const cx = (box.minX + box.maxX) / 2;
+        const cy = (box.minY + box.maxY) / 2;
         handles.push({
           id: 'rot2d',
           x: cx,
-          y: minY - 48,
+          y: box.minY - 32,
           isRotate2D: true,
-          topY: minY,
+          topY: box.minY - 10,
           cx: cx,
           cy: cy,
           cursor: 'grab',
-          name: 'Tay cầm xoay hình 🔄 (Kéo chuột để xoay toàn bộ hình và các yếu tố liên quan)'
+          name: 'Tay cầm xoay 🔄 (Kéo chuột để xoay đối tượng)'
         });
       }
     }
@@ -969,6 +990,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Lớp phát sáng rực rỡ (Luminous Glow) cho hình học đối tượng khi chọn hoặc hover để người dùng dễ hình dung
   function highlightElementShape(c, el, isSelected = true) {
     if (!el) return;
+
     c.save();
     const glowAlpha = isSelected ? 0.45 : 0.22;
     const glowWidth = isSelected ? 10 : 5;
@@ -1239,17 +1261,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Vẽ khung chọn và hiệu ứng phát sáng sáng rực rỡ để người dùng dễ hình dung đối tượng
   function drawSelectionOutline(el) {
     if (!el) return;
+
     // 1. Làm chính hình vẽ SÁNG BỪNG LÊN với quầng sáng ngọc bích
     highlightElementShape(ctx, el, true);
 
-    // 2. Với các hình lớn (không phải điểm), vẽ thêm viền đứt nét nhẹ nhàng tinh tế
-    if (el.type !== 'geo' || el.shape !== 'point') {
+    // 2. Với các hình (không phải điểm hoặc đoạn thẳng đơn lẻ), vẽ thêm viền đứt nét kèm 4 góc tay cầm định vị trực quan
+    if (el.type !== 'geo' || (el.shape !== 'point' && el.shape !== 'line')) {
       const box = getElementBoundingBox(el);
       if (box) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(40, 99, 78, 0.45)';
-        ctx.lineWidth = 1.2;
-        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(40, 99, 78, 0.65)';
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([5, 4]);
 
         const pad = 10;
         const w = (box.maxX - box.minX) + pad * 2;
@@ -1258,6 +1281,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const y = box.minY - pad;
 
         ctx.strokeRect(x, y, w, h);
+        ctx.setLineDash([]);
+
+        // 4 góc tay cầm tròn định vị chuẩn xác
+        const corners = [
+          { x: x, y: y },
+          { x: x + w, y: y },
+          { x: x + w, y: y + h },
+          { x: x, y: y + h }
+        ];
+        for (const cp of corners) {
+          ctx.beginPath();
+          ctx.arc(cp.x, cp.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.lineWidth = 1.8;
+          ctx.strokeStyle = '#28634e';
+          ctx.stroke();
+        }
+
         ctx.restore();
       }
     }
@@ -1285,13 +1327,73 @@ document.addEventListener('DOMContentLoaded', () => {
           maxY: el.start.y + ry
         };
       }
-      if (el.shape === 'circle' || el.shape === 'inscribed-triangle' || el.shape === 'two-tangents') {
+      if (el.shape === 'circle' || el.shape === 'inscribed-triangle') {
         const r = Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
         return {
           minX: el.start.x - r,
           maxX: el.start.x + r,
           minY: el.start.y - r,
           maxY: el.start.y + r
+        };
+      }
+      if (el.shape === 'two-tangents') {
+        const r = el.radius || Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
+        let minX = el.start.x - r;
+        let maxX = el.start.x + r;
+        let minY = el.start.y - r;
+        let maxY = el.start.y + r;
+        if (el.end) {
+          minX = Math.min(minX, el.end.x);
+          maxX = Math.max(maxX, el.end.x);
+          minY = Math.min(minY, el.end.y);
+          maxY = Math.max(maxY, el.end.y);
+        }
+        return { minX, maxX, minY, maxY };
+      }
+      if (el.shape === 'sphere') {
+        const r = Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
+        return {
+          minX: el.start.x - r,
+          maxX: el.start.x + r,
+          minY: el.start.y - r,
+          maxY: el.start.y + r
+        };
+      }
+      if (el.shape === 'cone') {
+        const rx = Math.max(20, Math.abs(el.end.x - el.start.x));
+        const ry = Math.max(8, Math.round(rx * 0.32));
+        return {
+          minX: el.start.x - rx,
+          maxX: el.start.x + rx,
+          minY: Math.min(el.start.y, el.end.y - ry),
+          maxY: Math.max(el.start.y, el.end.y + ry)
+        };
+      }
+      if (el.shape === 'cylinder') {
+        const rx = Math.max(20, Math.abs(el.end.x - el.start.x) / 2);
+        const ry = Math.max(8, Math.round(rx * 0.3));
+        const cx = (el.start.x + el.end.x) / 2;
+        return {
+          minX: cx - rx,
+          maxX: cx + rx,
+          minY: Math.min(el.start.y, el.end.y) - ry,
+          maxY: Math.max(el.start.y, el.end.y) + ry
+        };
+      }
+      if (el.shape === 'angle') {
+        const rad = ((el.angleDeg || 60) * Math.PI) / 180;
+        const armLen = el.armLength || 65;
+        const baseDir = (typeof el.baseDir === 'number') ? el.baseDir : Math.atan2(el.end.y - el.start.y, el.end.x - el.start.x);
+        const dir = (el.direction !== undefined) ? el.direction : ((el.binding && el.binding.direction !== undefined) ? el.binding.direction : -1);
+        const p2 = el.secondPoint || {
+          x: el.start.x + armLen * Math.cos(baseDir + dir * rad),
+          y: el.start.y + armLen * Math.sin(baseDir + dir * rad)
+        };
+        return {
+          minX: Math.min(el.start.x, el.end.x, p2.x),
+          maxX: Math.max(el.start.x, el.end.x, p2.x),
+          minY: Math.min(el.start.y, el.end.y, p2.y),
+          maxY: Math.max(el.start.y, el.end.y, p2.y)
         };
       }
       if (el.points && el.points.length > 0) {
@@ -1343,8 +1445,984 @@ document.addEventListener('DOMContentLoaded', () => {
         minY: el.y,
         maxY: el.y + el.height
       };
+    } else if (el.type === 'graph-widget') {
+      return {
+        minX: el.x || 0,
+        maxX: (el.x || 0) + (el.width || 420),
+        minY: el.y || 0,
+        maxY: (el.y || 0) + (el.height || 360)
+      };
     }
     return null;
+  }
+
+  // Tính hộp bao tổng thể (Combined Bounding Box) cho một danh sách đối tượng
+  function getCombinedBoundingBox(elements) {
+    if (!elements || elements.length === 0) return null;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const el of elements) {
+      const box = getElementBoundingBox(el);
+      if (box) {
+        if (box.minX < minX) minX = box.minX;
+        if (box.maxX > maxX) maxX = box.maxX;
+        if (box.minY < minY) minY = box.minY;
+        if (box.maxY > maxY) maxY = box.maxY;
+      }
+    }
+    if (!isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) return null;
+    return { minX, maxX, minY, maxY };
+  }
+
+  // Kiểm tra đoạn thẳng có cắt qua hình chữ nhật hay không
+  function lineIntersectsRect(p1, p2, rect) {
+    if (!p1 || !p2 || !rect) return false;
+    const minX = rect.minX, maxX = rect.maxX, minY = rect.minY, maxY = rect.maxY;
+    function ccw(A, B, C) {
+      return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
+    }
+    function intersect(A, B, C, D) {
+      return ccw(A, C, D) !== ccw(B, C, D) && ccw(A, B, C) !== ccw(A, B, D);
+    }
+    const tl = { x: minX, y: minY }, tr = { x: maxX, y: minY };
+    const br = { x: maxX, y: maxY }, bl = { x: minX, y: maxY };
+    return intersect(p1, p2, tl, tr) || intersect(p1, p2, tr, br) ||
+           intersect(p1, p2, br, bl) || intersect(p1, p2, bl, tl);
+  }
+
+  // Kiểm tra một đối tượng có nằm trong hoặc cắt qua vùng quét chữ nhật hay không
+  function isElementInSelectionBox(el, rect) {
+    if (!el || !rect) return false;
+    const box = getElementBoundingBox(el);
+    if (!box) return false;
+
+    // 1. Không giao cắt với hộp bao -> Chắc chắn không chọn
+    if (box.maxX < rect.minX || box.minX > rect.maxX || box.maxY < rect.minY || box.minY > rect.maxY) {
+      return false;
+    }
+
+    // 2. Hộp bao nằm trọn bên trong vùng quét -> Chọn
+    if (box.minX >= rect.minX && box.maxX <= rect.maxX && box.minY >= rect.minY && box.maxY <= rect.maxY) {
+      return true;
+    }
+
+    // 3. Giao cắt một phần:
+    // Với nét vẽ tự do (stroke)
+    if (el.type === 'stroke' && el.points && el.points.length > 0) {
+      return el.points.some(p => p.x >= rect.minX && p.x <= rect.maxX && p.y >= rect.minY && p.y <= rect.maxY);
+    }
+
+    // Với hình học (geo)
+    if (el.type === 'geo') {
+      if (el.shape === 'point' && el.start) {
+        return el.start.x >= rect.minX && el.start.x <= rect.maxX && el.start.y >= rect.minY && el.start.y <= rect.maxY;
+      }
+      if (el.points && el.points.length > 0) {
+        return el.points.some(p => p.x >= rect.minX && p.x <= rect.maxX && p.y >= rect.minY && p.y <= rect.maxY);
+      }
+      if (el.start && el.end) {
+        if ((el.start.x >= rect.minX && el.start.x <= rect.maxX && el.start.y >= rect.minY && el.start.y <= rect.maxY) ||
+            (el.end.x >= rect.minX && el.end.x <= rect.maxX && el.end.y >= rect.minY && el.end.y <= rect.maxY)) {
+          return true;
+        }
+        if (lineIntersectsRect(el.start, el.end, rect)) return true;
+      }
+      if (el.shape === 'circle' || el.shape === 'ellipse') {
+        if (el.start && el.start.x >= rect.minX && el.start.x <= rect.maxX && el.start.y >= rect.minY && el.start.y <= rect.maxY) {
+          return true;
+        }
+      }
+    }
+
+    // Với văn bản, ảnh, widget... giao cắt hộp bao là chọn
+    return true;
+  }
+
+  // Kiểm tra một điểm có nằm trong hộp bao hay không
+  function isPointInsideBox(px, py, box, pad = 12) {
+    if (!box) return false;
+    return px >= (box.minX - pad) && px <= (box.maxX + pad) &&
+           py >= (box.minY - pad) && py <= (box.maxY + pad);
+  }
+
+  // Sao chép sâu một nhóm đối tượng, cấp phát ID mới và cập nhật các liên kết nội bộ
+  function cloneElementsGroup(elements, offset = { dx: 25, dy: 25 }) {
+    if (!elements || elements.length === 0) return [];
+    const idMap = new Map();
+    const groupMap = new Map();
+    const clones = elements.map(el => {
+      const clone = JSON.parse(JSON.stringify(el));
+      const oldId = clone.id;
+      const newId = 'el_' + Date.now().toString(36) + '_' + (elementIdCounter++);
+      clone.id = newId;
+      if (oldId) idMap.set(oldId, newId);
+      if (clone.groupId) {
+        if (!groupMap.has(clone.groupId)) {
+          groupMap.set(clone.groupId, 'grp_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6));
+        }
+        clone.groupId = groupMap.get(clone.groupId);
+      }
+      return clone;
+    });
+
+    for (const clone of clones) {
+      if (clone.parentId) clone.parentId = idMap.has(clone.parentId) ? idMap.get(clone.parentId) : null;
+      if (clone.triangleId) clone.triangleId = idMap.has(clone.triangleId) ? idMap.get(clone.triangleId) : null;
+      if (clone.axisId) clone.axisId = idMap.has(clone.axisId) ? idMap.get(clone.axisId) : null;
+      if (clone.pt1Id) clone.pt1Id = idMap.has(clone.pt1Id) ? idMap.get(clone.pt1Id) : null;
+      if (clone.pt2Id) clone.pt2Id = idMap.has(clone.pt2Id) ? idMap.get(clone.pt2Id) : null;
+      if (clone.pt3Id) clone.pt3Id = idMap.has(clone.pt3Id) ? idMap.get(clone.pt3Id) : null;
+      if (clone.startBinding) {
+        const pId = clone.startBinding.parentId || clone.startBinding.elementId;
+        if (pId && !idMap.has(pId)) {
+          delete clone.startBinding;
+        } else {
+          if (clone.startBinding.parentId && idMap.has(clone.startBinding.parentId)) clone.startBinding.parentId = idMap.get(clone.startBinding.parentId);
+          if (clone.startBinding.elementId && idMap.has(clone.startBinding.elementId)) clone.startBinding.elementId = idMap.get(clone.startBinding.elementId);
+        }
+      }
+      if (clone.endBinding) {
+        const pId = clone.endBinding.parentId || clone.endBinding.elementId;
+        if (pId && !idMap.has(pId)) {
+          delete clone.endBinding;
+        } else {
+          if (clone.endBinding.parentId && idMap.has(clone.endBinding.parentId)) clone.endBinding.parentId = idMap.get(clone.endBinding.parentId);
+          if (clone.endBinding.elementId && idMap.has(clone.endBinding.elementId)) clone.endBinding.elementId = idMap.get(clone.endBinding.elementId);
+        }
+      }
+      if (clone.binding) {
+        let missingParent = false;
+        for (const k in clone.binding) {
+          const val = clone.binding[k];
+          if (val && typeof val === 'string' && val.startsWith('el_')) {
+            if (idMap.has(val)) {
+              clone.binding[k] = idMap.get(val);
+            } else {
+              missingParent = true;
+            }
+          }
+        }
+        if (missingParent) {
+          delete clone.binding;
+        }
+      }
+      if (offset.dx !== 0 || offset.dy !== 0) {
+        const dummySet = new Set();
+        translateElement(clone, offset.dx, offset.dy, dummySet);
+      }
+    }
+    return clones;
+  }
+
+  // Tác vụ: Cắt các đối tượng đang chọn
+  function cutSelectedElements() {
+    const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+    if (selected.length === 0) return;
+    state.clipboardElements = JSON.parse(JSON.stringify(selected));
+    const list = state.pages[state.currentPage] || [];
+    const before = [...list];
+    state.pages[state.currentPage] = list.filter(el => !selected.includes(el));
+    pushCommand({
+      type: 'page-replace',
+      before: before,
+      after: [...state.pages[state.currentPage]]
+    });
+    setSelectedElements([]);
+    hideFloatingSelectionBar();
+    renderPage();
+    showPageToast(`✂️ Đã cắt ${selected.length} đối tượng`);
+  }
+
+  // Tác vụ: Sao chép các đối tượng đang chọn
+  function copySelectedElements() {
+    const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+    if (selected.length === 0) return;
+    state.clipboardElements = JSON.parse(JSON.stringify(selected));
+    showPageToast(`📋 Đã sao chép ${selected.length} đối tượng`);
+  }
+
+  // Tác vụ: Dán các đối tượng từ bộ nhớ đệm
+  function pasteClipboardElements(targetPoint = null) {
+    if (!state.clipboardElements || state.clipboardElements.length === 0) return;
+    const box = getCombinedBoundingBox(state.clipboardElements);
+    let offset = { dx: 25, dy: 25 };
+    if (targetPoint && box) {
+      const curCenterX = (box.minX + box.maxX) / 2;
+      const curCenterY = (box.minY + box.maxY) / 2;
+      offset = { dx: targetPoint.x - curCenterX, dy: targetPoint.y - curCenterY };
+    }
+    const clones = cloneElementsGroup(state.clipboardElements, offset);
+    const list = state.pages[state.currentPage] || [];
+    const before = [...list];
+    state.pages[state.currentPage] = [...list, ...clones];
+    pushCommand({
+      type: 'page-replace',
+      before: before,
+      after: [...state.pages[state.currentPage]]
+    });
+    setSelectedElements(clones);
+    showFloatingSelectionBar(clones);
+    renderPage();
+    showPageToast(`📋 Đã dán ${clones.length} đối tượng`);
+  }
+
+  // Tác vụ: Nhân bản các đối tượng đang chọn
+  function duplicateSelectedElements() {
+    const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+    if (selected.length === 0) return;
+    const clones = cloneElementsGroup(selected, { dx: 25, dy: 25 });
+    const list = state.pages[state.currentPage] || [];
+    const before = [...list];
+    state.pages[state.currentPage] = [...list, ...clones];
+    pushCommand({
+      type: 'page-replace',
+      before: before,
+      after: [...state.pages[state.currentPage]]
+    });
+    setSelectedElements(clones);
+    showFloatingSelectionBar(clones);
+    renderPage();
+    showPageToast(`📑 Đã nhân bản ${clones.length} đối tượng`);
+  }
+
+  // Tác vụ: Xóa các đối tượng đang chọn
+  function deleteSelectedElements() {
+    const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+    if (selected.length === 0) return;
+    const list = state.pages[state.currentPage] || [];
+    const before = [...list];
+    state.pages[state.currentPage] = list.filter(el => !selected.includes(el));
+    pushCommand({
+      type: 'page-replace',
+      before: before,
+      after: [...state.pages[state.currentPage]]
+    });
+    setSelectedElements([]);
+    hideFloatingSelectionBar();
+    renderPage();
+    showPageToast(`🗑 Đã xóa ${selected.length} đối tượng`);
+  }
+
+  // Tác vụ: Đổi màu cho tất cả các đối tượng đang chọn
+  function changeSelectedElementsColor(newColor) {
+    const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+    if (selected.length === 0 || !newColor) return;
+    const list = state.pages[state.currentPage] || [];
+    const before = JSON.parse(JSON.stringify(list));
+    for (const el of selected) {
+      if (el.color !== undefined) el.color = newColor;
+      if (el.stroke !== undefined) el.stroke = newColor;
+      if (el.fill && el.fill !== 'transparent' && el.fill !== 'none') {
+        el.fill = newColor;
+      }
+    }
+    pushCommand({
+      type: 'page-replace',
+      before: before,
+      after: JSON.parse(JSON.stringify(state.pages[state.currentPage]))
+    });
+    const dot = document.getElementById('fsb-color-dot');
+    if (dot) dot.style.backgroundColor = newColor;
+    renderPage();
+    showPageToast(`🎨 Đã đổi màu ${selected.length} đối tượng`);
+  }
+
+  // Tác vụ: Xoay các đối tượng đang chọn 90°
+  function rotateSelectedElements(rad = Math.PI / 2) {
+    const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+    if (selected.length === 0) return;
+    const box = getCombinedBoundingBox(selected);
+    if (!box) return;
+    const cx = (box.minX + box.maxX) / 2;
+    const cy = (box.minY + box.maxY) / 2;
+    const list = state.pages[state.currentPage] || [];
+    const before = JSON.parse(JSON.stringify(list));
+    const rotSet = new Set();
+    for (const el of selected) {
+      rotateElement2D(el, cx, cy, rad, rotSet);
+    }
+    for (const el of rotSet) {
+      updateDependentBindings(el);
+    }
+    pushCommand({
+      type: 'page-replace',
+      before: before,
+      after: JSON.parse(JSON.stringify(state.pages[state.currentPage]))
+    });
+    showFloatingSelectionBar(selected);
+    renderPage();
+    showPageToast(`🔄 Đã xoay các đối tượng`);
+  }
+
+  // Tác vụ: Đổi kiểu nét (Liền ⇋ Đứt) cho các đối tượng đang chọn
+  function toggleSelectedElementsDash() {
+    const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+    if (selected.length === 0) return;
+    const list = state.pages[state.currentPage] || [];
+    const before = JSON.parse(JSON.stringify(list));
+
+    if (state.selectedEdge) {
+      const eEl = state.selectedEdge.element;
+      if (eEl && isSolidShape(eEl.shape) && eEl.edges) {
+        const v1 = state.selectedEdge.v1Index;
+        const v2 = state.selectedEdge.v2Index;
+        const ed = eEl.edges.find(e => (e[0] === v1 && e[1] === v2) || (e[0] === v2 && e[1] === v1));
+        if (ed) {
+          ed[2] = (ed[2] === 'dashed') ? 'solid' : 'dashed';
+          pushCommand({
+            type: 'page-replace',
+            before: before,
+            after: JSON.parse(JSON.stringify(state.pages[state.currentPage]))
+          });
+          updateFloatingBarState(selected);
+          renderPage();
+          showPageToast(ed[2] === 'dashed' ? '〰️ Cạnh đã chuyển sang Nét đứt' : '➖ Cạnh đã chuyển sang Nét liền');
+          return;
+        }
+      } else if (eEl && eEl.points && state.selectedEdge.isPolygonEdge) {
+        if (!eEl.edgeDashes) eEl.edgeDashes = {};
+        const v1 = state.selectedEdge.v1Index;
+        eEl.edgeDashes[v1] = (eEl.edgeDashes[v1] === 'dashed') ? 'solid' : 'dashed';
+        pushCommand({
+          type: 'page-replace',
+          before: before,
+          after: JSON.parse(JSON.stringify(state.pages[state.currentPage]))
+        });
+        updateFloatingBarState(selected);
+        renderPage();
+        showPageToast(eEl.edgeDashes[v1] === 'dashed' ? '〰️ Cạnh đã chuyển sang Nét đứt' : '➖ Cạnh đã chuyển sang Nét liền');
+        return;
+      }
+    }
+
+    const firstEl = selected[0];
+    const isCurrentDashed = firstEl.dash === 'dashed' || firstEl.dashStyle === 'dashed';
+    const newDash = isCurrentDashed ? 'solid' : 'dashed';
+    for (const el of selected) {
+      el.dash = newDash;
+      el.dashStyle = newDash;
+    }
+    pushCommand({
+      type: 'page-replace',
+      before: before,
+      after: JSON.parse(JSON.stringify(state.pages[state.currentPage]))
+    });
+    updateFloatingBarState(selected);
+    renderPage();
+    showPageToast(newDash === 'dashed' ? '〰️ Đã chuyển sang Nét đứt' : '➖ Đã chuyển sang Nét liền');
+  }
+
+  // Tác vụ: Đổi độ dày nét cho các đối tượng đang chọn
+  function changeSelectedElementsWidth(newWidth) {
+    const numW = parseFloat(newWidth) || 2.5;
+    const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+    if (selected.length === 0 || !numW) return;
+    const list = state.pages[state.currentPage] || [];
+    const before = JSON.parse(JSON.stringify(list));
+    for (const el of selected) {
+      el.width = numW;
+    }
+    pushCommand({
+      type: 'page-replace',
+      before: before,
+      after: JSON.parse(JSON.stringify(state.pages[state.currentPage]))
+    });
+    updateFloatingBarState(selected);
+    renderPage();
+    showPageToast(`📏 Độ dày nét: ${numW}px`);
+  }
+
+  // Nhóm các đối tượng được chọn lại với nhau (⌘G)
+  function groupSelectedElements() {
+    const selected = (state.selectedElements && state.selectedElements.length > 0)
+      ? state.selectedElements
+      : (state.selectedElement ? [state.selectedElement] : []);
+    if (selected.length < 2) {
+      showPageToast('⚠️ Cần chọn ít nhất 2 đối tượng để nhóm (⌘G)');
+      return;
+    }
+    const pageEls = state.pages[state.currentPage] || [];
+    const existingGroupIds = new Set();
+    for (const el of selected) {
+      if (el && el.groupId) existingGroupIds.add(el.groupId);
+    }
+    const targetSet = new Set(selected);
+    if (existingGroupIds.size > 0) {
+      for (const item of pageEls) {
+        if (item && item.groupId && existingGroupIds.has(item.groupId)) {
+          targetSet.add(item);
+        }
+      }
+    }
+    const allToGroup = Array.from(targetSet);
+    const newGroupId = 'grp_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+    const items = allToGroup.map(el => {
+      ensureElementId(el);
+      return {
+        element: el,
+        beforeGroupId: el.groupId || null,
+        afterGroupId: newGroupId,
+        beforeManualGroup: Boolean(el.isManualGroup),
+        afterManualGroup: true,
+        beforeUngrouped: Boolean(el.isUngrouped),
+        afterUngrouped: false
+      };
+    });
+    for (const it of items) {
+      it.element.groupId = newGroupId;
+      it.element.isManualGroup = true;
+      it.element.isUngrouped = false;
+    }
+    pushCommand({
+      type: 'group-elements',
+      items: items
+    });
+    state.isFromAreaSelect = true;
+    setSelectedElements(allToGroup);
+    updateFloatingBarState(allToGroup);
+    renderPage();
+    showPageToast(`🔗 Đã nhóm ${allToGroup.length} đối tượng (⌘G)`);
+  }
+
+  // Rã nhóm các đối tượng đang chọn (⌘⇧G)
+  function ungroupSelectedElements() {
+    const selected = (state.selectedElements && state.selectedElements.length > 0)
+      ? state.selectedElements
+      : (state.selectedElement ? [state.selectedElement] : []);
+    const groupIds = new Set();
+    const targetSet = new Set();
+    for (const el of selected) {
+      if (!el) continue;
+      if (el.groupId) groupIds.add(el.groupId);
+      const connected = getGroupElements(el);
+      if (connected.length > 1) {
+        for (const c of connected) {
+          targetSet.add(c);
+          if (c.groupId) groupIds.add(c.groupId);
+        }
+      }
+    }
+    const pageEls = state.pages[state.currentPage] || [];
+    for (const el of pageEls) {
+      if (el && el.groupId && groupIds.has(el.groupId)) {
+        targetSet.add(el);
+      }
+    }
+    const toUngroup = Array.from(targetSet);
+    if (toUngroup.length === 0) {
+      showPageToast('⚠️ Các đối tượng đang chọn không thuộc nhóm nào');
+      return;
+    }
+    const items = toUngroup.map(el => ({
+      element: el,
+      beforeGroupId: el.groupId || null,
+      afterGroupId: null,
+      beforeManualGroup: Boolean(el.isManualGroup),
+      afterManualGroup: false,
+      beforeUngrouped: Boolean(el.isUngrouped),
+      afterUngrouped: true
+    }));
+    for (const it of items) {
+      it.element.groupId = null;
+      it.element.isManualGroup = false;
+      it.element.isUngrouped = true;
+    }
+    pushCommand({
+      type: 'ungroup-elements',
+      items: items
+    });
+    updateFloatingBarState(selected);
+    renderPage();
+    showPageToast(`🔓 Đã rã nhóm ${toUngroup.length} đối tượng (⌘⇧G)`);
+  }
+
+  // Đồng bộ trạng thái hiển thị của các nút trên thanh tác vụ nhanh theo đối tượng đang chọn
+  function updateFloatingBarState(elements) {
+    if (!elements || elements.length === 0) return;
+    const bar = document.getElementById('floating-selection-bar');
+    if (!bar) return;
+    const firstEl = elements[0];
+
+    // Cập nhật chấm màu
+    const activeCol = firstEl.color || firstEl.stroke || '#28634e';
+    const dot = bar.querySelector('#fsb-color-dot');
+    if (dot) dot.style.backgroundColor = activeCol;
+
+    // Cập nhật nút kiểu nét
+    const isDashed = firstEl.dash === 'dashed' || firstEl.dashStyle === 'dashed';
+    const iconSolid = bar.querySelector('#fsb-dash-icon-solid');
+    const iconDashed = bar.querySelector('#fsb-dash-icon-dashed');
+    const labelDash = bar.querySelector('#fsb-dash-label');
+    const btnDash = bar.querySelector('#fsb-btn-dash');
+
+    if (firstEl.type === 'image') {
+      if (btnDash) btnDash.style.display = 'none';
+    } else {
+      if (btnDash) btnDash.style.display = 'inline-flex';
+      if (iconSolid) iconSolid.style.display = isDashed ? 'none' : 'inline-block';
+      if (iconDashed) iconDashed.style.display = isDashed ? 'inline-block' : 'none';
+      if (labelDash) labelDash.textContent = isDashed ? 'Nét đứt' : 'Nét liền';
+      if (btnDash) {
+        btnDash.classList.toggle('active', isDashed);
+        btnDash.title = isDashed ? 'Đang là Nét đứt (Bấm để đổi thành Nét liền)' : 'Đang là Nét liền (Bấm để đổi thành Nét đứt)';
+      }
+    }
+
+    // Cập nhật nút độ dày nét
+    const btnWidth = bar.querySelector('#fsb-btn-width');
+    const labelWidth = bar.querySelector('#fsb-width-label');
+    if (firstEl.type === 'image') {
+      if (btnWidth) btnWidth.style.display = 'none';
+    } else {
+      if (btnWidth) btnWidth.style.display = 'inline-flex';
+      const curW = firstEl.width !== undefined ? firstEl.width : 2.5;
+      if (labelWidth) labelWidth.textContent = `${curW}px`;
+      const wItems = bar.querySelectorAll('.fsb-width-item');
+      wItems.forEach(item => {
+        const itemW = parseFloat(item.dataset.width);
+        item.classList.toggle('active', Math.abs(itemW - curW) < 0.2);
+      });
+    }
+
+    // Cập nhật nút nhóm và rã nhóm
+    const btnGroup = bar.querySelector('#fsb-btn-group');
+    const btnUngroup = bar.querySelector('#fsb-btn-ungroup');
+    const allSameManualGroup = elements && elements.length >= 2 &&
+      Boolean(elements[0].groupId && elements[0].isManualGroup) &&
+      elements.every(el => el.groupId === elements[0].groupId && el.isManualGroup);
+    if (btnGroup) {
+      btnGroup.style.display = (elements && elements.length >= 2 && !allSameManualGroup) ? 'inline-flex' : 'none';
+    }
+    if (btnUngroup) {
+      const hasGroup = elements && elements.some(el => Boolean(el.groupId) || (!el.isUngrouped && getGroupElements(el).length > 1));
+      btnUngroup.style.display = hasGroup ? 'inline-flex' : 'none';
+    }
+  }
+
+  // Khởi tạo phần tử Thanh tác vụ nhanh vùng chọn
+  function createFloatingSelectionBar() {
+    let bar = document.getElementById('floating-selection-bar');
+    if (bar) return bar;
+
+    bar = document.createElement('div');
+    bar.className = 'floating-selection-bar';
+    bar.id = 'floating-selection-bar';
+    bar.style.display = 'none';
+
+    bar.innerHTML = `
+      <div class="fsb-group">
+        <button type="button" class="fsb-btn" id="fsb-btn-cut" title="Cắt đối tượng (⌘X)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="6" r="3"></circle>
+            <circle cx="6" cy="18" r="3"></circle>
+            <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+            <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+            <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+          </svg>
+          <span>Cắt</span>
+        </button>
+        <button type="button" class="fsb-btn" id="fsb-btn-copy" title="Sao chép (⌘C)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span>Chép</span>
+        </button>
+        <button type="button" class="fsb-btn" id="fsb-btn-duplicate" title="Nhân bản (⌘D)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+            <path d="M4 16V4a2 2 0 0 1 2-2h12"></path>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+            <line x1="11" y1="14" x2="17" y2="14"></line>
+          </svg>
+          <span>Nhân bản</span>
+        </button>
+        <button type="button" class="fsb-btn" id="fsb-btn-group" title="Nhóm các đối tượng lại với nhau (⌘G)" style="display:none;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <span>Nhóm</span>
+        </button>
+        <button type="button" class="fsb-btn" id="fsb-btn-ungroup" title="Rã nhóm các đối tượng (⌘⇧G)" style="display:none;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18.84 12.25l1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M5.16 11.75l-1.72 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            <line x1="2" y1="2" x2="22" y2="22"></line>
+          </svg>
+          <span>Rã nhóm</span>
+        </button>
+      </div>
+      <div class="fsb-divider"></div>
+      <div class="fsb-group">
+        <div class="fsb-color-picker-wrap">
+          <button type="button" class="fsb-btn" id="fsb-btn-color" title="Đổi màu nét / hình">
+            <span class="fsb-color-dot" id="fsb-color-dot" style="background:#28634e;"></span>
+            <span>Màu</span>
+          </button>
+          <div class="fsb-color-palette" id="fsb-color-palette" style="display:none;">
+            <span class="fsb-color-swatch" data-color="#30493c" style="background:#30493c;" title="Mực xanh đậm"></span>
+            <span class="fsb-color-swatch" data-color="#537fc1" style="background:#537fc1;" title="Xanh dương"></span>
+            <span class="fsb-color-swatch" data-color="#cf7969" style="background:#cf7969;" title="Đỏ cam"></span>
+            <span class="fsb-color-swatch" data-color="#b6a24c" style="background:#b6a24c;" title="Vàng kim"></span>
+            <span class="fsb-color-swatch" data-color="#10b981" style="background:#10b981;" title="Ngọc bích"></span>
+            <span class="fsb-color-swatch" data-color="#243c36" style="background:#243c36;" title="Đen mực"></span>
+            <input type="color" id="fsb-custom-color" class="fsb-custom-color-input" title="Chọn màu bất kỳ" value="#28634e">
+          </div>
+        </div>
+        <button type="button" class="fsb-btn" id="fsb-btn-dash" title="Đổi kiểu nét: Nét liền ⇋ Nét đứt">
+          <svg id="fsb-dash-icon-solid" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+          </svg>
+          <svg id="fsb-dash-icon-dashed" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="4 3" style="display:none;">
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+          </svg>
+          <span id="fsb-dash-label">Nét liền</span>
+        </button>
+        <div class="fsb-width-picker-wrap">
+          <button type="button" class="fsb-btn" id="fsb-btn-width" title="Đổi độ dày nét">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6" stroke-width="1.5"></line>
+              <line x1="3" y1="12" x2="21" y2="12" stroke-width="2.5"></line>
+              <line x1="3" y1="18" x2="21" y2="18" stroke-width="4"></line>
+            </svg>
+            <span id="fsb-width-label">Độ dày</span>
+          </button>
+          <div class="fsb-width-palette" id="fsb-width-palette" style="display:none;">
+            <div class="fsb-width-item" data-width="1.5" title="Mảnh (1.5px)">
+              <span class="fsb-width-line" style="height:1.5px;"></span>
+              <span>1.5</span>
+            </div>
+            <div class="fsb-width-item" data-width="2.5" title="Vừa (2.5px)">
+              <span class="fsb-width-line" style="height:2.5px;"></span>
+              <span>2.5</span>
+            </div>
+            <div class="fsb-width-item" data-width="4" title="Đậm (4px)">
+              <span class="fsb-width-line" style="height:4px;"></span>
+              <span>4.0</span>
+            </div>
+            <div class="fsb-width-item" data-width="6" title="Rất đậm (6px)">
+              <span class="fsb-width-line" style="height:6px;"></span>
+              <span>6.0</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="fsb-btn" id="fsb-btn-rotate" title="Xoay 90°">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+          </svg>
+          <span>Xoay</span>
+        </button>
+      </div>
+      <div class="fsb-divider"></div>
+      <div class="fsb-group">
+        <button type="button" class="fsb-btn fsb-btn-delete" id="fsb-btn-delete" title="Xóa đối tượng (Delete / Backspace)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          <span>Xóa</span>
+        </button>
+        <button type="button" class="fsb-btn fsb-btn-close" id="fsb-btn-close" title="Bỏ chọn (Escape)">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    // Ngăn chặn nổi bọt sự kiện để không gây kích hoạt vẽ trên canvas
+    bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+    bar.addEventListener('mousedown', (e) => e.stopPropagation());
+    bar.addEventListener('click', (e) => e.stopPropagation());
+
+    bar.querySelector('#fsb-btn-cut').addEventListener('click', (e) => {
+      e.stopPropagation();
+      cutSelectedElements();
+    });
+
+    bar.querySelector('#fsb-btn-copy').addEventListener('click', (e) => {
+      e.stopPropagation();
+      copySelectedElements();
+    });
+
+    bar.querySelector('#fsb-btn-duplicate').addEventListener('click', (e) => {
+      e.stopPropagation();
+      duplicateSelectedElements();
+    });
+
+    const btnGroup = bar.querySelector('#fsb-btn-group');
+    if (btnGroup) {
+      btnGroup.addEventListener('click', (e) => {
+        e.stopPropagation();
+        groupSelectedElements();
+      });
+    }
+
+    const btnUngroup = bar.querySelector('#fsb-btn-ungroup');
+    if (btnUngroup) {
+      btnUngroup.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ungroupSelectedElements();
+      });
+    }
+
+    bar.querySelector('#fsb-btn-dash').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSelectedElementsDash();
+    });
+
+    bar.querySelector('#fsb-btn-rotate').addEventListener('click', (e) => {
+      e.stopPropagation();
+      rotateSelectedElements(Math.PI / 2);
+    });
+
+    bar.querySelector('#fsb-btn-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteSelectedElements();
+    });
+
+    bar.querySelector('#fsb-btn-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.isFromAreaSelect = false;
+      setSelectedElements([]);
+      hideFloatingSelectionBar();
+      renderPage();
+    });
+
+    const btnColor = bar.querySelector('#fsb-btn-color');
+    const paletteColor = bar.querySelector('#fsb-color-palette');
+    const btnWidth = bar.querySelector('#fsb-btn-width');
+    const paletteWidth = bar.querySelector('#fsb-width-palette');
+
+    btnColor.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (paletteWidth) paletteWidth.style.display = 'none';
+      paletteColor.style.display = (paletteColor.style.display === 'flex') ? 'none' : 'flex';
+    });
+
+    btnWidth.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (paletteColor) paletteColor.style.display = 'none';
+      paletteWidth.style.display = (paletteWidth.style.display === 'flex') ? 'none' : 'flex';
+    });
+
+    paletteColor.querySelectorAll('.fsb-color-swatch').forEach(sw => {
+      sw.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const col = sw.dataset.color;
+        changeSelectedElementsColor(col);
+        paletteColor.style.display = 'none';
+      });
+    });
+
+    paletteWidth.querySelectorAll('.fsb-width-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const w = item.dataset.width;
+        changeSelectedElementsWidth(w);
+        paletteWidth.style.display = 'none';
+      });
+    });
+
+    const customColor = bar.querySelector('#fsb-custom-color');
+    customColor.addEventListener('input', (e) => {
+      e.stopPropagation();
+      changeSelectedElementsColor(e.target.value);
+    });
+
+    document.addEventListener('pointerdown', (e) => {
+      if (bar.style.display !== 'none' && !bar.contains(e.target)) {
+        if (paletteColor) paletteColor.style.display = 'none';
+        if (paletteWidth) paletteWidth.style.display = 'none';
+      }
+    });
+
+    return bar;
+  }
+
+  // Hiển thị thanh tác vụ nhanh tại vị trí phía trên hộp bao đối tượng (CHỈ HIỂN THỊ KHI QUÉT VÙNG CHỌN)
+  function showFloatingSelectionBar(elements) {
+    if (!state.isFromAreaSelect || !elements || elements.length === 0 || state.activeTool !== 'select') {
+      hideFloatingSelectionBar();
+      return;
+    }
+    const box = getCombinedBoundingBox(elements);
+    if (!box) {
+      hideFloatingSelectionBar();
+      return;
+    }
+
+    const sheet = (typeof getPaperSheetForPage === 'function' ? getPaperSheetForPage(state.currentPage) : null) ||
+                  document.querySelector(`.paper-sheet[data-page="${state.currentPage}"]`) ||
+                  document.querySelector('.paper-sheet');
+    if (!sheet) return;
+
+    let bar = createFloatingSelectionBar();
+    if (bar.parentNode !== sheet) {
+      sheet.appendChild(bar);
+    }
+
+    updateFloatingBarState(elements);
+
+    // Đóng các palette nếu đang mở
+    const palColor = bar.querySelector('#fsb-color-palette');
+    if (palColor) palColor.style.display = 'none';
+    const palWidth = bar.querySelector('#fsb-width-palette');
+    if (palWidth) palWidth.style.display = 'none';
+
+    const centerX = (box.minX + box.maxX) / 2;
+    const barW = 430;
+    const pad = 14;
+    const dims = getCanvasDimensions();
+    let posX = Math.max(barW / 2 + 10, Math.min((dims.width || 1600) - barW / 2 - 10, centerX));
+    let posY = box.minY - 42;
+
+    if (posY < 55) {
+      posY = box.maxY + pad + 38;
+      bar.classList.add('fsb-position-below');
+    } else {
+      bar.classList.remove('fsb-position-below');
+    }
+
+    bar.style.left = `${posX}px`;
+    bar.style.top = `${posY}px`;
+    bar.style.display = 'flex';
+  }
+
+  // Ẩn thanh tác vụ nhanh vùng chọn
+  function hideFloatingSelectionBar() {
+    const bar = document.getElementById('floating-selection-bar');
+    if (bar) {
+      bar.style.display = 'none';
+      const palColor = bar.querySelector('#fsb-color-palette');
+      if (palColor) palColor.style.display = 'none';
+      const palWidth = bar.querySelector('#fsb-width-palette');
+      if (palWidth) palWidth.style.display = 'none';
+    }
+  }
+
+  // Vẽ khung quét chọn vùng thời gian thực
+  function drawAreaSelectionSweepBox(targetCtx, startPt, currPt, elements) {
+    const bx = Math.min(startPt.x, currPt.x);
+    const by = Math.min(startPt.y, currPt.y);
+    const bw = Math.abs(currPt.x - startPt.x);
+    const bh = Math.abs(currPt.y - startPt.y);
+
+    targetCtx.save();
+    // Lớp phủ nền mờ ngọc bích êm dịu
+    targetCtx.fillStyle = 'rgba(40, 99, 78, 0.08)';
+    targetCtx.fillRect(bx, by, bw, bh);
+
+    // Viền nét đứt
+    targetCtx.strokeStyle = '#28634e';
+    targetCtx.lineWidth = 1.5;
+    targetCtx.setLineDash([5, 4]);
+    targetCtx.strokeRect(bx, by, bw, bh);
+    targetCtx.setLineDash([]);
+
+    // 4 góc định vị camera kiểu scan hiện đại
+    const arm = Math.min(14, Math.max(5, Math.min(bw, bh) / 4));
+    targetCtx.lineWidth = 2.5;
+    targetCtx.strokeStyle = '#1e4f3e';
+
+    // Góc trên trái
+    targetCtx.beginPath();
+    targetCtx.moveTo(bx, by + arm);
+    targetCtx.lineTo(bx, by);
+    targetCtx.lineTo(bx + arm, by);
+    targetCtx.stroke();
+
+    // Góc trên phải
+    targetCtx.beginPath();
+    targetCtx.moveTo(bx + bw - arm, by);
+    targetCtx.lineTo(bx + bw, by);
+    targetCtx.lineTo(bx + bw, by + arm);
+    targetCtx.stroke();
+
+    // Góc dưới trái
+    targetCtx.beginPath();
+    targetCtx.moveTo(bx, by + bh - arm);
+    targetCtx.lineTo(bx, by + bh);
+    targetCtx.lineTo(bx + arm, by + bh);
+    targetCtx.stroke();
+
+    // Góc dưới phải
+    targetCtx.beginPath();
+    targetCtx.moveTo(bx + bw - arm, by + bh);
+    targetCtx.lineTo(bx + bw, by + bh);
+    targetCtx.lineTo(bx + bw, by + bh - arm);
+    targetCtx.stroke();
+
+    // Phát sáng các đối tượng nằm trong vùng quét để xem trước
+    const rect = { minX: bx, maxX: bx + bw, minY: by, maxY: by + bh };
+    let matchCount = 0;
+    if (elements && elements.length > 0) {
+      for (const el of elements) {
+        if (isElementInSelectionBox(el, rect)) {
+          highlightElementShape(targetCtx, el, false);
+          matchCount++;
+        }
+      }
+    }
+
+    // Huy hiệu đếm số đối tượng được bao quanh
+    if (matchCount > 0 && bw > 55 && bh > 35) {
+      const badgeText = `🎯 ${matchCount} đối tượng`;
+      targetCtx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      const textWidth = targetCtx.measureText(badgeText).width;
+      const badgeW = textWidth + 14;
+      const badgeH = 20;
+      const badgeX = bx + bw - badgeW - 6;
+      const badgeY = by + bh - badgeH - 6;
+
+      targetCtx.fillStyle = 'rgba(40, 99, 78, 0.9)';
+      targetCtx.beginPath();
+      targetCtx.roundRect ? targetCtx.roundRect(badgeX, badgeY, badgeW, badgeH, 10) : targetCtx.rect(badgeX, badgeY, badgeW, badgeH);
+      targetCtx.fill();
+
+      targetCtx.fillStyle = '#ffffff';
+      targetCtx.fillText(badgeText, badgeX + 7, badgeY + 14);
+    }
+
+    targetCtx.restore();
+  }
+
+  // Vẽ khung bao tổng thể khi chọn nhiều đối tượng
+  function drawUnifiedSelectionBoundingBox(targetCtx, selectedList) {
+    const uBox = getCombinedBoundingBox(selectedList);
+    if (!uBox) return;
+
+    targetCtx.save();
+    const pad = 12;
+    const ubx = uBox.minX - pad;
+    const uby = uBox.minY - pad;
+    const ubw = (uBox.maxX - uBox.minX) + pad * 2;
+    const ubh = (uBox.maxY - uBox.minY) + pad * 2;
+
+    targetCtx.strokeStyle = 'rgba(40, 99, 78, 0.7)';
+    targetCtx.lineWidth = 1.5;
+    targetCtx.setLineDash([6, 4]);
+    targetCtx.strokeRect(ubx, uby, ubw, ubh);
+    targetCtx.setLineDash([]);
+
+    // 4 góc tay cầm tròn
+    const cornerPts = [
+      { x: ubx, y: uby },
+      { x: ubx + ubw, y: uby },
+      { x: ubx + ubw, y: uby + ubh },
+      { x: ubx, y: uby + ubh }
+    ];
+    for (const cp of cornerPts) {
+      targetCtx.fillStyle = '#ffffff';
+      targetCtx.strokeStyle = '#28634e';
+      targetCtx.lineWidth = 2;
+      targetCtx.beginPath();
+      targetCtx.arc(cp.x, cp.y, 4.5, 0, Math.PI * 2);
+      targetCtx.fill();
+      targetCtx.stroke();
+    }
+    targetCtx.restore();
   }
 
   let elementIdCounter = 1;
@@ -1406,6 +2484,7 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const m of allMembers) {
       ensureElementId(m);
       m.groupId = targetGroupId;
+      m.isUngrouped = false;
     }
 
     // Sáp nhập tất cả các đối tượng thuộc các nhóm này trên trang hiện tại
@@ -1414,6 +2493,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (allMembers.includes(item) || (item.groupId && groupIdsToMerge.has(item.groupId))) {
         ensureElementId(item);
         item.groupId = targetGroupId;
+        item.isUngrouped = false;
       }
     }
   }
@@ -1423,6 +2503,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!a || !b || a === b) return false;
     // 1. Cùng chung groupId
     if (a.groupId && b.groupId && a.groupId === b.groupId) return true;
+
+    // Nếu người dùng đã chủ động bấm Rã nhóm (⌘⇧G) trên một trong hai đối tượng và chưa gộp lại -> Không tự động kéo theo nhau nữa
+    if (a.isUngrouped || b.isUngrouped) return false;
 
     // 2. Liên kết binding từ a tới b (quét mọi trường ID trong binding)
     if (a.binding) {
@@ -1451,6 +2534,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Lấy tất cả các đối tượng cùng nhóm và liên kết phụ thuộc với el trên trang hiện tại
   function getGroupElements(el) {
     if (!el) return [];
+    if (el.isUngrouped && !el.groupId) return [el];
     const pageEls = state.pages[state.currentPage] || [];
     
     // Thu thập tất cả các phần tử liên kết qua groupId hoặc qua binding hai chiều
@@ -1471,7 +2555,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Đảm bảo tất cả các phần tử trong nhóm đều có chung 1 targetGroupId
+    // Đảm bảo tất cả các phần tử trong nhóm đều có chung 1 targetGroupId (nếu chưa bị rã nhóm)
     const groupArr = Array.from(groupSet);
     if (groupArr.length > 1) {
       let targetGroupId = groupArr.find(item => item.groupId)?.groupId;
@@ -1480,32 +2564,56 @@ document.addEventListener('DOMContentLoaded', () => {
         targetGroupId = 'grp_' + groupArr[0].id;
       }
       for (const item of groupArr) {
-        ensureElementId(item);
-        item.groupId = targetGroupId;
+        if (!item.isUngrouped) {
+          ensureElementId(item);
+          item.groupId = targetGroupId;
+        }
       }
     }
 
     return groupArr.length > 0 ? groupArr : [el];
   }
 
-  // Lấy tất cả các hình con phụ thuộc vào parentEl
+  // Lấy tất cả các hình con, cháu, chắt... phụ thuộc vào parentEl (chuỗi đa cấp 1 -> 2 -> 3 -> 4 -> 5...)
   function getDependentElements(parentEl) {
     if (!parentEl || !parentEl.id) return [];
     const pageEls = state.pages[state.currentPage] || [];
-    return pageEls.filter(child => {
-      if (!child) return false;
-      if (child.binding) {
-        const b = child.binding;
-        if (b.parentId === parentEl.id || b.ptAId === parentEl.id || b.ptBId === parentEl.id || b.parent1Id === parentEl.id || b.parent2Id === parentEl.id || b.pointElId === parentEl.id) return true;
+    const depSet = new Set();
+    const queue = [parentEl];
+
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      if (!curr || !curr.id) continue;
+
+      for (const child of pageEls) {
+        if (!child || child === curr || depSet.has(child)) continue;
+        let isDep = false;
+        if (child.binding) {
+          for (const k in child.binding) {
+            if (child.binding[k] && child.binding[k] === curr.id) {
+              isDep = true;
+              break;
+            }
+          }
+        }
+        if (child.startBinding && (child.startBinding.parentId === curr.id || child.startBinding.elementId === curr.id)) {
+          isDep = true;
+        }
+        if (child.endBinding && (child.endBinding.parentId === curr.id || child.endBinding.elementId === curr.id)) {
+          isDep = true;
+        }
+        if (isDep) {
+          depSet.add(child);
+          queue.push(child);
+        }
       }
-      if (child.startBinding && (child.startBinding.parentId === parentEl.id || child.startBinding.elementId === parentEl.id)) return true;
-      if (child.endBinding && (child.endBinding.parentId === parentEl.id || child.endBinding.elementId === parentEl.id)) return true;
-      return false;
-    });
+    }
+
+    return Array.from(depSet);
   }
 
   // Dịch chuyển vị trí đối tượng theo vector (dx, dy), tự động tịnh tiến các đối tượng con và đối tượng cùng nhóm
-  function translateElement(el, dx, dy, movedSet = new Set()) {
+  function translateElement(el, dx, dy, movedSet = new Set(), selectedList = []) {
     if (!el || movedSet.has(el)) return;
     movedSet.add(el);
 
@@ -1548,6 +2656,18 @@ document.addEventListener('DOMContentLoaded', () => {
           p.y += dy;
         }
       }
+      if (el.midpoint) {
+        el.midpoint.x += dx;
+        el.midpoint.y += dy;
+      }
+      if (el.segStart) {
+        el.segStart.x += dx;
+        el.segStart.y += dy;
+      }
+      if (el.segEnd) {
+        el.segEnd.x += dx;
+        el.segEnd.y += dy;
+      }
       if (el.binding && el.binding.pointRef) {
         el.binding.pointRef.x += dx;
         el.binding.pointRef.y += dy;
@@ -1577,7 +2697,7 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const child of pageEls) {
       if (child && !movedSet.has(child)) {
         if (areElementsLinked(el, child)) {
-          translateElement(child, dx, dy, movedSet);
+          translateElement(child, dx, dy, movedSet, selectedList);
         }
       }
     }
@@ -1613,15 +2733,45 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.points) {
         for (const p of el.points) rotPt(p);
       }
-      if (el.baseDir !== undefined) el.baseDir += rad;
+      if (el.midpoint) rotPt(el.midpoint);
+      if (el.segStart) rotPt(el.segStart);
+      if (el.segEnd) rotPt(el.segEnd);
+      if (typeof el.baseDir === 'number') {
+        el.baseDir += rad;
+      } else if (el.baseDir && typeof el.baseDir === 'object') {
+        const bx = el.baseDir.x || 0;
+        const by = el.baseDir.y || 0;
+        el.baseDir = { x: bx * cos - by * sin, y: bx * sin + by * cos };
+      }
+      if (el.normDir && typeof el.normDir === 'object') {
+        const nx = el.normDir.x || 0;
+        const ny = el.normDir.y || 0;
+        el.normDir = { x: nx * cos - ny * sin, y: nx * sin + ny * cos };
+      }
+      if (el.axisDir && typeof el.axisDir === 'object') {
+        const ax = el.axisDir.x || 0;
+        const ay = el.axisDir.y || 0;
+        el.axisDir = { x: ax * cos - ay * sin, y: ax * sin + ay * cos };
+      }
+      if (el.shape === 'ellipse') {
+        el.rotation = (el.rotation || 0) + rad;
+      }
       if (el.bisectorAngle !== undefined) el.bisectorAngle += rad;
       if (el.arm1Angle !== undefined) el.arm1Angle += rad;
       if (el.arm2Angle !== undefined) el.arm2Angle += rad;
       if (el.angles) {
         el.angles = el.angles.map(a => a + rad);
       }
-      if (el.binding && el.binding.pointRef) {
-        rotPt(el.binding.pointRef);
+      if (el.binding) {
+        if (el.binding.pointRef) rotPt(el.binding.pointRef);
+        if (typeof el.binding.angle === 'number') el.binding.angle += rad;
+        if (typeof el.binding.offset === 'number') el.binding.offset += rad;
+      }
+      if (el.startBinding && typeof el.startBinding.angle === 'number') {
+        el.startBinding.angle += rad;
+      }
+      if (el.endBinding && typeof el.endBinding.angle === 'number') {
+        el.endBinding.angle += rad;
       }
     } else if (el.type === 'stroke' && el.points) {
       for (const p of el.points) rotPt(p);
@@ -1655,18 +2805,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Trung điểm (Midpoint)
     if (b.type === 'midpoint_segment' || b.isSegment) {
-      if (parentEl.start && parentEl.end) {
-        child.start.x = (parentEl.start.x + parentEl.end.x) / 2;
-        child.start.y = (parentEl.start.y + parentEl.end.y) / 2;
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.start && pEl.end) {
+        child.start.x = (pEl.start.x + pEl.end.x) / 2;
+        child.start.y = (pEl.start.y + pEl.end.y) / 2;
         child.end.x = child.start.x;
         child.end.y = child.start.y;
-        child.p1 = { x: parentEl.start.x, y: parentEl.start.y };
-        child.p2 = { x: parentEl.end.x, y: parentEl.end.y };
+        child.p1 = { x: pEl.start.x, y: pEl.start.y };
+        child.p2 = { x: pEl.end.x, y: pEl.end.y };
       }
     } else if (b.type === 'midpoint_triangle_edge') {
-      if (parentEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
-        const pA = parentEl.points[b.v1Index];
-        const pB = parentEl.points[b.v2Index];
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
+        const pA = pEl.points[b.v1Index];
+        const pB = pEl.points[b.v2Index];
         if (pA && pB) {
           child.start.x = (pA.x + pB.x) / 2;
           child.start.y = (pA.y + pB.y) / 2;
@@ -1677,34 +2829,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } else if (b.type === 'midpoint_inscribed_edge') {
-      if (parentEl.angles && b.v1Index !== undefined && b.v2Index !== undefined) {
-        const r = Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y);
-        const pA = { x: parentEl.start.x + r * Math.cos(parentEl.angles[b.v1Index]), y: parentEl.start.y + r * Math.sin(parentEl.angles[b.v1Index]) };
-        const pB = { x: parentEl.start.x + r * Math.cos(parentEl.angles[b.v2Index]), y: parentEl.start.y + r * Math.sin(parentEl.angles[b.v2Index]) };
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.angles && b.v1Index !== undefined && b.v2Index !== undefined) {
+        const r = Math.hypot(pEl.end.x - pEl.start.x, pEl.end.y - pEl.start.y);
+        const pA = { x: pEl.start.x + r * Math.cos(pEl.angles[b.v1Index]), y: pEl.start.y + r * Math.sin(pEl.angles[b.v1Index]) };
+        const pB = { x: pEl.start.x + r * Math.cos(pEl.angles[b.v2Index]), y: pEl.start.y + r * Math.sin(pEl.angles[b.v2Index]) };
         child.start.x = (pA.x + pB.x) / 2;
         child.start.y = (pA.y + pB.y) / 2;
         child.end.x = child.start.x;
         child.end.y = child.start.y;
+        child.p1 = { x: pA.x, y: pA.y };
+        child.p2 = { x: pB.x, y: pB.y };
       }
     } else if (b.type === 'midpoint_points') {
       const ptA = findElementById(b.ptAId);
       const ptB = findElementById(b.ptBId);
       if (ptA && ptB) {
-        const aX = ptA.start ? ptA.start.x : ptA.x;
-        const aY = ptA.start ? ptA.start.y : ptA.y;
-        const bX = ptB.start ? ptB.start.x : ptB.x;
-        const bY = ptB.start ? ptB.start.y : ptB.y;
+        let aX = ptA.start ? ptA.start.x : ptA.x;
+        let aY = ptA.start ? ptA.start.y : ptA.y;
+        if (ptA.points && b.vAIndex !== undefined && ptA.points[b.vAIndex]) {
+          aX = ptA.points[b.vAIndex].x;
+          aY = ptA.points[b.vAIndex].y;
+        }
+        let bX = ptB.start ? ptB.start.x : ptB.x;
+        let bY = ptB.start ? ptB.start.y : ptB.y;
+        if (ptB.points && b.vBIndex !== undefined && ptB.points[b.vBIndex]) {
+          bX = ptB.points[b.vBIndex].x;
+          bY = ptB.points[b.vBIndex].y;
+        }
         child.start.x = (aX + bX) / 2;
         child.start.y = (aY + bY) / 2;
         child.end.x = child.start.x;
         child.end.y = child.start.y;
+        child.p1 = { x: aX, y: aY };
+        child.p2 = { x: bX, y: bY };
       }
     }
 
     // 2. Tia phân giác (Bisector)
     else if (b.type === 'bisector_triangle') {
-      if (parentEl.points && parentEl.points.length >= 3 && b.vertexIndex !== undefined) {
-        const pts = parentEl.points;
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.points && pEl.points.length >= 3 && b.vertexIndex !== undefined) {
+        const pts = pEl.points;
         const n = pts.length;
         const vIdx = b.vertexIndex;
         const V = pts[vIdx];
@@ -1754,55 +2920,62 @@ document.addEventListener('DOMContentLoaded', () => {
         child.bisectorAngle = Math.atan2(bisectorDir.y, bisectorDir.x);
       }
     } else if (b.type === 'bisector_angle') {
-      const V = { x: parentEl.start.x, y: parentEl.start.y };
-      const armLength = parentEl.armLength || Math.max(80, Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y));
-      const baseAngle = parentEl.baseDir !== undefined ? parentEl.baseDir : Math.atan2(parentEl.end.y - parentEl.start.y, parentEl.end.x - parentEl.start.x);
-      const rad = ((parentEl.angleDeg || 60) * Math.PI) / 180;
-      const secondAngle = baseAngle - rad;
-      const bisectorAngle = (baseAngle + secondAngle) / 2;
-      child.start = V;
-      child.end = { x: V.x + armLength * Math.cos(bisectorAngle), y: V.y + armLength * Math.sin(bisectorAngle) };
-      child.arm1Angle = secondAngle;
-      child.arm2Angle = baseAngle;
-      child.bisectorAngle = bisectorAngle;
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.start) {
+        const V = { x: pEl.start.x, y: pEl.start.y };
+        const armLength = pEl.armLength || Math.max(80, Math.hypot(pEl.end.x - pEl.start.x, pEl.end.y - pEl.start.y));
+        const baseAngle = pEl.baseDir !== undefined ? pEl.baseDir : Math.atan2(pEl.end.y - pEl.start.y, pEl.end.x - pEl.start.x);
+        const rad = ((pEl.angleDeg || 60) * Math.PI) / 180;
+        const secondAngle = baseAngle - rad;
+        const bisectorAngle = (baseAngle + secondAngle) / 2;
+        child.start = V;
+        child.end = { x: V.x + armLength * Math.cos(bisectorAngle), y: V.y + armLength * Math.sin(bisectorAngle) };
+        child.arm1Angle = secondAngle;
+        child.arm2Angle = baseAngle;
+        child.bisectorAngle = bisectorAngle;
+      }
     }
 
     // 3. Tiếp tuyến (Tangent)
     else if (b.type === 'circle_tangent') {
-      const O = { x: parentEl.start.x, y: parentEl.start.y };
-      const R = parentEl.radius || Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y);
-      child.center = O;
-      child.radius = R;
-      const currentTanLength = Math.hypot(child.end.x - child.start.x, child.end.y - child.start.y) || 180;
-      const halfLen = currentTanLength / 2;
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.start) {
+        const O = { x: pEl.start.x, y: pEl.start.y };
+        const R = pEl.radius || Math.hypot(pEl.end.x - pEl.start.x, pEl.end.y - pEl.start.y);
+        child.center = O;
+        child.radius = R;
+        const currentTanLength = Math.hypot(child.end.x - child.start.x, child.end.y - child.start.y) || 180;
+        const halfLen = currentTanLength / 2;
 
-      if (b.onCircle) {
-        const ang = b.angle !== undefined ? b.angle : 0;
-        const T = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
-        child.tangentPoint = T;
-        const uPerp = { x: -Math.sin(ang), y: Math.cos(ang) };
-        child.start = { x: T.x - halfLen * uPerp.x, y: T.y - halfLen * uPerp.y };
-        child.end = { x: T.x + halfLen * uPerp.x, y: T.y + halfLen * uPerp.y };
-      } else if (b.offset) {
-        const pt = { x: O.x + b.offset.dx, y: O.y + b.offset.dy };
-        const d = Math.hypot(pt.x - O.x, pt.y - O.y);
-        if (d > R + 2) {
-          const ang = Math.atan2(pt.y - O.y, pt.x - O.x);
-          const beta = Math.acos(Math.max(-1, Math.min(1, R / d)));
-          const branchSign = (b.branch === 1) ? 1 : -1;
-          const T = { x: O.x + R * Math.cos(ang + branchSign * beta), y: O.y + R * Math.sin(ang + branchSign * beta) };
+        if (b.onCircle) {
+          const ang = b.angle !== undefined ? b.angle : 0;
+          const T = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
           child.tangentPoint = T;
-          const vx = T.x - pt.x, vy = T.y - pt.y;
-          const len = Math.hypot(vx, vy) || 1;
-          const uTan = { x: vx / len, y: vy / len };
-          child.start = { x: pt.x - 20 * uTan.x, y: pt.y - 20 * uTan.y };
-          child.end = { x: T.x + 35 * uTan.x, y: T.y + 35 * uTan.y };
+          const uPerp = { x: -Math.sin(ang), y: Math.cos(ang) };
+          child.start = { x: T.x - halfLen * uPerp.x, y: T.y - halfLen * uPerp.y };
+          child.end = { x: T.x + halfLen * uPerp.x, y: T.y + halfLen * uPerp.y };
+        } else if (b.offset) {
+          const pt = { x: O.x + b.offset.dx, y: O.y + b.offset.dy };
+          const d = Math.hypot(pt.x - O.x, pt.y - O.y);
+          if (d > R + 2) {
+            const ang = Math.atan2(pt.y - O.y, pt.x - O.x);
+            const beta = Math.acos(Math.max(-1, Math.min(1, R / d)));
+            const branchSign = (b.branch === 1) ? 1 : -1;
+            const T = { x: O.x + R * Math.cos(ang + branchSign * beta), y: O.y + R * Math.sin(ang + branchSign * beta) };
+            child.tangentPoint = T;
+            const vx = T.x - pt.x, vy = T.y - pt.y;
+            const len = Math.hypot(vx, vy) || 1;
+            const uTan = { x: vx / len, y: vy / len };
+            child.start = { x: pt.x - 20 * uTan.x, y: pt.y - 20 * uTan.y };
+            child.end = { x: T.x + 35 * uTan.x, y: T.y + 35 * uTan.y };
+          }
         }
       }
     } else if (b.type === 'two_tangents') {
-      if (parentEl.shape === 'circle') {
-        const O = { x: parentEl.start.x, y: parentEl.start.y };
-        const R = parentEl.radius || Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y);
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.shape === 'circle') {
+        const O = { x: pEl.start.x, y: pEl.start.y };
+        const R = pEl.radius || Math.hypot(pEl.end.x - pEl.start.x, pEl.end.y - pEl.start.y);
         child.start = { x: O.x, y: O.y };
         child.radius = R;
       }
@@ -1858,14 +3031,29 @@ document.addEventListener('DOMContentLoaded', () => {
       if (b.ptAId && b.ptBId) {
         const ptAEl = findElementById(b.ptAId);
         const ptBEl = findElementById(b.ptBId);
-        if (ptAEl && ptBEl) {
-          A = (ptAEl.start) ? ptAEl.start : ptAEl;
-          B = (ptBEl.start) ? ptBEl.start : ptBEl;
+        if (ptAEl) {
+          if (b.vAIndex !== undefined && ptAEl.points && ptAEl.points[b.vAIndex]) {
+            A = ptAEl.points[b.vAIndex];
+          } else {
+            A = (ptAEl.start) ? ptAEl.start : ptAEl;
+          }
         }
-      } else if (parentEl.shape === 'line' || parentEl.shape === 'perpendicular' || parentEl.shape === 'parallel' || parentEl.shape === 'perpendicular-bisector') {
-        A = parentEl.start; B = parentEl.end;
-      } else if (parentEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
-        A = parentEl.points[b.v1Index]; B = parentEl.points[b.v2Index];
+        if (ptBEl) {
+          if (b.vBIndex !== undefined && ptBEl.points && ptBEl.points[b.vBIndex]) {
+            B = ptBEl.points[b.vBIndex];
+          } else {
+            B = (ptBEl.start) ? ptBEl.start : ptBEl;
+          }
+        }
+      } else {
+        const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+        if (pEl) {
+          if (pEl.shape === 'line' || pEl.shape === 'perpendicular' || pEl.shape === 'parallel' || pEl.shape === 'perpendicular-bisector') {
+            A = pEl.start; B = pEl.end;
+          } else if (pEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
+            A = pEl.points[b.v1Index]; B = pEl.points[b.v2Index];
+          }
+        }
       }
       if (A && B) {
         const vx = B.x - A.x, vy = B.y - A.y;
@@ -2120,27 +3308,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6. Điểm gắn trên đường tròn (Point on Circle)
     else if (b.type === 'point_on_circle') {
-      const O = { x: parentEl.start.x, y: parentEl.start.y };
-      const R = parentEl.radius || Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y);
-      const ang = b.angle !== undefined ? b.angle : 0;
-      child.start = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
-      child.end = { x: child.start.x, y: child.start.y };
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.start) {
+        const O = { x: pEl.start.x, y: pEl.start.y };
+        const R = pEl.radius || Math.hypot(pEl.end.x - pEl.start.x, pEl.end.y - pEl.start.y);
+        const ang = b.angle !== undefined ? b.angle : 0;
+        child.start = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
+        child.end = { x: child.start.x, y: child.start.y };
+      }
     }
 
     // 7. Điểm gắn trên đường thẳng / cạnh hình học (Point on Line / Segment)
     else if (b.type === 'point_on_line') {
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
       let A = null, B = null;
-      if (parentEl.shape === 'line' || parentEl.shape === 'perpendicular' || parentEl.shape === 'parallel' || parentEl.shape === 'tangent' || parentEl.shape === 'bisector') {
-        A = parentEl.start;
-        B = parentEl.end;
-      } else if (parentEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
-        A = parentEl.points[b.v1Index];
-        B = parentEl.points[b.v2Index];
-      } else if (parentEl.shape === 'inscribed-triangle' && b.v1Index !== undefined && b.v2Index !== undefined) {
-        const r = Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y);
-        const angles = parentEl.angles || [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
-        A = { x: parentEl.start.x + r * Math.cos(angles[b.v1Index]), y: parentEl.start.y + r * Math.sin(angles[b.v1Index]) };
-        B = { x: parentEl.start.x + r * Math.cos(angles[b.v2Index]), y: parentEl.start.y + r * Math.sin(angles[b.v2Index]) };
+      if (pEl) {
+        if (pEl.shape === 'line' || pEl.shape === 'perpendicular' || pEl.shape === 'parallel' || pEl.shape === 'tangent' || pEl.shape === 'bisector') {
+          A = pEl.start;
+          B = pEl.end;
+        } else if (pEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
+          A = pEl.points[b.v1Index];
+          B = pEl.points[b.v2Index];
+        } else if (pEl.shape === 'inscribed-triangle' && b.v1Index !== undefined && b.v2Index !== undefined) {
+          const r = Math.hypot(pEl.end.x - pEl.start.x, pEl.end.y - pEl.start.y);
+          const angles = pEl.angles || [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
+          A = { x: pEl.start.x + r * Math.cos(angles[b.v1Index]), y: pEl.start.y + r * Math.sin(angles[b.v1Index]) };
+          B = { x: pEl.start.x + r * Math.cos(angles[b.v2Index]), y: pEl.start.y + r * Math.sin(angles[b.v2Index]) };
+        }
       }
       if (A && B) {
         const t = b.t !== undefined ? b.t : 0.5;
@@ -2240,16 +3434,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 9. Góc vẽ từ đường và điểm đỉnh (Angle from Line & Vertex)
     else if (b.type === 'angle_from_line') {
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
       let A = null, B = null;
-      if (parentEl.shape === 'line' || parentEl.shape === 'perpendicular' || parentEl.shape === 'parallel' || parentEl.shape === 'tangent' || parentEl.shape === 'bisector') {
-        A = parentEl.start; B = parentEl.end;
-      } else if (parentEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
-        A = parentEl.points[b.v1Index]; B = parentEl.points[b.v2Index];
+      if (pEl) {
+        if (pEl.shape === 'line' || pEl.shape === 'perpendicular' || pEl.shape === 'parallel' || pEl.shape === 'tangent' || pEl.shape === 'bisector') {
+          A = pEl.start; B = pEl.end;
+        } else if (pEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
+          A = pEl.points[b.v1Index]; B = pEl.points[b.v2Index];
+        }
       }
       if (A && B) {
-        const baseDir = Math.atan2(B.y - A.y, B.x - A.x);
+        let V = null;
+        let other = null;
+        if (b.pointElId) {
+          const ptEl = findElementById(b.pointElId);
+          if (ptEl) V = ptEl.start || ptEl;
+        }
+        if (!V) {
+          if (b.isVAtV1 !== false) {
+            V = A; other = B;
+          } else {
+            V = B; other = A;
+          }
+        } else {
+          other = (Math.hypot(V.x - A.x, V.y - A.y) < Math.hypot(V.x - B.x, V.y - B.y)) ? B : A;
+        }
+        child.start = { x: V.x, y: V.y };
+        const baseDir = Math.atan2(other.y - V.y, other.x - V.x);
         child.baseDir = baseDir;
-        const armLen = child.armLength || Math.max(90, Math.hypot(B.x - A.x, B.y - A.y));
+        const armLen = child.armLength || Math.max(90, Math.hypot(other.x - V.x, other.y - V.y));
         const rad = ((child.angleDeg || 60) * Math.PI) / 180;
         const dir = (b.direction !== undefined) ? b.direction : (child.direction !== undefined ? child.direction : -1);
         const secondAngle = baseDir + dir * rad;
@@ -2299,13 +3512,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Cập nhật đầu mút của đoạn thẳng gắn vào cạnh hoặc đường tròn khi hình cha bị thay đổi
   function updateSingleStartEndBinding(child, parentEl, endpointKey) {
-    if (!child || !parentEl) return;
+    if (!child) return;
     const b = child[endpointKey + 'Binding'];
     if (!b) return;
+    const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : (b.elementId ? (findElementById(b.elementId) || parentEl) : parentEl);
+    if (!pEl) return;
 
     if (b.type === 'point_on_circle') {
-      const O = { x: parentEl.start.x, y: parentEl.start.y };
-      const R = parentEl.radius || Math.hypot(parentEl.end.x - parentEl.start.x, parentEl.end.y - parentEl.start.y);
+      const O = { x: pEl.start.x, y: pEl.start.y };
+      const R = pEl.radius || Math.hypot(pEl.end.x - pEl.start.x, pEl.end.y - pEl.start.y);
       const ang = b.angle !== undefined ? b.angle : 0;
       child[endpointKey] = {
         x: O.x + R * Math.cos(ang),
@@ -2313,10 +3528,10 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     } else if (b.type === 'point_on_line') {
       let A = null, B = null;
-      if (parentEl.shape === 'line' || parentEl.shape === 'perpendicular' || parentEl.shape === 'parallel' || parentEl.shape === 'tangent' || parentEl.shape === 'bisector') {
-        A = parentEl.start; B = parentEl.end;
-      } else if (parentEl.points && b.v1Index !== undefined && b.v2Index !== undefined && parentEl.points[b.v1Index] && parentEl.points[b.v2Index]) {
-        A = parentEl.points[b.v1Index]; B = parentEl.points[b.v2Index];
+      if (pEl.shape === 'line' || pEl.shape === 'perpendicular' || pEl.shape === 'parallel' || pEl.shape === 'tangent' || pEl.shape === 'bisector') {
+        A = pEl.start; B = pEl.end;
+      } else if (pEl.points && b.v1Index !== undefined && b.v2Index !== undefined && pEl.points[b.v1Index] && pEl.points[b.v2Index]) {
+        A = pEl.points[b.v1Index]; B = pEl.points[b.v2Index];
       }
       if (A && B) {
         const t = b.t !== undefined ? b.t : 0.5;
@@ -2326,37 +3541,70 @@ document.addEventListener('DOMContentLoaded', () => {
         };
       }
     } else if (b.type === 'point') {
-      if (parentEl.shape === 'point') {
-        child[endpointKey] = { x: parentEl.start.x, y: parentEl.start.y };
-      } else if (parentEl.points && b.vIndex !== undefined && parentEl.points[b.vIndex]) {
-        child[endpointKey] = { x: parentEl.points[b.vIndex].x, y: parentEl.points[b.vIndex].y };
+      if (pEl.shape === 'point') {
+        child[endpointKey] = { x: pEl.start.x, y: pEl.start.y };
+      } else if (pEl.points && b.vIndex !== undefined && pEl.points[b.vIndex]) {
+        child[endpointKey] = { x: pEl.points[b.vIndex].x, y: pEl.points[b.vIndex].y };
       }
     }
   }
 
-  // Tự động cập nhật tất cả các đối tượng phụ thuộc vào parentEl
-  function updateDependentBindings(parentEl) {
-    if (!parentEl || !parentEl.id) return;
+  // Tự động cập nhật tất cả các đối tượng phụ thuộc vào initialParent theo chuỗi lan truyền đa cấp (1 -> 2 -> 3 -> 4 -> 5...)
+  function updateDependentBindings(initialParent) {
+    if (!initialParent || !initialParent.id) return;
     const pageEls = state.pages[state.currentPage] || [];
-    for (const child of pageEls) {
-      if (!child) continue;
-      if (child.binding) {
-        let isDep = false;
-        for (const k in child.binding) {
-          if (child.binding[k] && child.binding[k] === parentEl.id) {
-            isDep = true;
-            break;
+    const queue = [initialParent];
+    let steps = 0;
+    const MAX_STEPS = Math.max(100, pageEls.length * 8);
+
+    while (queue.length > 0 && steps < MAX_STEPS) {
+      steps++;
+      const currentParent = queue.shift();
+      if (!currentParent || !currentParent.id) continue;
+
+      for (const child of pageEls) {
+        if (!child || child === currentParent) continue;
+        let isDirectChild = false;
+
+        // 1. Kiểm tra child có ràng buộc binding phụ thuộc vào currentParent hay không
+        if (child.binding) {
+          for (const k in child.binding) {
+            if (child.binding[k] && child.binding[k] === currentParent.id) {
+              isDirectChild = true;
+              break;
+            }
           }
         }
-        if (isDep) {
-          updateSingleBinding(child, parentEl);
+
+        // 2. Kiểm tra startBinding / endBinding
+        let startDep = false;
+        if (child.startBinding && (child.startBinding.parentId === currentParent.id || child.startBinding.elementId === currentParent.id)) {
+          startDep = true;
+          isDirectChild = true;
         }
-      }
-      if (child.startBinding && (child.startBinding.parentId === parentEl.id || child.startBinding.elementId === parentEl.id)) {
-        updateSingleStartEndBinding(child, parentEl, 'start');
-      }
-      if (child.endBinding && (child.endBinding.parentId === parentEl.id || child.endBinding.elementId === parentEl.id)) {
-        updateSingleStartEndBinding(child, parentEl, 'end');
+        let endDep = false;
+        if (child.endBinding && (child.endBinding.parentId === currentParent.id || child.endBinding.elementId === currentParent.id)) {
+          endDep = true;
+          isDirectChild = true;
+        }
+
+        if (isDirectChild) {
+          if (child.binding) {
+            updateSingleBinding(child, currentParent);
+          }
+          if (startDep) {
+            updateSingleStartEndBinding(child, currentParent, 'start');
+          }
+          if (endDep) {
+            updateSingleStartEndBinding(child, currentParent, 'end');
+          }
+
+          // child đã được cập nhật theo tính chất dựng hình mới nhất của currentParent
+          // Đưa child vào queue để tiếp tục lan truyền cập nhật cho các đối tượng 3, 4, 5... phụ thuộc vào child
+          if (!queue.includes(child)) {
+            queue.push(child);
+          }
+        }
       }
     }
   }
@@ -2372,6 +3620,11 @@ document.addEventListener('DOMContentLoaded', () => {
     state.selectedElements = (elements || []).filter(Boolean);
     state.selectedElement = state.selectedElements.length > 0 ? state.selectedElements[0] : null;
     updateSelectionStatus();
+    if (state.activeTool === 'select' && state.selectedElements.length > 0 && !state.isDrawing && !state.isAreaSelecting && state.isFromAreaSelect) {
+      showFloatingSelectionBar(state.selectedElements);
+    } else {
+      hideFloatingSelectionBar();
+    }
   }
 
   // Bật/tắt chọn đối tượng khi giữ Command (Mac) hoặc Ctrl (Win)
@@ -2385,7 +3638,17 @@ document.addEventListener('DOMContentLoaded', () => {
       state.selectedElements.push(el);
     }
     state.selectedElement = state.selectedElements.length > 0 ? state.selectedElements[0] : null;
+    if (state.selectedElements.length >= 2) {
+      state.isFromAreaSelect = true;
+    } else if (state.selectedElements.length <= 1) {
+      state.isFromAreaSelect = false;
+    }
     updateSelectionStatus();
+    if (state.activeTool === 'select' && state.selectedElements.length > 0 && !state.isDrawing && !state.isAreaSelecting && state.isFromAreaSelect) {
+      showFloatingSelectionBar(state.selectedElements);
+    } else {
+      hideFloatingSelectionBar();
+    }
   }
 
   // Cập nhật văn bản trạng thái hiển thị số lượng đối tượng đang chọn
@@ -2805,6 +4068,38 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
+  // Thuật toán Chaikin's Corner Smoothing: Bo tròn các góc ngoặt thành đường cong hoàn mỹ
+  function chaikinSmooth(points, iterations = 1) {
+    if (!points || points.length < 3) return points;
+    let current = points;
+    for (let it = 0; it < iterations; it++) {
+      const smoothed = [current[0]];
+      for (let i = 0; i < current.length - 1; i++) {
+        const p0 = current[i];
+        const p1 = current[i + 1];
+        const pr0 = (p0.smoothedPressure !== undefined && p0.smoothedPressure > 0) ? p0.smoothedPressure : ((p0.pressure !== undefined && p0.pressure > 0) ? p0.pressure : 0.5);
+        const pr1 = (p1.smoothedPressure !== undefined && p1.smoothedPressure > 0) ? p1.smoothedPressure : ((p1.pressure !== undefined && p1.pressure > 0) ? p1.pressure : 0.5);
+        smoothed.push({
+          x: 0.75 * p0.x + 0.25 * p1.x,
+          y: 0.75 * p0.y + 0.25 * p1.y,
+          pressure: 0.75 * (p0.pressure || 0.5) + 0.25 * (p1.pressure || 0.5),
+          smoothedPressure: 0.75 * pr0 + 0.25 * pr1,
+          pointerType: p0.pointerType || 'pen'
+        });
+        smoothed.push({
+          x: 0.25 * p0.x + 0.75 * p1.x,
+          y: 0.25 * p0.y + 0.75 * p1.y,
+          pressure: 0.25 * (p0.pressure || 0.5) + 0.75 * (p1.pressure || 0.5),
+          smoothedPressure: 0.25 * pr0 + 0.75 * pr1,
+          pointerType: p1.pointerType || 'pen'
+        });
+      }
+      smoothed.push(current[current.length - 1]);
+      current = smoothed;
+    }
+    return current;
+  }
+
   // Dựng từng loại phần tử
   function drawElement(el) {
     ctx.save();
@@ -2840,24 +4135,94 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.globalAlpha = 0.35;
         ctx.lineWidth = el.width * 3.5;
         ctx.beginPath();
-        ctx.moveTo(el.points[0].x, el.points[0].y);
-        for (let i = 1; i < el.points.length; i++) {
-          ctx.lineTo(el.points[i].x, el.points[i].y);
+        if (el.points.length === 2) {
+          ctx.moveTo(el.points[0].x, el.points[0].y);
+          ctx.lineTo(el.points[1].x, el.points[1].y);
+        } else {
+          ctx.moveTo(el.points[0].x, el.points[0].y);
+          for (let i = 1; i < el.points.length - 1; i++) {
+            const p1 = el.points[i];
+            const p2 = el.points[i + 1];
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+          }
+          const lastPt = el.points[el.points.length - 1];
+          ctx.lineTo(lastPt.x, lastPt.y);
         }
         ctx.stroke();
       } else {
         ctx.globalAlpha = 1.0;
-        for (let i = 1; i < el.points.length; i++) {
-          const p1 = el.points[i - 1];
-          const p2 = el.points[i];
-          const pr1 = (p1.pressure !== undefined && p1.pressure > 0) ? p1.pressure : 0.5;
-          const pr2 = (p2.pressure !== undefined && p2.pressure > 0) ? p2.pressure : 0.5;
-          const pressureMultiplier = (pr1 + pr2) / 2;
-          ctx.lineWidth = Math.max(1, (el.width || 2.5) * (0.6 + pressureMultiplier * 0.8));
+        if (el.points.length === 2 || el.smoothing === 'normal') {
+          for (let i = 1; i < el.points.length; i++) {
+            const p1 = el.points[i - 1];
+            const p2 = el.points[i];
+            const pr1 = (p1.smoothedPressure !== undefined && p1.smoothedPressure > 0) ? p1.smoothedPressure : ((p1.pressure !== undefined && p1.pressure > 0) ? p1.pressure : 0.5);
+            const pr2 = (p2.smoothedPressure !== undefined && p2.smoothedPressure > 0) ? p2.smoothedPressure : ((p2.pressure !== undefined && p2.pressure > 0) ? p2.pressure : 0.5);
+            const pressureMultiplier = (pr1 + pr2) / 2;
+            ctx.lineWidth = Math.max(1, (el.width || 2.5) * (0.6 + pressureMultiplier * 0.8));
 
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        } else {
+          // Thuật toán mực số Siêu mượt: Quadratic Bezier qua trung điểm kết hợp Tapering 2 đầu
+          const pts = el.points;
+          const totalPts = pts.length;
+          let midPrev = {
+            x: (pts[0].x + pts[1].x) / 2,
+            y: (pts[0].y + pts[1].y) / 2
+          };
+
+          // Hàm tính độ dày có tapering mềm mại ở đầu và đuôi nét
+          const getTaperedWidth = (baseW, pr, index) => {
+            let taper = 1.0;
+            if (totalPts >= 6) {
+              if (index < 3) {
+                taper = 0.45 + 0.55 * (index / 3);
+              } else if (index >= totalPts - 3) {
+                taper = 0.35 + 0.65 * ((totalPts - 1 - index) / 3);
+              }
+            }
+            return Math.max(0.8, baseW * (0.6 + pr * 0.8) * taper);
+          };
+
+          // 1. Phân đoạn đầu từ P0 đến Trung điểm Mid1
+          const pr0 = (pts[0].smoothedPressure !== undefined && pts[0].smoothedPressure > 0) ? pts[0].smoothedPressure : ((pts[0].pressure !== undefined && pts[0].pressure > 0) ? pts[0].pressure : 0.5);
+          ctx.lineWidth = getTaperedWidth(el.width || 2.5, pr0, 0);
           ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
+          ctx.moveTo(pts[0].x, pts[0].y);
+          ctx.lineTo(midPrev.x, midPrev.y);
+          ctx.stroke();
+
+          // 2. Các phân đoạn uốn lượn trung gian liên tục C1
+          for (let i = 1; i < pts.length - 1; i++) {
+            const pCurr = pts[i];
+            const pNext = pts[i + 1];
+            const midCurr = {
+              x: (pCurr.x + pNext.x) / 2,
+              y: (pCurr.y + pNext.y) / 2
+            };
+            const pr = (pCurr.smoothedPressure !== undefined && pCurr.smoothedPressure > 0) ? pCurr.smoothedPressure : ((pCurr.pressure !== undefined && pCurr.pressure > 0) ? pCurr.pressure : 0.5);
+            ctx.lineWidth = getTaperedWidth(el.width || 2.5, pr, i);
+
+            ctx.beginPath();
+            ctx.moveTo(midPrev.x, midPrev.y);
+            ctx.quadraticCurveTo(pCurr.x, pCurr.y, midCurr.x, midCurr.y);
+            ctx.stroke();
+
+            midPrev = midCurr;
+          }
+
+          // 3. Phân đoạn cuối vuốt nhẹ từ Trung điểm cuối đến điểm nhấc bút
+          const pLast = pts[pts.length - 1];
+          const prLast = (pLast.smoothedPressure !== undefined && pLast.smoothedPressure > 0) ? pLast.smoothedPressure : ((pLast.pressure !== undefined && pLast.pressure > 0) ? pLast.pressure : 0.5);
+          ctx.lineWidth = getTaperedWidth(el.width || 2.5, prLast, pts.length - 1);
+          ctx.beginPath();
+          ctx.moveTo(midPrev.x, midPrev.y);
+          ctx.lineTo(pLast.x, pLast.y);
           ctx.stroke();
         }
       }
@@ -3242,6 +4607,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return { points, edges };
   }
 
+
+
   function updateRegularPyramidCenterAndApex(el) {
     if (!el.points || el.points.length < 6) return;
     const A = el.points[1], C = el.points[3];
@@ -3584,10 +4951,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function drawSolidShape(context, geo) {
     if (!geo.points || !geo.edges) return;
 
-    // Đảm bảo cạnh đáy khuất AB [1, 2] luôn là nét đứt theo đúng chuẩn SGK Hình học 11/12
+    // Đảm bảo cạnh đáy khuất AB [1, 2] khởi tạo nét đứt nếu chưa được người dùng can thiệp
     if (geo.shape && geo.shape.startsWith('pyramid') && !geo.shape.startsWith('pyramid-sa-')) {
       for (const edge of geo.edges) {
-        if ((edge[0] === 1 && edge[1] === 2) || (edge[0] === 2 && edge[1] === 1)) {
+        if (((edge[0] === 1 && edge[1] === 2) || (edge[0] === 2 && edge[1] === 1)) && edge[2] === undefined) {
           edge[2] = 'dashed';
         }
       }
@@ -3887,12 +5254,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      context.beginPath();
-      context.moveTo(geo.points[0].x, geo.points[0].y);
-      context.lineTo(geo.points[1].x, geo.points[1].y);
-      context.lineTo(geo.points[2].x, geo.points[2].y);
-      context.closePath();
-      context.stroke();
+      if (geo.edgeDashes && Object.keys(geo.edgeDashes).length > 0) {
+        for (let j = 0; j < 3; j++) {
+          const ptA = geo.points[j];
+          const ptB = geo.points[(j + 1) % 3];
+          context.save();
+          if (geo.edgeDashes[j] === 'dashed') {
+            context.setLineDash([8, 6]);
+          } else {
+            context.setLineDash([]);
+          }
+          context.beginPath();
+          context.moveTo(ptA.x, ptA.y);
+          context.lineTo(ptB.x, ptB.y);
+          context.stroke();
+          context.restore();
+        }
+      } else {
+        context.beginPath();
+        context.moveTo(geo.points[0].x, geo.points[0].y);
+        context.lineTo(geo.points[1].x, geo.points[1].y);
+        context.lineTo(geo.points[2].x, geo.points[2].y);
+        context.closePath();
+        context.stroke();
+      }
 
       if (shape === 'right-triangle') {
         const p1 = geo.points[1];
@@ -3974,13 +5359,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      context.beginPath();
-      context.moveTo(geo.points[0].x, geo.points[0].y);
-      for (let i = 1; i < geo.points.length; i++) {
-        context.lineTo(geo.points[i].x, geo.points[i].y);
+      if (geo.edgeDashes && Object.keys(geo.edgeDashes).length > 0) {
+        const n = geo.points.length;
+        for (let j = 0; j < n; j++) {
+          const ptA = geo.points[j];
+          const ptB = geo.points[(j + 1) % n];
+          context.save();
+          if (geo.edgeDashes[j] === 'dashed') {
+            context.setLineDash([8, 6]);
+          } else {
+            context.setLineDash([]);
+          }
+          context.beginPath();
+          context.moveTo(ptA.x, ptA.y);
+          context.lineTo(ptB.x, ptB.y);
+          context.stroke();
+          context.restore();
+        }
+      } else {
+        context.beginPath();
+        context.moveTo(geo.points[0].x, geo.points[0].y);
+        for (let i = 1; i < geo.points.length; i++) {
+          context.lineTo(geo.points[i].x, geo.points[i].y);
+        }
+        context.closePath();
+        context.stroke();
       }
-      context.closePath();
-      context.stroke();
     } else if (shape === 'ellipse') {
       const rx = geo.rx || 60;
       const ry = geo.ry || 40;
@@ -4063,6 +5467,16 @@ document.addEventListener('DOMContentLoaded', () => {
         context.lineWidth = 1.5;
         context.strokeStyle = '#ffffff';
         context.stroke();
+
+        if (geo.name) {
+          context.save();
+          context.font = '600 13px -apple-system, sans-serif';
+          context.fillStyle = geo.color || state.color || '#28634e';
+          const offX = geo.offX !== undefined ? geo.offX : 8;
+          const offY = geo.offY !== undefined ? geo.offY : -8;
+          context.fillText(geo.name, start.x + offX, start.y + offY);
+          context.restore();
+        }
       }
     } else if (shape === 'two-tangents') {
       // 2 Tiếp tuyến cắt nhau tại 1 điểm ngoài M, có thể di chuyển điểm đó, không vẽ bán kính
@@ -6338,6 +7752,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (edge.element) ensureElementId(edge.element);
     if (ptEl) ensureElementId(ptEl);
 
+    // Xác định xem V nằm ở điểm bắt đầu (v1Index) hay điểm kết thúc (v2Index) của cạnh
+    let isVAtV1 = true;
+    if (edge.points && edge.v1Index !== undefined && edge.v2Index !== undefined) {
+      const pA = edge.points[edge.v1Index];
+      const pB = edge.points[edge.v2Index];
+      if (pA && pB) {
+        isVAtV1 = (Math.hypot(pA.x - V.x, pA.y - V.y) <= Math.hypot(pB.x - V.x, pB.y - V.y));
+      }
+    } else if (edge.start && edge.end) {
+      isVAtV1 = (Math.hypot(edge.start.x - V.x, edge.start.y - V.y) <= Math.hypot(edge.end.x - V.x, edge.end.y - V.y));
+    }
+
     const newAngle = {
       type: 'geo',
       shape: 'angle',
@@ -6360,6 +7786,7 @@ document.addEventListener('DOMContentLoaded', () => {
         edgeId: edge.edgeId,
         v1Index: edge.v1Index,
         v2Index: edge.v2Index,
+        isVAtV1: isVAtV1,
         baseDir: baseDir,
         angleDeg: deg,
         direction: opt.direction
@@ -6917,48 +8344,68 @@ document.addEventListener('DOMContentLoaded', () => {
         let bindingInfo = null;
         let parentEl = null;
 
-        if (el1 && el2 && el1.shape === 'point' && el2.shape === 'point') {
+        let idx1 = -1;
+        if (el1 && el1.points) {
+          for (let i = 0; i < el1.points.length; i++) {
+            if (Math.hypot(el1.points[i].x - pt1.x, el1.points[i].y - pt1.y) < 16) { idx1 = i; break; }
+          }
+        }
+        let idx2 = -1;
+        if (el2 && el2.points) {
+          for (let i = 0; i < el2.points.length; i++) {
+            if (Math.hypot(el2.points[i].x - pt2.x, el2.points[i].y - pt2.y) < 16) { idx2 = i; break; }
+          }
+        }
+
+        if (el1 && el2 && el1 === el2 && el1.points && idx1 !== -1 && idx2 !== -1) {
+          ensureElementId(el1);
+          bindingInfo = { type: 'perpendicular_bisector', parentId: el1.id, v1Index: idx1, v2Index: idx2 };
+          parentEl = el1;
+        } else if (el1 && el2 && el1.shape === 'point' && el2.shape === 'point') {
           ensureElementId(el1);
           ensureElementId(el2);
           bindingInfo = { type: 'perpendicular_bisector', ptAId: el1.id, ptBId: el2.id };
           parentEl = [el1, el2];
-        } else if (el1 && el2 && el1 === el2 && el1.points && el1.points.length >= 2) {
-          ensureElementId(el1);
-          let idx1 = -1, idx2 = -1;
-          for (let i = 0; i < el1.points.length; i++) {
-            if (Math.hypot(el1.points[i].x - pt1.x, el1.points[i].y - pt1.y) < 14) idx1 = i;
-            if (Math.hypot(el1.points[i].x - pt2.x, el1.points[i].y - pt2.y) < 14) idx2 = i;
-          }
-          if (idx1 !== -1 && idx2 !== -1) {
-            bindingInfo = { type: 'perpendicular_bisector', parentId: el1.id, v1Index: idx1, v2Index: idx2 };
-            parentEl = el1;
-          }
-        } else if (el1) {
-          parentEl = el1;
-        } else if (el2) {
-          parentEl = el2;
+        } else if (el1 || el2) {
+          if (el1) ensureElementId(el1);
+          if (el2) ensureElementId(el2);
+          bindingInfo = {
+            type: 'perpendicular_bisector',
+            ptAId: el1 ? el1.id : null,
+            vAIndex: idx1 !== -1 ? idx1 : undefined,
+            ptBId: el2 ? el2.id : null,
+            vBIndex: idx2 !== -1 ? idx2 : undefined
+          };
+          parentEl = [el1, el2].filter(Boolean);
         }
 
-        // Tự động nối đoạn thẳng nếu là 2 điểm rời chưa có đoạn thẳng nối
-        if ((!el1 || el1.shape === 'point') && (!el2 || el2.shape === 'point')) {
-          const segLine = {
+        // Tự động nối đoạn thẳng nếu là 2 điểm chưa có đoạn thẳng nối trực tiếp
+        let segLine = null;
+        if (!el1 || !el2 || el1 !== el2) {
+          segLine = {
             type: 'geo',
             shape: 'line',
             start: { x: pt1.x, y: pt1.y },
             end: { x: pt2.x, y: pt2.y },
             color: state.color,
             width: state.strokeWidth,
-            dash: 'solid'
+            dash: 'solid',
+            startBinding: el1 ? (idx1 !== -1 ? { type: 'point', elementId: el1.id, vIndex: idx1 } : { type: 'point', elementId: el1.id }) : null,
+            endBinding: el2 ? (idx2 !== -1 ? { type: 'point', elementId: el2.id, vIndex: idx2 } : { type: 'point', elementId: el2.id }) : null
           };
           ensureElementId(segLine);
           pushNewElement(segLine);
-          if (!bindingInfo) {
-            bindingInfo = { type: 'perpendicular_bisector', parentId: segLine.id };
-            parentEl = segLine;
+
+          const parentsToLink = [el1, el2].filter(Boolean);
+          if (parentsToLink.length > 0) {
+            linkGroupMulti(parentsToLink, segLine);
           }
         }
 
-        constructPerpendicularBisector(pt1, pt2, bindingInfo, parentEl);
+        const perpBisector = constructPerpendicularBisector(pt1, pt2, bindingInfo, parentEl);
+        if (perpBisector && segLine) {
+          linkGroup(segLine, perpBisector);
+        }
         state.pendingConstruction = null;
         state.construction = { point: null, circle: null, line: null, edges: [] };
         state.constructionHoverPoint = null;
@@ -8864,10 +10311,38 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Kiểm tra trúng điểm hình học rời
         const hitPoint = findElementAt(point.x, point.y);
         if (hitPoint && hitPoint.type === 'geo' && hitPoint.shape === 'point') {
+          state.isFromAreaSelect = false;
+          hideFloatingSelectionBar();
           setSelectedElements([hitPoint]);
           state.isDrawing = true;
           state.dragLast = { x: point.x, y: point.y };
           state.totalMoved = { dx: 0, dy: 0 };
+
+          // Nếu là điểm điều khiển động (điểm trượt trên đường tròn/đoạn thẳng hoặc điểm gốc tự do có hình con phụ thuộc)
+          // và chưa bị khóa cứng bằng Nhóm thủ công (isManualGroup) -> kích hoạt chế độ kéo điều chỉnh động (activeHandle)
+          const isDynamicControlPoint = !hitPoint.isManualGroup && (
+            (hitPoint.binding && (hitPoint.binding.type === 'point_on_circle' || hitPoint.binding.type === 'point_on_line' || hitPoint.binding.type === 'point_on_segment')) ||
+            (!hitPoint.binding && getDependentElements(hitPoint).length > 0)
+          );
+          if (isDynamicControlPoint) {
+            const ptName = hitPoint.name ? `Điểm ${hitPoint.name}` : 'Điểm điều khiển';
+            state.activeHandle = {
+              handle: { id: 'point', x: hitPoint.start.x, y: hitPoint.start.y, name: ptName, cursor: 'grabbing' },
+              element: hitPoint
+            };
+            state.hoverHandle = null;
+            state.hoverPointTarget = null;
+            state.lastDragPoint = { x: point.x, y: point.y };
+            state.handleAdjustInitial = JSON.parse(JSON.stringify(hitPoint));
+            const deps = getDependentElements(hitPoint);
+            state.handleAdjustDependentsInitial = deps.map(d => ({ element: d, before: JSON.parse(JSON.stringify(d)) }));
+            state.pendingSingleSelect = null;
+            canvas.style.cursor = 'grabbing';
+            statusToolInfo.textContent = `🎯 Đang di chuyển: ${ptName} (Các đường và hình phụ thuộc tự động biến đổi theo)`;
+            renderPage();
+            return;
+          }
+
           state.pendingSingleSelect = hitPoint;
           canvas.style.cursor = 'grabbing';
           renderPage();
@@ -8879,6 +10354,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hitHandle) {
           state.activeHandle = hitHandle;
           state.isDrawing = true;
+          hideFloatingSelectionBar();
+          state.isFromAreaSelect = false;
+          setSelectedElements([hitHandle.element]);
+          state.hoverHandle = null;
+          state.hoverPointTarget = null;
           state.lastDragPoint = { x: point.x, y: point.y };
           state.handleAdjustInitial = JSON.parse(JSON.stringify(hitHandle.element));
           const deps = getDependentElements(hitHandle.element);
@@ -8977,16 +10457,60 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
 
-          setSelectedElements([el]);
+          if (!e.altKey && state.selectedElements && state.selectedElements.length > 1 && state.selectedElements.includes(el)) {
+            // Đang giữ nhóm nhiều đối tượng đã chọn: kéo rê cả nhóm
+            state.isDrawing = true;
+            state.dragLast = { x: point.x, y: point.y };
+            state.totalMoved = { dx: 0, dy: 0 };
+            state.pendingSingleSelect = null;
+            canvas.style.cursor = 'grabbing';
+            hideFloatingSelectionBar();
+            return;
+          }
+
+          let targets = [el];
+          // Chỉ tự động bung chọn toàn bộ nhóm khi người dùng đã chủ động Nhóm thủ công (⌘G / isManualGroup)
+          // và không giữ phím Alt/Option (Alt+Click cho phép chọn sâu 1 phần tử con trong nhóm thủ công)
+          if (el.groupId && el.isManualGroup && !e.altKey) {
+            const pageEls = state.pages[state.currentPage] || [];
+            const grp = pageEls.filter(item => item && item.groupId === el.groupId);
+            if (grp.length > 1) {
+              targets = grp;
+            }
+          }
+          state.isFromAreaSelect = targets.length > 1;
+          hideFloatingSelectionBar();
+          setSelectedElements(targets);
           state.isDrawing = true;
           state.dragLast = { x: point.x, y: point.y };
           state.totalMoved = { dx: 0, dy: 0 };
-          state.pendingSingleSelect = el;
+          state.pendingSingleSelect = targets.length === 1 ? el : null;
           canvas.style.cursor = 'grabbing';
         } else {
-          // Bấm ra ngoài khoảng trống canvas: xóa chọn
+          // Bấm ra ngoài khoảng trống canvas:
+          // Nếu bấm vào bên trong khung bao của nhóm đối tượng đang chọn -> Kéo di chuyển cả nhóm
+          if (state.selectedElements && state.selectedElements.length > 1) {
+            const uBox = getCombinedBoundingBox(state.selectedElements);
+            if (uBox && isPointInsideBox(point.x, point.y, uBox, 10)) {
+              state.isDrawing = true;
+              state.dragLast = { x: point.x, y: point.y };
+              state.totalMoved = { dx: 0, dy: 0 };
+              state.pendingSingleSelect = null;
+              canvas.style.cursor = 'grabbing';
+              hideFloatingSelectionBar();
+              return;
+            }
+          }
+          // Bấm vào khoảng trống: Xóa chọn và Bắt đầu quét kéo chọn vùng (Area / Marquee Selection)
+          state.isFromAreaSelect = false;
           setSelectedElements([]);
-          setCanvasCursor(SHARP_ARROW_CURSOR);
+          hideFloatingSelectionBar();
+          state.isAreaSelecting = true;
+          state.areaSelectStart = { x: point.x, y: point.y };
+          state.areaSelectCurrent = { x: point.x, y: point.y };
+          state.areaSelectPage = pageNum;
+          setCanvasCursor('crosshair');
+          statusToolInfo.textContent = 'Công cụ: Chọn — Nhấn giữ và kéo chuột để khoanh vùng chọn các đối tượng';
         }
         renderPage();
         return;
@@ -9098,7 +10622,25 @@ document.addEventListener('DOMContentLoaded', () => {
       state.geoStartPoint = startPoint;
     } else {
       // Bút vẽ hoặc Dạ quang
+      const pr = (point.pressure && point.pressure > 0) ? point.pressure : 0.5;
+      point.smoothedPressure = pr;
+      state.lastSmoothedPressure = pr;
+      state.streamlinePos = { x: point.x, y: point.y };
       state.currentPath = [point];
+
+      // Vẽ ngay điểm chấm ban đầu (hỗ trợ chấm câu, dấu chấm chữ i, chữ j)
+      ctx.save();
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = state.color;
+      ctx.globalAlpha = state.activeTool === 'highlighter' ? 0.35 : 1.0;
+      ctx.beginPath();
+      const dotRadius = state.activeTool === 'highlighter' 
+        ? (state.strokeWidth * 3.5) / 2 
+        : Math.max(0.8, (state.strokeWidth * (0.6 + pr * 0.8)) / 2);
+      ctx.arc(point.x, point.y, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -9125,6 +10667,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Kéo điều chỉnh từng chấm tròn điều khiển (Control Handle)
     if (state.activeHandle && state.isDrawing) {
+      hideFloatingSelectionBar();
+      state.hoverHandle = null;
+      state.hoverPointTarget = null;
       const el = state.activeHandle.element;
       const h = state.activeHandle.handle;
 
@@ -9456,7 +11001,7 @@ document.addEventListener('DOMContentLoaded', () => {
             el.start = { x: point.x, y: point.y };
             el.end = { x: point.x, y: point.y };
           }
-        } else if (el.binding && el.binding.type === 'point_on_line') {
+        } else if (el.binding && (el.binding.type === 'point_on_line' || el.binding.type === 'point_on_segment')) {
           const parent = findElementById(el.binding.parentId);
           let A = null, B = null;
           if (parent) {
@@ -9483,8 +11028,11 @@ document.addEventListener('DOMContentLoaded', () => {
             el.end = { x: point.x, y: point.y };
           }
         } else {
-          el.start = { x: point.x, y: point.y };
-          el.end = { x: point.x, y: point.y };
+          const snap = findSnapTargetForHandle(point, el, h);
+          const targetPt = snap ? { x: snap.x, y: snap.y } : { x: point.x, y: point.y };
+          state.activeSnapTarget = snap || null;
+          el.start = { x: targetPt.x, y: targetPt.y };
+          el.end = { x: targetPt.x, y: targetPt.y };
         }
       } else if (el.shape === 'bisector') {
         if (h.id === 'end') {
@@ -9511,6 +11059,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Di chuyển đối tượng bằng Chọn đối tượng (hỗ trợ di chuyển 1 hoặc nhiều đối tượng cùng lúc)
     if (state.activeTool === 'select') {
+      if (state.isAreaSelecting && state.areaSelectStart) {
+        state.areaSelectCurrent = { x: point.x, y: point.y };
+        setCanvasCursor('crosshair');
+        renderPage();
+        return;
+      }
+
       const selectedList = state.selectedElements && state.selectedElements.length > 0
         ? state.selectedElements
         : (state.selectedElement ? [state.selectedElement] : []);
@@ -9518,12 +11073,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.isDrawing && selectedList.length > 0) {
         const dx = point.x - state.dragLast.x;
         const dy = point.y - state.dragLast.y;
-        const movedSet = new Set();
-        for (const el of selectedList) {
-          translateElement(el, dx, dy, movedSet);
-        }
         state.totalMoved.dx += dx;
         state.totalMoved.dy += dy;
+        if (Math.hypot(state.totalMoved.dx, state.totalMoved.dy) > 3) {
+          hideFloatingSelectionBar();
+        }
+        const movedSet = new Set();
+        for (const el of selectedList) {
+          translateElement(el, dx, dy, movedSet, selectedList);
+        }
+        for (const el of movedSet) {
+          updateDependentBindings(el);
+        }
         state.dragLast = { x: point.x, y: point.y };
         renderPage();
       } else {
@@ -9899,7 +11460,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       drawElement(previewGeo);
     } else if (state.activeTool === 'pen' || state.activeTool === 'highlighter') {
-      state.currentPath.push(point);
+      const rawEvents = (typeof e.getCoalescedEvents === 'function')
+        ? e.getCoalescedEvents()
+        : [];
+      const eventsToProcess = (rawEvents && rawEvents.length > 0) ? rawEvents : [e];
 
       ctx.save();
       const dpr = window.devicePixelRatio || 1;
@@ -9908,21 +11472,101 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      if (state.activeTool === 'highlighter') {
-        ctx.globalAlpha = 0.35;
-        ctx.lineWidth = state.strokeWidth * 3.5;
+      if (state.dashStyle === 'dashed') {
+        ctx.setLineDash([10, 7]);
       } else {
-        ctx.globalAlpha = 1.0;
-        const pr = (point.pressure !== undefined && point.pressure > 0) ? point.pressure : 0.5;
-        ctx.lineWidth = Math.max(1, state.strokeWidth * (0.6 + pr * 0.8));
+        ctx.setLineDash([]);
       }
 
-      const len = state.currentPath.length;
-      if (len >= 2) {
-        ctx.beginPath();
-        ctx.moveTo(state.currentPath[len - 2].x, state.currentPath[len - 2].y);
-        ctx.lineTo(state.currentPath[len - 1].x, state.currentPath[len - 1].y);
-        ctx.stroke();
+      for (let evIdx = 0; evIdx < eventsToProcess.length; evIdx++) {
+        const ev = eventsToProcess[evIdx];
+        const pt = getCanvasCoordinates(ev);
+        const lastPt = state.currentPath.length > 0 ? state.currentPath[state.currentPath.length - 1] : null;
+
+        if (lastPt) {
+          const dx = pt.x - lastPt.x;
+          const dy = pt.y - lastPt.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          // Khử rung tay: bỏ qua các điểm di chuyển quá bé (< 1.2px) trừ khi là điểm cuối của loạt event
+          if (dist < 1.2 && evIdx < eventsToProcess.length - 1) {
+            continue;
+          }
+
+          // Làm mượt lực nhấn & độ dày nét
+          if (pt.pointerType === 'pen' && pt.pressure > 0) {
+            state.lastSmoothedPressure = (state.lastSmoothedPressure * 0.65) + (pt.pressure * 0.35);
+          } else {
+            const dt = Math.max(1, (pt.time || Date.now()) - (lastPt.time || Date.now()));
+            const velocity = dist / dt;
+            const velocityFactor = Math.max(0.2, Math.min(1.0, 1.0 - (velocity - 0.5) * 0.25));
+            state.lastSmoothedPressure = (state.lastSmoothedPressure * 0.7) + (velocityFactor * 0.3);
+          }
+        }
+
+        // Bộ lọc động học Streamline Stabilizer (Lọc quán tính khử sạch rung giật thời gian thực)
+        const smoothingFactor = state.penSmoothing === 'ultra' ? 0.42 : (state.penSmoothing === 'smooth' ? 0.68 : 1.0);
+        if (state.streamlinePos && state.penSmoothing !== 'normal') {
+          state.streamlinePos.x += (pt.x - state.streamlinePos.x) * smoothingFactor;
+          state.streamlinePos.y += (pt.y - state.streamlinePos.y) * smoothingFactor;
+          pt.x = state.streamlinePos.x;
+          pt.y = state.streamlinePos.y;
+        } else {
+          state.streamlinePos = { x: pt.x, y: pt.y };
+        }
+
+        pt.smoothedPressure = state.lastSmoothedPressure || 0.5;
+        state.currentPath.push(pt);
+
+        if (state.activeTool === 'highlighter') {
+          ctx.globalAlpha = 0.35;
+          ctx.lineWidth = state.strokeWidth * 3.5;
+        } else {
+          ctx.globalAlpha = 1.0;
+          const prMid = lastPt ? (pt.smoothedPressure + lastPt.smoothedPressure) / 2 : pt.smoothedPressure;
+          ctx.lineWidth = Math.max(1, state.strokeWidth * (0.6 + prMid * 0.8));
+        }
+
+        const len = state.currentPath.length;
+        if (state.penSmoothing === 'normal') {
+          // Chế độ tiêu chuẩn
+          if (len >= 2) {
+            ctx.beginPath();
+            ctx.moveTo(state.currentPath[len - 2].x, state.currentPath[len - 2].y);
+            ctx.lineTo(state.currentPath[len - 1].x, state.currentPath[len - 1].y);
+            ctx.stroke();
+          }
+        } else {
+          // Chế độ Siêu mượt (Mặc định): Quadratic Bezier qua trung điểm
+          if (len === 2) {
+            const mid = {
+              x: (state.currentPath[0].x + state.currentPath[1].x) / 2,
+              y: (state.currentPath[0].y + state.currentPath[1].y) / 2
+            };
+            ctx.beginPath();
+            ctx.moveTo(state.currentPath[0].x, state.currentPath[0].y);
+            ctx.lineTo(mid.x, mid.y);
+            ctx.stroke();
+          } else if (len >= 3) {
+            const pPrev2 = state.currentPath[len - 3];
+            const pPrev1 = state.currentPath[len - 2];
+            const pCurr = state.currentPath[len - 1];
+
+            const midPrev = {
+              x: (pPrev2.x + pPrev1.x) / 2,
+              y: (pPrev2.y + pPrev1.y) / 2
+            };
+            const midCurr = {
+              x: (pPrev1.x + pCurr.x) / 2,
+              y: (pPrev1.y + pCurr.y) / 2
+            };
+
+            ctx.beginPath();
+            ctx.moveTo(midPrev.x, midPrev.y);
+            ctx.quadraticCurveTo(pPrev1.x, pPrev1.y, midCurr.x, midCurr.y);
+            ctx.stroke();
+          }
+        }
       }
       ctx.restore();
     }
@@ -10001,12 +11645,19 @@ document.addEventListener('DOMContentLoaded', () => {
       state.lastRotateAngle = undefined;
       state.lastDragPoint = null;
       state.activeHandle = null;
+      state.hoverHandle = null;
+      state.hoverPointTarget = null;
       state.hoverSnapPoint = null;
       state.isDrawing = false;
       state.selectedEdge = null;
       state.selectedVertex = null;
       if (state.activeTool === 'select') {
         setCanvasCursor(SHARP_ARROW_CURSOR);
+        if (el) {
+          state.isFromAreaSelect = false;
+          setSelectedElements([el]);
+          hideFloatingSelectionBar();
+        }
       } else {
         canvas.style.cursor = 'default';
       }
@@ -10014,13 +11665,49 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Kết thúc di chuyển đối tượng bằng Chọn đối tượng (hỗ trợ nhóm nhiều đối tượng)
+    // Kết thúc di chuyển hoặc quét chọn vùng bằng Chọn đối tượng (hỗ trợ nhóm nhiều đối tượng)
     if (state.activeTool === 'select') {
+      if (state.isAreaSelecting && state.areaSelectStart && state.areaSelectCurrent) {
+        state.isAreaSelecting = false;
+        const dx = Math.abs(state.areaSelectCurrent.x - state.areaSelectStart.x);
+        const dy = Math.abs(state.areaSelectCurrent.y - state.areaSelectStart.y);
+        if (dx > 6 || dy > 6) {
+          const rect = {
+            minX: Math.min(state.areaSelectStart.x, state.areaSelectCurrent.x),
+            maxX: Math.max(state.areaSelectStart.x, state.areaSelectCurrent.x),
+            minY: Math.min(state.areaSelectStart.y, state.areaSelectCurrent.y),
+            maxY: Math.max(state.areaSelectStart.y, state.areaSelectCurrent.y)
+          };
+          const pageElements = state.pages[state.currentPage] || [];
+          const matched = pageElements.filter(el => isElementInSelectionBox(el, rect));
+          if (matched.length > 0) {
+            state.isFromAreaSelect = true;
+            setSelectedElements(matched);
+            showFloatingSelectionBar(matched);
+            showPageToast(`🎯 Đã chọn ${matched.length} đối tượng`);
+          } else {
+            state.isFromAreaSelect = false;
+            setSelectedElements([]);
+            hideFloatingSelectionBar();
+          }
+        } else {
+          state.isFromAreaSelect = false;
+          setSelectedElements([]);
+          hideFloatingSelectionBar();
+        }
+        state.areaSelectStart = null;
+        state.areaSelectCurrent = null;
+        state.isDrawing = false;
+        setCanvasCursor(SHARP_ARROW_CURSOR);
+        renderPage();
+        return;
+      }
+
       const selectedList = state.selectedElements && state.selectedElements.length > 0
         ? state.selectedElements
         : (state.selectedElement ? [state.selectedElement] : []);
 
-      if (selectedList.length > 0 && (Math.abs(state.totalMoved.dx) > 1 || Math.abs(state.totalMoved.dy) > 1)) {
+      if (selectedList.length > 0 && (Math.abs(state.totalMoved.dx) > 3 || Math.abs(state.totalMoved.dy) > 3)) {
         pushCommand({
           type: 'move-multiple',
           elements: [...selectedList],
@@ -10028,10 +11715,36 @@ document.addEventListener('DOMContentLoaded', () => {
           dy: state.totalMoved.dy
         });
         state.pendingSingleSelect = null;
+        if (state.isFromAreaSelect) {
+          showFloatingSelectionBar(selectedList);
+        } else {
+          hideFloatingSelectionBar();
+        }
       } else if (state.pendingSingleSelect) {
-        // Chỉ chọn đơn lẻ một đối tượng duy nhất theo yêu cầu
-        setSelectedElements([state.pendingSingleSelect]);
+        if (state.pendingSingleSelect.groupId && state.pendingSingleSelect.isManualGroup && !(e && e.altKey)) {
+          const groupMembers = (state.pages[state.currentPage] || []).filter(item => item && item.groupId === state.pendingSingleSelect.groupId);
+          if (groupMembers.length > 1) {
+            state.isFromAreaSelect = true;
+            setSelectedElements(groupMembers);
+            showFloatingSelectionBar(groupMembers);
+          } else {
+            state.isFromAreaSelect = false;
+            setSelectedElements([state.pendingSingleSelect]);
+            hideFloatingSelectionBar();
+          }
+        } else {
+          // Chỉ chọn đơn lẻ một đối tượng duy nhất theo yêu cầu (KHÔNG hiện thanh nổi)
+          state.isFromAreaSelect = false;
+          setSelectedElements([state.pendingSingleSelect]);
+          hideFloatingSelectionBar();
+        }
         state.pendingSingleSelect = null;
+      } else if (selectedList.length > 0) {
+        if (state.isFromAreaSelect || selectedList.length > 1) {
+          showFloatingSelectionBar(selectedList);
+        } else {
+          hideFloatingSelectionBar();
+        }
       }
       state.isDrawing = false;
       setCanvasCursor(SHARP_ARROW_CURSOR);
@@ -10241,17 +11954,58 @@ document.addEventListener('DOMContentLoaded', () => {
       state.hoverSnapPoint = null;
       finishGeoTask(newGeo);
     } else if (state.activeTool === 'pen' || state.activeTool === 'highlighter') {
-      if (state.currentPath && state.currentPath.length > 0) {
+      const len = state.currentPath ? state.currentPath.length : 0;
+      if (len >= 2 && state.penSmoothing !== 'normal') {
+        // Nối mượt mà từ trung điểm cuối đến điểm kết thúc nhấc bút
+        const pLast2 = state.currentPath[len - 2];
+        const pLast1 = state.currentPath[len - 1];
+        const midLast = {
+          x: (pLast2.x + pLast1.x) / 2,
+          y: (pLast2.y + pLast1.y) / 2
+        };
+        ctx.save();
+        const dpr = window.devicePixelRatio || 1;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.strokeStyle = state.color;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        if (state.dashStyle === 'dashed') {
+          ctx.setLineDash([10, 7]);
+        } else {
+          ctx.setLineDash([]);
+        }
+        if (state.activeTool === 'highlighter') {
+          ctx.globalAlpha = 0.35;
+          ctx.lineWidth = state.strokeWidth * 3.5;
+        } else {
+          ctx.globalAlpha = 1.0;
+          const pr = (pLast1.smoothedPressure !== undefined && pLast1.smoothedPressure > 0) ? pLast1.smoothedPressure : ((pLast1.pressure !== undefined && pLast1.pressure > 0) ? pLast1.pressure : 0.5);
+          ctx.lineWidth = Math.max(1, state.strokeWidth * (0.6 + pr * 0.8));
+        }
+        ctx.beginPath();
+        ctx.moveTo(midLast.x, midLast.y);
+        ctx.lineTo(pLast1.x, pLast1.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (len > 0) {
+        let finalPoints = [...state.currentPath];
+        if (state.penSmoothing !== 'normal' && finalPoints.length >= 4) {
+          finalPoints = chaikinSmooth(finalPoints, 1);
+        }
         pushNewElement({
           type: 'stroke',
           tool: state.activeTool,
-          points: [...state.currentPath],
+          points: finalPoints,
           color: state.color,
           width: state.strokeWidth,
-          dash: state.dashStyle
+          dash: state.dashStyle,
+          smoothing: state.penSmoothing || 'ultra'
         });
       }
       state.currentPath = [];
+      state.streamlinePos = null;
     }
     renderPage();
   }
@@ -10296,6 +12050,27 @@ document.addEventListener('DOMContentLoaded', () => {
           renderPage();
           showPageToast('📈 Đã cập nhật đồ thị hàm số!');
         });
+        return;
+      }
+      if (el && state.activeTool === 'select') {
+        if (el.isManualGroup && state.selectedElements && state.selectedElements.length > 1) {
+          // Nhấp đúp vào 1 đối tượng thuộc Nhóm thủ công -> Chọn sâu riêng đối tượng con đó để tinh chỉnh
+          state.isFromAreaSelect = false;
+          setSelectedElements([el]);
+          hideFloatingSelectionBar();
+          renderPage();
+          showPageToast('🎯 Đã chọn riêng đối tượng trong nhóm');
+          return;
+        }
+        const connectedGroup = getGroupElements(el);
+        if (connectedGroup.length > 1) {
+          // Nhấp đúp vào đối tượng trong cụm hình liên kết tự động -> Chọn toàn bộ cụm hình và hiện thanh tác vụ nổi
+          state.isFromAreaSelect = true;
+          setSelectedElements(connectedGroup);
+          showFloatingSelectionBar(connectedGroup);
+          renderPage();
+          showPageToast(`🔗 Đã chọn cả cụm liên kết (${connectedGroup.length} đối tượng)`);
+        }
       }
     });
   }
@@ -10624,6 +12399,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+
+
   function undo() {
     const page = state.currentPage;
     const undoStack = state.undoStacks[page];
@@ -10657,11 +12434,18 @@ document.addEventListener('DOMContentLoaded', () => {
           state.selectedElement = (state.selectedElements && state.selectedElements.length > 0) ? state.selectedElements[0] : null;
         }
       } else if (cmd.type === 'move') {
-        translateElement(cmd.element, -cmd.dx, -cmd.dy);
+        const movedSet = new Set();
+        translateElement(cmd.element, -cmd.dx, -cmd.dy, movedSet);
+        for (const movedEl of movedSet) {
+          updateDependentBindings(movedEl);
+        }
       } else if (cmd.type === 'move-multiple') {
         const movedSet = new Set();
         for (const el of cmd.elements) {
           translateElement(el, -cmd.dx, -cmd.dy, movedSet);
+        }
+        for (const movedEl of movedSet) {
+          updateDependentBindings(movedEl);
         }
       } else if (cmd.type === 'erase') {
         elements.splice(cmd.index, 0, cmd.element);
@@ -10687,6 +12471,17 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
         updateDependentBindings(cmd.element);
+      } else if (cmd.type === 'group-elements' || cmd.type === 'ungroup-elements') {
+        for (const item of cmd.items) {
+          if (item.element) {
+            item.element.groupId = item.beforeGroupId;
+            if (item.beforeManualGroup !== undefined) item.element.isManualGroup = item.beforeManualGroup;
+            if (item.beforeUngrouped !== undefined) item.element.isUngrouped = item.beforeUngrouped;
+          }
+        }
+        if (state.selectedElements && state.selectedElements.length > 0) {
+          updateFloatingBarState(state.selectedElements);
+        }
       }
 
       renderPage();
@@ -10711,11 +12506,18 @@ document.addEventListener('DOMContentLoaded', () => {
           elements.push(el);
         }
       } else if (cmd.type === 'move') {
-        translateElement(cmd.element, cmd.dx, cmd.dy);
+        const movedSet = new Set();
+        translateElement(cmd.element, cmd.dx, cmd.dy, movedSet);
+        for (const movedEl of movedSet) {
+          updateDependentBindings(movedEl);
+        }
       } else if (cmd.type === 'move-multiple') {
         const movedSet = new Set();
         for (const el of cmd.elements) {
           translateElement(el, cmd.dx, cmd.dy, movedSet);
+        }
+        for (const movedEl of movedSet) {
+          updateDependentBindings(movedEl);
         }
       } else if (cmd.type === 'erase') {
         const idx = elements.indexOf(cmd.element);
@@ -10749,6 +12551,17 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
         updateDependentBindings(cmd.element);
+      } else if (cmd.type === 'group-elements' || cmd.type === 'ungroup-elements') {
+        for (const item of cmd.items) {
+          if (item.element) {
+            item.element.groupId = item.afterGroupId;
+            if (item.afterManualGroup !== undefined) item.element.isManualGroup = item.afterManualGroup;
+            if (item.afterUngrouped !== undefined) item.element.isUngrouped = item.afterUngrouped;
+          }
+        }
+        if (state.selectedElements && state.selectedElements.length > 0) {
+          updateFloatingBarState(state.selectedElements);
+        }
       }
 
       renderPage();
@@ -10862,8 +12675,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (state.activeTool === 'select') {
         setCanvasCursor(SHARP_ARROW_CURSOR);
-        statusToolInfo.textContent = 'Công cụ: Chọn đối tượng (Nhấp để chọn đơn lẻ một đối tượng, kéo để di chuyển, Delete để xóa)';
-      } else if (state.activeTool === 'eraser') {
+        statusToolInfo.textContent = 'Công cụ: Chọn (Bấm vào đối tượng hoặc kéo quét vùng để chọn; cắt, xóa, sao chép)';
+        if (state.selectedElements && state.selectedElements.length > 0 && state.isFromAreaSelect) {
+          showFloatingSelectionBar(state.selectedElements);
+        } else {
+          hideFloatingSelectionBar();
+        }
+      } else {
+        state.isFromAreaSelect = false;
+        hideFloatingSelectionBar();
+      }
+
+      if (state.activeTool === 'eraser') {
         setCanvasCursor('crosshair');
         state.selectedElement = null;
         statusToolInfo.textContent = state.eraserMode === 'partial'
@@ -10952,7 +12775,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     state.activeGeo = null;
-    state.selectedElement = null;
+    setSelectedElements([]);
+    hideFloatingSelectionBar();
     setCanvasCursor('crosshair');
 
     toolButtons.forEach(b => b.classList.remove('active'));
@@ -10997,6 +12821,23 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.pen-dash-segmented .style-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.dashStyle = btn.dataset.dash;
+    });
+  });
+
+  // Chọn độ mượt nét bút (Tiêu chuẩn / Mượt mà / Siêu mượt Streamline) bên trong dropdown Bút ▾
+  document.querySelectorAll('#pen-smoothing-segmented .style-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('#pen-smoothing-segmented .style-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.penSmoothing = btn.dataset.smoothing; // 'normal' | 'smooth' | 'ultra'
+      if (state.penSmoothing === 'ultra') {
+        showPageToast('✨ Đã bật nét bút Siêu mượt (Streamline)!');
+      } else if (state.penSmoothing === 'smooth') {
+        showPageToast('🖊️ Đã bật nét bút Mượt mà!');
+      } else {
+        showPageToast('✏️ Đã bật nét bút Tiêu chuẩn!');
+      }
     });
   });
 
@@ -11891,6 +13732,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuFile = document.getElementById('menu-file');
   const btnFileSave = document.getElementById('btn-file-save');
   const btnFileSaveAs = document.getElementById('btn-file-save-as');
+  const btnFileOpenRecent = document.getElementById('btn-file-open-recent');
   const btnFileImportProject = document.getElementById('btn-file-import-project');
   const inputProjectFile = document.getElementById('input-project-file');
   const saveBadge = document.getElementById('save-badge');
@@ -11945,6 +13787,15 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const data = getProjectData();
       localStorage.setItem('net_saved_project', JSON.stringify(data));
+
+      // Tự động bảo lưu vào ghi chú gần nhất (net_recent_project) nếu có nét vẽ hoặc tiêu đề riêng
+      const totalElements = Object.values(data.state && data.state.pages ? data.state.pages : {}).reduce((sum, list) => sum + (list ? list.length : 0), 0);
+      const isCustomTitle = data.title && data.title !== 'Ghi chú mới';
+      if (totalElements > 0 || isCustomTitle) {
+        localStorage.setItem('net_recent_project', JSON.stringify(data));
+        updateRecentDocUI();
+      }
+
       if (saveBadge) {
         saveBadge.textContent = '· Đã lưu';
         saveBadge.className = 'badge-saved';
@@ -11959,6 +13810,121 @@ document.addEventListener('DOMContentLoaded', () => {
         showPageToast('⚠️ Bộ nhớ cục bộ bị đầy, hãy dùng "Lưu thành..." để tải tệp về máy.');
       }
     }
+  }
+
+  // 1.1. Cập nhật trạng thái hiển thị của nút "Mở ghi chú gần nhất" trên menu Tệp
+  function updateRecentDocUI() {
+    const btnOpenRecent = document.getElementById('btn-file-open-recent');
+    const recentDocName = document.getElementById('recent-doc-name');
+    if (!btnOpenRecent) return;
+
+    try {
+      const recentStr = localStorage.getItem('net_recent_project') || localStorage.getItem('net_saved_project');
+      if (recentStr) {
+        const parsed = JSON.parse(recentStr);
+        const totalElements = parsed && parsed.state && parsed.state.pages 
+          ? Object.values(parsed.state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0)
+          : 0;
+        const isCustomTitle = parsed && parsed.title && parsed.title !== 'Ghi chú mới';
+        if (totalElements > 0 || isCustomTitle) {
+          const title = (parsed && parsed.title) ? parsed.title.trim() : 'Ghi chú gần nhất';
+          btnOpenRecent.removeAttribute('disabled');
+          btnOpenRecent.style.opacity = '1';
+          btnOpenRecent.style.cursor = 'pointer';
+          btnOpenRecent.title = `Mở lại ghi chú: "${title}"`;
+          if (recentDocName) {
+            recentDocName.textContent = title;
+            recentDocName.style.display = 'inline-block';
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+        console.warn('Lỗi đọc ghi chú gần nhất:', e);
+      }
+    }
+
+    if (recentDocName) {
+      recentDocName.textContent = '';
+      recentDocName.style.display = 'none';
+    }
+    btnOpenRecent.title = 'Chưa có ghi chú nào được lưu trước đó';
+  }
+
+  // 1.2. Nạp dữ liệu ghi chú vào ứng dụng (dùng chung cho Mở tệp .net và Mở ghi chú gần nhất)
+  function loadProjectData(data, toastMsg = '📂 Đã mở tệp Nét thành công!') {
+    if (!data || !data.state || !data.state.pages) {
+      alert('Định dạng tệp không hợp lệ! Vui lòng chọn tệp .net hoặc .json của Nét.');
+      return false;
+    }
+
+    // 1. Dọn sạch các trang phụ > 1 trong DOM
+    if (pagesContainer) {
+      const wrappers = Array.from(pagesContainer.querySelectorAll('.paper-wrapper'));
+      wrappers.forEach(w => {
+        const p = parseInt(w.dataset.page, 10);
+        if (p > 1) {
+          w.remove();
+        }
+      });
+    }
+
+    // 2. Xóa các hộp nhập nổi hoặc góc nổi
+    document.querySelectorAll('.floating-angle-box').forEach(b => b.remove());
+
+    // 3. Khôi phục tiêu đề
+    if (docTitleInput && data.title) {
+      docTitleInput.value = data.title;
+      adjustDocTitleWidth();
+    }
+
+    // 4. Khôi phục dữ liệu state
+    state.pages = data.state.pages || { 1: [] };
+    state.pageTitles = data.state.pageTitles || { 1: 'Trang 1' };
+    state.currentPage = data.state.currentPage || 1;
+    state.undoStacks = {};
+    state.redoStacks = {};
+    state.selectedElement = null;
+    state.selectedElements = [];
+    state.selectedEdge = null;
+    state.selectedVertex = null;
+    state.pendingSingleSelect = null;
+    state.activeHandle = null;
+    state.hoverHandle = null;
+    state.hoverElement = null;
+
+    // 5. Khôi phục hướng giấy & lưới giấy
+    if (data.state.orientation && data.state.orientation !== state.orientation) {
+      setOrientation(data.state.orientation);
+    }
+    if (data.state.gridType) {
+      document.querySelectorAll('.paper-sheet').forEach(sheet => {
+        sheet.className = `paper-sheet paper-${data.state.gridType}`;
+      });
+      if (typeof selectGrid !== 'undefined' && selectGrid) selectGrid.value = data.state.gridType;
+    }
+
+    // 6. Đảm bảo DOM cho các trang p > 1
+    const pageKeys = Object.keys(state.pages).map(Number).sort((a, b) => a - b);
+    pageKeys.forEach(p => {
+      if (p > 1 && typeof ensurePageInDOM === 'function') {
+        ensurePageInDOM(p);
+      }
+    });
+
+    // 7. Cuộn về đầu và render lại
+    if (canvasContainer) {
+      canvasContainer.scrollTop = 0;
+      canvasContainer.scrollLeft = 0;
+    }
+
+    updatePageListBar();
+    renderPage(state.currentPage);
+    updateUndoState();
+    saveProject(false);
+    if (toastMsg) showPageToast(toastMsg);
+    return true;
   }
 
   // 2. Lưu thành... (Save As) - Xuất file dự án .net về máy tính
@@ -11986,29 +13952,7 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        if (!data || !data.state || !data.state.pages) {
-          alert('Định dạng tệp không hợp lệ! Vui lòng chọn tệp .net hoặc .json của Nét.');
-          return;
-        }
-        if (docTitleInput && data.title) {
-          docTitleInput.value = data.title;
-          adjustDocTitleWidth();
-        }
-        state.pages = data.state.pages || {};
-        if (data.state.orientation && data.state.orientation !== state.orientation) {
-          setOrientation(data.state.orientation);
-        }
-        if (data.state.gridType) {
-          document.querySelectorAll('.paper-sheet').forEach(sheet => {
-            sheet.className = `paper-sheet paper-${data.state.gridType}`;
-          });
-          if (typeof selectGrid !== 'undefined' && selectGrid) selectGrid.value = data.state.gridType;
-        }
-        state.currentPage = data.state.currentPage || 1;
-        updatePageListBar();
-        renderPage();
-        saveProject(false);
-        showPageToast('📂 Đã mở tệp Nét thành công!');
+        loadProjectData(data, '📂 Đã mở tệp Nét thành công!');
       } catch (err) {
         alert('Không thể mở tệp: ' + err.message);
       }
@@ -12180,6 +14124,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (btnFileOpenRecent) {
+    btnFileOpenRecent.addEventListener('click', () => {
+      closeAllDropdowns();
+      const recentStr = localStorage.getItem('net_recent_project') || localStorage.getItem('net_saved_project');
+      if (!recentStr) {
+        showPageToast('ℹ️ Chưa có ghi chú gần nhất nào được lưu.');
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(recentStr);
+      } catch (err) {
+        showPageToast('⚠️ Tệp ghi chú gần nhất không hợp lệ.');
+        return;
+      }
+      if (!parsed || !parsed.state || !parsed.state.pages) {
+        showPageToast('ℹ️ Ghi chú gần nhất chưa có nội dung.');
+        return;
+      }
+
+      const currentTotal = Object.values(state.pages || {}).reduce((sum, list) => sum + (list ? list.length : 0), 0);
+      if (currentTotal > 0) {
+        const title = parsed.title ? `"${parsed.title}"` : 'gần nhất';
+        const ok = confirm(`Trang hiện tại đang có nét vẽ. Bạn có muốn mở ghi chú ${title} không?\n(Trang hiện tại sẽ được thay thế)`);
+        if (!ok) return;
+      }
+
+      loadProjectData(parsed, `📂 Đã mở lại: ${parsed.title || 'Ghi chú gần nhất'}`);
+    });
+  }
+
   if (btnFileImportProject && inputProjectFile) {
     btnFileImportProject.addEventListener('click', () => {
       closeAllDropdowns();
@@ -12239,28 +14214,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Tự động khôi phục bản ghi chú đã lưu từ lần trước khi mở app (nếu có)
+  // Khởi động ứng dụng: Luôn bắt đầu bằng 1 trang trắng mới (theo yêu cầu người dùng)
+  // Tự động bảo lưu dữ liệu ghi chú cũ vào net_recent_project để người dùng mở lại khi cần
   try {
     const lastSaved = localStorage.getItem('net_saved_project');
-    if (lastSaved) {
+    const existingRecent = localStorage.getItem('net_recent_project');
+    if (lastSaved && !existingRecent) {
       const parsed = JSON.parse(lastSaved);
       if (parsed && parsed.state && parsed.state.pages) {
-        const totalElements = Object.values(state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0);
-        if (totalElements === 0 && Object.keys(parsed.state.pages).length > 0) {
-          state.pages = parsed.state.pages;
-          if (docTitleInput && parsed.title) {
-            docTitleInput.value = parsed.title;
-            adjustDocTitleWidth();
-          }
-          if (parsed.state.currentPage) state.currentPage = parsed.state.currentPage;
-          updatePageListBar();
-          renderPage();
+        const totalElements = Object.values(parsed.state.pages).reduce((sum, list) => sum + (list ? list.length : 0), 0);
+        if (totalElements > 0 || (parsed.title && parsed.title !== 'Ghi chú mới')) {
+          localStorage.setItem('net_recent_project', lastSaved);
         }
       }
     }
   } catch (err) {
-    console.warn('Lỗi khôi phục ghi chú cũ:', err);
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn('Lỗi kiểm tra ghi chú cũ:', err);
+    }
   }
+  updateRecentDocUI();
 
   const btnImportImage = document.getElementById('btn-import-image');
   const inputImageFile = document.getElementById('input-image-file');
@@ -13216,7 +15189,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 11. Phím tắt chuẩn Mac (Keyboard Shortcuts)
   window.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || (e.target.isContentEditable)) return;
+
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+      if (e.key.toLowerCase() === 'x' && state.activeTool === 'select' && state.selectedElements && state.selectedElements.length > 0) {
+        e.preventDefault();
+        cutSelectedElements();
+        return;
+      }
+      if (e.key.toLowerCase() === 'c' && state.activeTool === 'select' && state.selectedElements && state.selectedElements.length > 0) {
+        e.preventDefault();
+        copySelectedElements();
+        return;
+      }
+      if (e.key.toLowerCase() === 'v' && state.activeTool === 'select' && state.clipboardElements && state.clipboardElements.length > 0) {
+        e.preventDefault();
+        pasteClipboardElements();
+        return;
+      }
+      if (e.key.toLowerCase() === 'd' && state.activeTool === 'select' && state.selectedElements && state.selectedElements.length > 0) {
+        e.preventDefault();
+        duplicateSelectedElements();
+        return;
+      }
+      if (e.key.toLowerCase() === 'g' && state.activeTool === 'select') {
+        e.preventDefault();
+        groupSelectedElements();
+        return;
+      }
+    }
+
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'g' && state.activeTool === 'select') {
+      e.preventDefault();
+      ungroupSelectedElements();
+      return;
+    }
 
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault();
@@ -13260,36 +15267,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btnMidpoint) btnMidpoint.click();
     } else if (e.key === 'Escape') {
       closeAllDropdowns();
+      state.isFromAreaSelect = false;
+      hideFloatingSelectionBar();
+      if (state.selectedElements && state.selectedElements.length > 0) {
+        setSelectedElements([]);
+        renderPage();
+      }
       if (state.activeTool === 'geo' || state.activeTool === 'graph' || state.pendingConstruction || state.pendingOptions || (state.construction && (state.construction.point || state.construction.line || state.construction.circle || (state.construction.edges && state.construction.edges.length > 0)))) {
         finishGeoTask();
       }
     } else if (e.key === 'Backspace' || e.key === 'Delete') {
-      const selectedList = state.selectedElements && state.selectedElements.length > 0
-        ? [...state.selectedElements]
-        : (state.selectedElement ? [state.selectedElement] : []);
-
-      if (selectedList.length > 0) {
-        const list = state.pages[state.currentPage] || [];
-        const beforePage = [...list];
-        let anyDeleted = false;
-
-        for (const el of selectedList) {
-          const idx = list.indexOf(el);
-          if (idx !== -1) {
-            list.splice(idx, 1);
-            anyDeleted = true;
-          }
-        }
-
-        if (anyDeleted) {
-          setSelectedElements([]);
-          pushCommand({
-            type: 'page-replace',
-            before: beforePage,
-            after: [...list]
-          });
-          renderPage();
-        }
+      if (state.selectedElements && state.selectedElements.length > 0) {
+        deleteSelectedElements();
       }
     }
   });
@@ -13998,6 +15987,7 @@ document.addEventListener('DOMContentLoaded', () => {
       linkGroup,
       linkGroupMulti,
       getGroupElements,
+      getDependentElements,
       updateDependentBindings,
       constructTangent,
       constructTwoTangents,
@@ -14042,7 +16032,26 @@ document.addEventListener('DOMContentLoaded', () => {
       updatePendingAngleDegrees,
       showFloatingAngleBox,
       removeFloatingAngleBox,
-      findIntersectionSnapAtPoint
+      findIntersectionSnapAtPoint,
+      handlePointerDown,
+      handlePointerMove,
+      finishDrawing,
+      isElementInSelectionBox,
+      getElementBoundingBox,
+      getCombinedBoundingBox,
+      cloneElementsGroup,
+      toggleElementSelection,
+      cutSelectedElements,
+      copySelectedElements,
+      pasteClipboardElements,
+      duplicateSelectedElements,
+      deleteSelectedElements,
+      changeSelectedElementsColor,
+      rotateSelectedElements,
+      groupSelectedElements,
+      ungroupSelectedElements,
+      showFloatingSelectionBar,
+      hideFloatingSelectionBar
     };
     window.__netRotate2D = rotateElement2D;
     window.__netAnimateSmoothRotation3D = animateSmoothRotation3D;

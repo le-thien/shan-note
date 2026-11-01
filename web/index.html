@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Nét">
-  <link rel="stylesheet" href="style.css?v=20261027_1910">
+  <link rel="stylesheet" href="style.css?v=20261031_2150">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&family=Caveat:wght@600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -213,8 +213,13 @@
 
             <div class="header-menu-divider"></div>
 
-            <!-- 3. Nhập (Import) -->
-            <div class="menu-section-label">Nhập (Import)</div>
+            <!-- 3. Mở & Nhập (Open & Import) -->
+            <div class="menu-section-label">Mở & Nhập</div>
+            <button class="header-menu-item" id="btn-file-open-recent" title="Mở lại ghi chú gần nhất bạn đã viết">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>Mở ghi chú gần nhất</span>
+              <span class="menu-shortcut" id="recent-doc-name" style="max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; opacity: 0.7;"></span>
+            </button>
             <button class="header-menu-item" id="btn-file-import-project" title="Mở tệp dự án Nét (.net / .json) từ máy tính">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
               <span>Mở tệp Nét (.net)...</span>
@@ -675,6 +680,24 @@
                 <button type="button" class="pen-segment-btn style-btn" id="stroke-dashed" data-dash="dashed">
                   <svg width="22" height="6" viewBox="0 0 22 6"><line x1="1" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2.2" stroke-dasharray="4 3" stroke-linecap="round"/></svg>
                   <span>Đứt</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="toolbar-menu-divider"></div>
+
+            <!-- 5. Độ mượt nét bút -->
+            <div class="pen-cluster-section">
+              <div class="pen-cluster-label">Độ mượt nét bút</div>
+              <div class="pen-dash-segmented" id="pen-smoothing-segmented">
+                <button type="button" class="pen-segment-btn style-btn" id="smoothing-normal" data-smoothing="normal" title="Độ mượt tiêu chuẩn, bám sát cử động tay">
+                  <span>Tiêu chuẩn</span>
+                </button>
+                <button type="button" class="pen-segment-btn style-btn" id="smoothing-smooth" data-smoothing="smooth" title="Làm mượt cơ bản, uốn cong êm ái">
+                  <span>Mượt mà</span>
+                </button>
+                <button type="button" class="pen-segment-btn style-btn active" id="smoothing-ultra" data-smoothing="ultra" title="Làm mượt Streamline cao cấp, khử sạch rung tay, nét chữ uốn lượn tuyệt đẹp">
+                  <span>✨ Siêu mượt</span>
                 </button>
               </div>
             </div>
@@ -1609,11 +1632,11 @@
   <script src="fx580.js?v=20261027_1105"></script>
   <!-- Module Đồ thị hàm số & 3D Solid of Revolution -->
   <script src="graph_widget.js?v=20261026_1830"></script>
-  <script src="app.js?v=20261027_2135"></script>
+  <script src="app.js?v=20261101_2035"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261027_2000').catch(function() {});
+        navigator.serviceWorker.register('./sw.js?v=20261101_2035').catch(function() {});
       });
     }
   </script>
