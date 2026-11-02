@@ -4298,10 +4298,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let edges = [];
 
     if (shape === 'tetrahedron') {
-      const S = { x: left + w * 0.38, y: top, name: 'S', offX: 0, offY: -10 };
-      const A = { x: left + w * 0.10, y: top + h * 0.72, name: 'A', offX: -14, offY: 2 };
-      const B = { x: left + w * 0.45, y: bottom, name: 'B', offX: -8, offY: 15 };
-      const C = { x: right, y: top + h * 0.74, name: 'C', offX: 8, offY: 4 };
+      const S = { x: left + w * 0.38, y: top, name: '', offX: 0, offY: -10 };
+      const A = { x: left + w * 0.10, y: top + h * 0.72, name: '', offX: -14, offY: 2 };
+      const B = { x: left + w * 0.45, y: bottom, name: '', offX: -8, offY: 15 };
+      const C = { x: right, y: top + h * 0.74, name: '', offX: 8, offY: 4 };
 
       points = [S, A, B, C];
       edges = [
@@ -4313,11 +4313,11 @@ document.addEventListener('DOMContentLoaded', () => {
         [1, 3, 'dashed']
       ];
     } else if (shape === 'pyramid-quad') {
-      const S = { x: left + w * 0.36, y: top, name: 'S', offX: 0, offY: -10 };
-      const A = { x: left + w * 0.22, y: top + h * 0.65, name: 'A', offX: -14, offY: 0 };
-      const B = { x: left, y: bottom - h * 0.06, name: 'B', offX: -14, offY: 10 };
-      const C = { x: left + w * 0.70, y: bottom, name: 'C', offX: 2, offY: 16 };
-      const D = { x: right, y: top + h * 0.68, name: 'D', offX: 8, offY: 2 };
+      const S = { x: left + w * 0.36, y: top, name: '', offX: 0, offY: -10 };
+      const A = { x: left + w * 0.22, y: top + h * 0.65, name: '', offX: -14, offY: 0 };
+      const B = { x: left, y: bottom - h * 0.06, name: '', offX: -14, offY: 10 };
+      const C = { x: left + w * 0.70, y: bottom, name: '', offX: 2, offY: 16 };
+      const D = { x: right, y: top + h * 0.68, name: '', offX: 8, offY: 2 };
 
       points = [S, A, B, C, D];
       edges = [
@@ -4331,11 +4331,11 @@ document.addEventListener('DOMContentLoaded', () => {
         [0, 4, 'solid']
       ];
     } else if (shape === 'pyramid-trapezoid') {
-      const S = { x: left + w * 0.35, y: top, name: 'S', offX: 0, offY: -10 };
-      const A = { x: left + w * 0.15, y: top + h * 0.62, name: 'A', offX: -14, offY: 0 };
-      const D = { x: right, y: top + h * 0.62, name: 'D', offX: 8, offY: 2 };
-      const B = { x: left + w * 0.05, y: bottom, name: 'B', offX: -14, offY: 14 };
-      const C = { x: left + w * 0.65, y: bottom, name: 'C', offX: 4, offY: 15 };
+      const S = { x: left + w * 0.35, y: top, name: '', offX: 0, offY: -10 };
+      const A = { x: left + w * 0.15, y: top + h * 0.62, name: '', offX: -14, offY: 0 };
+      const D = { x: right, y: top + h * 0.62, name: '', offX: 8, offY: 2 };
+      const B = { x: left + w * 0.05, y: bottom, name: '', offX: -14, offY: 14 };
+      const C = { x: left + w * 0.65, y: bottom, name: '', offX: 4, offY: 15 };
 
       points = [S, A, B, C, D];
       edges = [
@@ -4349,11 +4349,11 @@ document.addEventListener('DOMContentLoaded', () => {
         [0, 4, 'solid']
       ];
     } else if (shape === 'pyramid-parallelogram') {
-      const S = { x: left + w * 0.38, y: top, name: 'S', offX: 0, offY: -10 };
-      const A = { x: left + w * 0.30, y: top + h * 0.62, name: 'A', offX: -14, offY: 0 };
-      const D = { x: right, y: top + h * 0.62, name: 'D', offX: 8, offY: 2 };
-      const B = { x: left, y: bottom, name: 'B', offX: -14, offY: 14 };
-      const C = { x: right - w * 0.30, y: bottom, name: 'C', offX: 8, offY: 14 };
+      const S = { x: left + w * 0.38, y: top, name: '', offX: 0, offY: -10 };
+      const A = { x: left + w * 0.30, y: top + h * 0.62, name: '', offX: -14, offY: 0 };
+      const D = { x: right, y: top + h * 0.62, name: '', offX: 8, offY: 2 };
+      const B = { x: left, y: bottom, name: '', offX: -14, offY: 14 };
+      const C = { x: right - w * 0.30, y: bottom, name: '', offX: 8, offY: 14 };
 
       points = [S, A, B, C, D];
       edges = [
@@ -4367,12 +4367,12 @@ document.addEventListener('DOMContentLoaded', () => {
         [0, 4, 'solid']
       ];
     } else if (shape === 'pyramid-pentagon') {
-      const S = { x: left + w * 0.40, y: top, name: 'S', offX: 0, offY: -10 };
-      const A = { x: left + w * 0.20, y: top + h * 0.60, name: 'A', offX: -14, offY: 0 };
-      const B = { x: left, y: top + h * 0.80, name: 'B', offX: -14, offY: 10 };
-      const C = { x: left + w * 0.40, y: bottom, name: 'C', offX: -6, offY: 15 };
-      const D = { x: left + w * 0.80, y: bottom - h * 0.08, name: 'D', offX: 6, offY: 14 };
-      const E = { x: right, y: top + h * 0.64, name: 'E', offX: 8, offY: 2 };
+      const S = { x: left + w * 0.40, y: top, name: '', offX: 0, offY: -10 };
+      const A = { x: left + w * 0.20, y: top + h * 0.60, name: '', offX: -14, offY: 0 };
+      const B = { x: left, y: top + h * 0.80, name: '', offX: -14, offY: 10 };
+      const C = { x: left + w * 0.40, y: bottom, name: '', offX: -6, offY: 15 };
+      const D = { x: left + w * 0.80, y: bottom - h * 0.08, name: '', offX: 6, offY: 14 };
+      const E = { x: right, y: top + h * 0.64, name: '', offX: 8, offY: 2 };
 
       points = [S, A, B, C, D, E];
       edges = [
@@ -4388,19 +4388,19 @@ document.addEventListener('DOMContentLoaded', () => {
         [0, 5, 'solid']
       ];
     } else if (shape === 'pyramid-regular') {
-      const A = { x: left + w * 0.30, y: top + h * 0.65, name: 'A', offX: -14, offY: 0 };
-      const D = { x: right, y: top + h * 0.65, name: 'D', offX: 8, offY: 2 };
-      const B = { x: left, y: bottom, name: 'B', offX: -14, offY: 14 };
-      const C = { x: right - w * 0.30, y: bottom, name: 'C', offX: 8, offY: 14 };
+      const A = { x: left + w * 0.30, y: top + h * 0.65, name: '', offX: -14, offY: 0 };
+      const D = { x: right, y: top + h * 0.65, name: '', offX: 8, offY: 2 };
+      const B = { x: left, y: bottom, name: '', offX: -14, offY: 14 };
+      const C = { x: right - w * 0.30, y: bottom, name: '', offX: 8, offY: 14 };
 
       const O = {
         x: (A.x + C.x) / 2,
         y: (A.y + C.y) / 2,
-        name: 'O',
+        name: '',
         offX: 6,
         offY: 12
       };
-      const S = { x: O.x, y: top, name: 'S', offX: 0, offY: -10 };
+      const S = { x: O.x, y: top, name: '', offX: 0, offY: -10 };
 
       points = [S, A, B, C, D, O];
       edges = [
@@ -4418,10 +4418,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'pyramid-sa-triangle') {
       // Chóp S.ABC có SA ⊥ (ABC)
-      const A = { x: left + w * 0.22, y: top + h * 0.65, name: 'A', offX: -14, offY: 0 };
-      const S = { x: A.x, y: top, name: 'S', offX: 0, offY: -10 };
-      const B = { x: left, y: bottom, name: 'B', offX: -14, offY: 14 };
-      const C = { x: right, y: top + h * 0.72, name: 'C', offX: 8, offY: 4 };
+      const A = { x: left + w * 0.22, y: top + h * 0.65, name: '', offX: -14, offY: 0 };
+      const S = { x: A.x, y: top, name: '', offX: 0, offY: -10 };
+      const B = { x: left, y: bottom, name: '', offX: -14, offY: 14 };
+      const C = { x: right, y: top + h * 0.72, name: '', offX: 8, offY: 4 };
 
       points = [S, A, B, C];
       edges = [
@@ -4434,11 +4434,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'pyramid-sa-parallelogram') {
       // Chóp S.ABCD có SA ⊥ (ABCD) đáy hình bình hành
-      const A = { x: left + w * 0.28, y: top + h * 0.62, name: 'A', offX: -14, offY: 0 };
-      const S = { x: A.x, y: top, name: 'S', offX: 0, offY: -10 };
-      const B = { x: left, y: bottom, name: 'B', offX: -14, offY: 14 };
-      const D = { x: right, y: top + h * 0.62, name: 'D', offX: 8, offY: 2 };
-      const C = { x: right - w * 0.28, y: bottom, name: 'C', offX: 8, offY: 14 };
+      const A = { x: left + w * 0.28, y: top + h * 0.62, name: '', offX: -14, offY: 0 };
+      const S = { x: A.x, y: top, name: '', offX: 0, offY: -10 };
+      const B = { x: left, y: bottom, name: '', offX: -14, offY: 14 };
+      const D = { x: right, y: top + h * 0.62, name: '', offX: 8, offY: 2 };
+      const C = { x: right - w * 0.28, y: bottom, name: '', offX: 8, offY: 14 };
 
       points = [S, A, B, C, D];
       edges = [
@@ -4453,11 +4453,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'pyramid-sa-trapezoid') {
       // Chóp S.ABCD có SA ⊥ (ABCD) đáy hình thang
-      const A = { x: left + w * 0.18, y: top + h * 0.62, name: 'A', offX: -14, offY: 0 };
-      const S = { x: A.x, y: top, name: 'S', offX: 0, offY: -10 };
-      const D = { x: right, y: top + h * 0.62, name: 'D', offX: 8, offY: 2 };
-      const B = { x: left + w * 0.05, y: bottom, name: 'B', offX: -14, offY: 14 };
-      const C = { x: left + w * 0.65, y: bottom, name: 'C', offX: 4, offY: 15 };
+      const A = { x: left + w * 0.18, y: top + h * 0.62, name: '', offX: -14, offY: 0 };
+      const S = { x: A.x, y: top, name: '', offX: 0, offY: -10 };
+      const D = { x: right, y: top + h * 0.62, name: '', offX: 8, offY: 2 };
+      const B = { x: left + w * 0.05, y: bottom, name: '', offX: -14, offY: 14 };
+      const C = { x: left + w * 0.65, y: bottom, name: '', offX: 4, offY: 15 };
 
       points = [S, A, B, C, D];
       edges = [
@@ -4472,11 +4472,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'pyramid-sa-quad') {
       // Chóp S.ABCD có SA ⊥ (ABCD) đáy tứ giác
-      const A = { x: left + w * 0.22, y: top + h * 0.65, name: 'A', offX: -14, offY: 0 };
-      const S = { x: A.x, y: top, name: 'S', offX: 0, offY: -10 };
-      const B = { x: left, y: bottom - h * 0.06, name: 'B', offX: -14, offY: 10 };
-      const C = { x: left + w * 0.70, y: bottom, name: 'C', offX: 2, offY: 16 };
-      const D = { x: right, y: top + h * 0.68, name: 'D', offX: 8, offY: 2 };
+      const A = { x: left + w * 0.22, y: top + h * 0.65, name: '', offX: -14, offY: 0 };
+      const S = { x: A.x, y: top, name: '', offX: 0, offY: -10 };
+      const B = { x: left, y: bottom - h * 0.06, name: '', offX: -14, offY: 10 };
+      const C = { x: left + w * 0.70, y: bottom, name: '', offX: 2, offY: 16 };
+      const D = { x: right, y: top + h * 0.68, name: '', offX: 8, offY: 2 };
 
       points = [S, A, B, C, D];
       edges = [
@@ -4491,13 +4491,13 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'prism-stand') {
       // Lăng trụ đứng tam giác ABC.A'B'C' (cạnh bên vuông góc đáy)
-      const A = { x: left + w * 0.15, y: bottom - h * 0.15, name: 'A', offX: -14, offY: 0 };
-      const B = { x: left + w * 0.45, y: bottom, name: 'B', offX: -8, offY: 14 };
-      const C = { x: right, y: bottom - h * 0.14, name: 'C', offX: 8, offY: 4 };
+      const A = { x: left + w * 0.15, y: bottom - h * 0.15, name: '', offX: -14, offY: 0 };
+      const B = { x: left + w * 0.45, y: bottom, name: '', offX: -8, offY: 14 };
+      const C = { x: right, y: bottom - h * 0.14, name: '', offX: 8, offY: 4 };
       const hPrism = h * 0.65;
-      const A1 = { x: A.x, y: A.y - hPrism, name: "A'", offX: -16, offY: -6 };
-      const B1 = { x: B.x, y: B.y - hPrism, name: "B'", offX: -8, offY: -10 };
-      const C1 = { x: C.x, y: C.y - hPrism, name: "C'", offX: 8, offY: -6 };
+      const A1 = { x: A.x, y: A.y - hPrism, name: '', offX: -16, offY: -6 };
+      const B1 = { x: B.x, y: B.y - hPrism, name: '', offX: -8, offY: -10 };
+      const C1 = { x: C.x, y: C.y - hPrism, name: '', offX: 8, offY: -6 };
 
       points = [A, B, C, A1, B1, C1];
       edges = [
@@ -4513,14 +4513,14 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'prism-oblique') {
       // Lăng trụ xiên ABC.A'B'C'
-      const A = { x: left + w * 0.10, y: bottom - h * 0.15, name: 'A', offX: -14, offY: 0 };
-      const B = { x: left + w * 0.40, y: bottom, name: 'B', offX: -8, offY: 14 };
-      const C = { x: right - w * 0.20, y: bottom - h * 0.14, name: 'C', offX: 8, offY: 4 };
+      const A = { x: left + w * 0.10, y: bottom - h * 0.15, name: '', offX: -14, offY: 0 };
+      const B = { x: left + w * 0.40, y: bottom, name: '', offX: -8, offY: 14 };
+      const C = { x: right - w * 0.20, y: bottom - h * 0.14, name: '', offX: 8, offY: 4 };
       const hPrism = h * 0.65;
       const slantX = w * 0.20;
-      const A1 = { x: A.x + slantX, y: A.y - hPrism, name: "A'", offX: -16, offY: -6 };
-      const B1 = { x: B.x + slantX, y: B.y - hPrism, name: "B'", offX: -8, offY: -10 };
-      const C1 = { x: C.x + slantX, y: C.y - hPrism, name: "C'", offX: 8, offY: -6 };
+      const A1 = { x: A.x + slantX, y: A.y - hPrism, name: '', offX: -16, offY: -6 };
+      const B1 = { x: B.x + slantX, y: B.y - hPrism, name: '', offX: -8, offY: -10 };
+      const C1 = { x: C.x + slantX, y: C.y - hPrism, name: '', offX: 8, offY: -6 };
 
       points = [A, B, C, A1, B1, C1];
       edges = [
@@ -4536,15 +4536,15 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'box-rect') {
       // Hình hộp chữ nhật / Hình lập phương ABCD.A'B'C'D'
-      const A = { x: left + w * 0.25, y: bottom - h * 0.20, name: 'A', offX: -14, offY: 0 };
-      const D = { x: right, y: bottom - h * 0.20, name: 'D', offX: 8, offY: 2 };
-      const B = { x: left, y: bottom, name: 'B', offX: -14, offY: 14 };
-      const C = { x: right - w * 0.25, y: bottom, name: 'C', offX: 8, offY: 14 };
+      const A = { x: left + w * 0.25, y: bottom - h * 0.20, name: '', offX: -14, offY: 0 };
+      const D = { x: right, y: bottom - h * 0.20, name: '', offX: 8, offY: 2 };
+      const B = { x: left, y: bottom, name: '', offX: -14, offY: 14 };
+      const C = { x: right - w * 0.25, y: bottom, name: '', offX: 8, offY: 14 };
       const hBox = h * 0.60;
-      const A1 = { x: A.x, y: A.y - hBox, name: "A'", offX: -16, offY: -6 };
-      const D1 = { x: D.x, y: D.y - hBox, name: "D'", offX: 8, offY: -6 };
-      const B1 = { x: B.x, y: B.y - hBox, name: "B'", offX: -14, offY: -8 };
-      const C1 = { x: C.x, y: C.y - hBox, name: "C'", offX: 8, offY: -8 };
+      const A1 = { x: A.x, y: A.y - hBox, name: '', offX: -16, offY: -6 };
+      const D1 = { x: D.x, y: D.y - hBox, name: '', offX: 8, offY: -6 };
+      const B1 = { x: B.x, y: B.y - hBox, name: '', offX: -14, offY: -8 };
+      const C1 = { x: C.x, y: C.y - hBox, name: '', offX: 8, offY: -8 };
 
       points = [A, B, C, D, A1, B1, C1, D1];
       edges = [
@@ -4563,10 +4563,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'cone') {
       // Hình nón tròn xoay (đỉnh S, tâm đáy O, đường kính đáy AB)
-      const S = { x: left + w * 0.50, y: top, name: 'S', offX: 0, offY: -10 };
-      const O = { x: left + w * 0.50, y: bottom - h * 0.14, name: 'O', offX: 0, offY: 14 };
-      const A = { x: left + w * 0.08, y: O.y, name: 'A', offX: -14, offY: 2 };
-      const B = { x: right - w * 0.08, y: O.y, name: 'B', offX: 8, offY: 2 };
+      const S = { x: left + w * 0.50, y: top, name: '', offX: 0, offY: -10 };
+      const O = { x: left + w * 0.50, y: bottom - h * 0.14, name: '', offX: 0, offY: 14 };
+      const A = { x: left + w * 0.08, y: O.y, name: '', offX: -14, offY: 2 };
+      const B = { x: right - w * 0.08, y: O.y, name: '', offX: 8, offY: 2 };
 
       points = [S, O, A, B];
       edges = [
@@ -4577,13 +4577,13 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'cylinder') {
       // Hình trụ tròn xoay (tâm đáy trên O1, tâm đáy dưới O2)
-      const O1 = { x: left + w * 0.50, y: top + h * 0.14, name: "O'", offX: 0, offY: -12 };
-      const A1 = { x: left + w * 0.08, y: O1.y, name: "A'", offX: -16, offY: 2 };
-      const B1 = { x: right - w * 0.08, y: O1.y, name: "B'", offX: 8, offY: 2 };
+      const O1 = { x: left + w * 0.50, y: top + h * 0.14, name: '', offX: 0, offY: -12 };
+      const A1 = { x: left + w * 0.08, y: O1.y, name: '', offX: -16, offY: 2 };
+      const B1 = { x: right - w * 0.08, y: O1.y, name: '', offX: 8, offY: 2 };
 
-      const O2 = { x: left + w * 0.50, y: bottom - h * 0.14, name: 'O', offX: 0, offY: 14 };
-      const A2 = { x: left + w * 0.08, y: O2.y, name: 'A', offX: -14, offY: 2 };
-      const B2 = { x: right - w * 0.08, y: O2.y, name: 'B', offX: 8, offY: 2 };
+      const O2 = { x: left + w * 0.50, y: bottom - h * 0.14, name: '', offX: 0, offY: 14 };
+      const A2 = { x: left + w * 0.08, y: O2.y, name: '', offX: -14, offY: 2 };
+      const B2 = { x: right - w * 0.08, y: O2.y, name: '', offX: 8, offY: 2 };
 
       points = [O1, A1, B1, O2, A2, B2];
       edges = [
@@ -4594,9 +4594,9 @@ document.addEventListener('DOMContentLoaded', () => {
       ];
     } else if (shape === 'sphere') {
       // Mặt cầu / Khối cầu (tâm O, bán kính R, điểm xích đạo M)
-      const O = { x: left + w * 0.50, y: top + h * 0.50, name: 'O', offX: -6, offY: -10 };
+      const O = { x: left + w * 0.50, y: top + h * 0.50, name: '', offX: -6, offY: -10 };
       const R = Math.min(w, h) * 0.46;
-      const M = { x: O.x + R, y: O.y, name: 'M', offX: 10, offY: 2 };
+      const M = { x: O.x + R, y: O.y, name: '', offX: 10, offY: 2 };
 
       points = [O, M];
       edges = [
@@ -4614,12 +4614,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const A = el.points[1], C = el.points[3];
     const ox = Math.round((A.x + C.x) / 2);
     const oy = Math.round((A.y + C.y) / 2);
+    const prevO = el.points[5] || {};
     el.points[5] = {
       x: ox,
       y: oy,
-      name: 'O',
-      offX: 6,
-      offY: 12
+      name: prevO.name || '',
+      offX: prevO.offX !== undefined ? prevO.offX : 6,
+      offY: prevO.offY !== undefined ? prevO.offY : 12
     };
     if (el.points[0]) {
       el.points[0].x = ox; // Giữ trục thẳng đứng SO chuẩn SGK
@@ -5075,15 +5076,44 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 4. Vẽ nhãn tên các đỉnh (A, B, C, S...)
-    context.save();
-    context.font = '600 12.5px -apple-system, sans-serif';
-    context.fillStyle = geo.color || '#184e3a';
+    // 4. Vẽ nhãn tên các đỉnh (A, B, C, S...) và tên cạnh HHKG (nếu người dùng đặt tên)
     for (const p of geo.points) {
       if (p && p.name) {
-        context.fillText(p.name, p.x + (p.offX || 0), p.y + (p.offY || 0));
+        drawMathLabel(context, p.name, p.x + (p.offX || 0), p.y + (p.offY || 0), geo.color || '#184e3a', false);
       }
     }
+    if (geo.edgeNames && geo.edges) {
+      for (let eIdx = 0; eIdx < geo.edges.length; eIdx++) {
+        const edge = geo.edges[eIdx];
+        const i1 = edge[0], i2 = edge[1];
+        const eKey = Math.min(i1, i2) + '_' + Math.max(i1, i2);
+        const eName = geo.edgeNames[eKey] || geo.edgeNames[i1 + '_' + i2] || geo.edgeNames[eIdx];
+        if (eName && geo.points[i1] && geo.points[i2]) {
+          const p1 = geo.points[i1], p2 = geo.points[i2];
+          const mx = (p1.x + p2.x) / 2;
+          const my = (p1.y + p2.y) / 2;
+          const dx = p2.x - p1.x, dy = p2.y - p1.y;
+          const len = Math.hypot(dx, dy) || 1;
+          let nx = -dy / len, ny = dx / len;
+          if (ny > 0) { nx = -nx; ny = -ny; }
+          drawMathLabel(context, eName, mx + nx * 12 - 3, my + ny * 12 + 4, geo.color || '#184e3a', true);
+        }
+      }
+    }
+  }
+
+  function drawMathLabel(context, text, x, y, color, isItalic = false) {
+    if (!text) return;
+    context.save();
+    context.font = isItalic
+      ? 'italic 600 13px "STIX Two Math", "Cambria Math", -apple-system, sans-serif'
+      : '600 13px -apple-system, BlinkMacSystemFont, sans-serif';
+    context.lineJoin = 'round';
+    context.lineWidth = 3.2;
+    context.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+    context.strokeText(text, x, y);
+    context.fillStyle = color || '#184e3a';
+    context.fillText(text, x, y);
     context.restore();
   }
 
@@ -5467,16 +5497,12 @@ document.addEventListener('DOMContentLoaded', () => {
         context.lineWidth = 1.5;
         context.strokeStyle = '#ffffff';
         context.stroke();
+      }
 
-        if (geo.name) {
-          context.save();
-          context.font = '600 13px -apple-system, sans-serif';
-          context.fillStyle = geo.color || state.color || '#28634e';
-          const offX = geo.offX !== undefined ? geo.offX : 8;
-          const offY = geo.offY !== undefined ? geo.offY : -8;
-          context.fillText(geo.name, start.x + offX, start.y + offY);
-          context.restore();
-        }
+      if (geo.name) {
+        const offX = geo.offX !== undefined ? geo.offX : 8;
+        const offY = geo.offY !== undefined ? geo.offY : -8;
+        drawMathLabel(context, geo.name, start.x + offX, start.y + offY, geo.color || state.color || '#28634e', false);
       }
     } else if (shape === 'two-tangents') {
       // 2 Tiếp tuyến cắt nhau tại 1 điểm ngoài M, có thể di chuyển điểm đó, không vẽ bán kính
@@ -5641,6 +5667,122 @@ document.addEventListener('DOMContentLoaded', () => {
       context.moveTo(start.x + (R - tickLen) * Math.cos(midAngle2), start.y + (R - tickLen) * Math.sin(midAngle2));
       context.lineTo(start.x + (R + tickLen) * Math.cos(midAngle2), start.y + (R + tickLen) * Math.sin(midAngle2));
       context.stroke();
+    }
+
+    // Vẽ nhãn tên tùy chỉnh cho các đỉnh, điểm đặc biệt và các cạnh / đường thẳng 2D (nếu người dùng đã đặt tên)
+    const labelColor = geo.color || state.color || '#184e3a';
+    if (geo.points && geo.points.length >= 3) {
+      let cx = 0, cy = 0;
+      const n = geo.points.length;
+      for (let i = 0; i < n; i++) {
+        cx += geo.points[i].x;
+        cy += geo.points[i].y;
+      }
+      cx /= n;
+      cy /= n;
+
+      for (let i = 0; i < n; i++) {
+        const p = geo.points[i];
+        if (p && p.name) {
+          let offX = p.offX, offY = p.offY;
+          if (offX === undefined || offY === undefined) {
+            const dx = p.x - cx, dy = p.y - cy;
+            const d = Math.hypot(dx, dy) || 1;
+            offX = (dx / d) * 14 - 4;
+            offY = (dy / d) * 14 + 4;
+          }
+          drawMathLabel(context, p.name, p.x + offX, p.y + offY, labelColor, false);
+        }
+      }
+
+      if (geo.edgeNames) {
+        for (let i = 0; i < n; i++) {
+          const eName = geo.edgeNames[i] || geo.edgeNames['edge_' + i];
+          if (eName) {
+            const p1 = geo.points[i];
+            const p2 = geo.points[(i + 1) % n];
+            const mx = (p1.x + p2.x) / 2;
+            const my = (p1.y + p2.y) / 2;
+            const dx = mx - cx, dy = my - cy;
+            const d = Math.hypot(dx, dy) || 1;
+            drawMathLabel(context, eName, mx + (dx / d) * 14 - 4, my + (dy / d) * 14 + 4, labelColor, true);
+          }
+        }
+      }
+    } else if (shape === 'inscribed-triangle' && start && end) {
+      const r = Math.hypot(end.x - start.x, end.y - start.y);
+      const angles = geo.angles || [-Math.PI / 2, (5 * Math.PI) / 6, Math.PI / 6];
+      const vPts = angles.map(a => ({ x: start.x + r * Math.cos(a), y: start.y + r * Math.sin(a), a }));
+      if (geo.vertexNames) {
+        for (let i = 0; i < 3; i++) {
+          const vName = geo.vertexNames[i];
+          if (vName && vPts[i]) {
+            const lx = start.x + (r + 15) * Math.cos(vPts[i].a) - 4;
+            const ly = start.y + (r + 15) * Math.sin(vPts[i].a) + 4;
+            drawMathLabel(context, vName, lx, ly, labelColor, false);
+          }
+        }
+      }
+      if (geo.edgeNames) {
+        for (let i = 0; i < 3; i++) {
+          const eName = geo.edgeNames[i] || geo.edgeNames['inscribed_' + i];
+          if (eName) {
+            const p1 = vPts[i], p2 = vPts[(i + 1) % 3];
+            const mx = (p1.x + p2.x) / 2;
+            const my = (p1.y + p2.y) / 2;
+            const dx = mx - start.x, dy = my - start.y;
+            const d = Math.hypot(dx, dy) || 1;
+            drawMathLabel(context, eName, mx + (dx / d) * 13 - 4, my + (dy / d) * 13 + 4, labelColor, true);
+          }
+        }
+      }
+      if (geo.centerName) {
+        drawMathLabel(context, geo.centerName, start.x + 8, start.y - 8, labelColor, false);
+      }
+    } else if (
+      shape === 'line' ||
+      shape === 'perpendicular' ||
+      shape === 'parallel' ||
+      shape === 'bisector' ||
+      shape === 'tangent' ||
+      shape === 'perpendicular-bisector'
+    ) {
+      if (geo.name && start && end) {
+        const t = 0.56;
+        const mx = start.x + (end.x - start.x) * t;
+        const my = start.y + (end.y - start.y) * t;
+        const dx = end.x - start.x, dy = end.y - start.y;
+        const len = Math.hypot(dx, dy) || 1;
+        let nx = -dy / len, ny = dx / len;
+        if (ny > 0) { nx = -nx; ny = -ny; }
+        drawMathLabel(context, geo.name, mx + nx * 13 - 3, my + ny * 13 + 4, labelColor, true);
+      }
+      if (geo.startName && start) {
+        drawMathLabel(context, geo.startName, start.x + 8, start.y - 8, labelColor, false);
+      }
+      if (geo.endName && end) {
+        drawMathLabel(context, geo.endName, end.x + 8, end.y - 8, labelColor, false);
+      }
+      if (geo.foot && geo.footName) {
+        drawMathLabel(context, geo.footName, geo.foot.x + 8, geo.foot.y - 8, labelColor, false);
+      }
+      if (geo.midpoint && geo.midpointName) {
+        drawMathLabel(context, geo.midpointName, geo.midpoint.x + 8, geo.midpoint.y - 8, labelColor, false);
+      }
+      if (geo.tangentPoint && geo.tangentPointName) {
+        drawMathLabel(context, geo.tangentPointName, geo.tangentPoint.x + 8, geo.tangentPoint.y - 8, labelColor, false);
+      }
+    } else if (shape === 'circle' || shape === 'ellipse' || shape === 'two-tangents') {
+      if (geo.centerName && start) {
+        drawMathLabel(context, geo.centerName, start.x + 8, start.y - 8, labelColor, false);
+      }
+      if (geo.endName && end) {
+        drawMathLabel(context, geo.endName, end.x + 8, end.y - 8, labelColor, false);
+      }
+      if (geo.name && start && end) {
+        const r = geo.radius || Math.hypot(end.x - start.x, end.y - start.y);
+        drawMathLabel(context, geo.name, start.x + r * 0.72 + 8, start.y - r * 0.72 - 6, labelColor, true);
+      }
     }
   }
 
@@ -10165,6 +10307,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 5. Xử lý sự kiện bút vẽ Pointer Events
   function handlePointerDown(e) {
+    // Bỏ qua bấm chuột phải trong pointerdown để sự kiện contextmenu (Đặt tên / Đổi tên) xử lý sạch sẽ
+    if (e && e.button === 2) {
+      return;
+    }
+    if (e && e.target && e.target.closest && e.target.closest('.net-rename-popover')) {
+      return;
+    }
+    closeRenamePopover();
     e.preventDefault();
     const targetCanvas = (e && (e.currentTarget || (e.target && e.target.closest('canvas')))) || getCanvasForPage(state.currentPage) || canvas;
     const pageNum = parseInt((targetCanvas && targetCanvas.dataset.page) || state.currentPage, 10);
@@ -10311,6 +10461,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Kiểm tra trúng điểm hình học rời
         const hitPoint = findElementAt(point.x, point.y);
         if (hitPoint && hitPoint.type === 'geo' && hitPoint.shape === 'point') {
+          state.lastClickedNamingTarget = {
+            category: 'point',
+            kind: 'point-element',
+            element: hitPoint,
+            x: hitPoint.start.x,
+            y: hitPoint.start.y,
+            title: 'Điểm hình học'
+          };
           state.isFromAreaSelect = false;
           hideFloatingSelectionBar();
           setSelectedElements([hitPoint]);
@@ -10352,6 +10510,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. Kiểm tra trúng đỉnh (handle) để kéo điều chỉnh hình hoặc xoay hình
         const hitHandle = findHandleAt(point.x, point.y, 30);
         if (hitHandle) {
+          if (!hitHandle.handle.isRotate2D && !hitHandle.handle.isRotate3D) {
+            state.lastClickedNamingTarget = resolveNamingTargetFromHandle(hitHandle.element, hitHandle.handle);
+          }
           state.activeHandle = hitHandle;
           state.isDrawing = true;
           hideFloatingSelectionBar();
@@ -10380,6 +10541,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. Kiểm tra chọn thân hình
         const el = findElementAt(point.x, point.y);
         if (el) {
+          const clickedEdge = findEdgeAt(point.x, point.y, 24);
+          if (clickedEdge && clickedEdge.element === el) {
+            state.lastClickedNamingTarget = resolveNamingTargetFromEdge(clickedEdge);
+          } else if (el.type === 'geo' && (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'bisector' || el.shape === 'tangent' || el.shape === 'perpendicular-bisector')) {
+            state.lastClickedNamingTarget = {
+              category: 'line',
+              kind: 'line-element',
+              element: el,
+              x: point.x,
+              y: point.y,
+              title: 'Đường thẳng / Đoạn thẳng'
+            };
+          }
           if (el.type === 'graph-widget') {
             const headerBtn = window.__GraphWidget ? window.__GraphWidget.hitTestWidgetHeaderButtons(el, point.x, point.y) : null;
             if (headerBtn === 'edit') {
@@ -10796,7 +10970,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (el.shape === 'triangle' || el.shape === 'right-triangle' || el.shape === 'isosceles-triangle') {
         const snap = findSnapTargetForHandle(point, el, h, 24);
         const target = snap ? { x: snap.x, y: snap.y } : { x: point.x, y: point.y };
-        el.points[h.index] = target;
+        el.points[h.index] = { ...(el.points[h.index] || {}), x: target.x, y: target.y };
 
         // Cập nhật bounding box start/end
         const xs = el.points.map(p => p.x);
@@ -10808,7 +10982,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const snap = findSnapTargetForHandle(point, el, h, 24);
         const target = snap ? { x: snap.x, y: snap.y } : { x: point.x, y: point.y };
         const idx = h.index;
-        el.points[idx] = { x: target.x, y: target.y };
+        el.points[idx] = { ...(el.points[idx] || {}), x: target.x, y: target.y };
         if (idx === 0) {
           el.points[1].y = target.y;
           el.points[3].x = target.x;
@@ -10835,25 +11009,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const dy = target.y - opp.y;
         const side = Math.max(Math.abs(dx), Math.abs(dy));
         if (h.index === 0) {
-          el.points[0] = { x: opp.x - side, y: opp.y - side };
-          el.points[1] = { x: opp.x, y: opp.y - side };
-          el.points[2] = { x: opp.x, y: opp.y };
-          el.points[3] = { x: opp.x - side, y: opp.y };
+          el.points[0] = { ...(el.points[0] || {}), x: opp.x - side, y: opp.y - side };
+          el.points[1] = { ...(el.points[1] || {}), x: opp.x, y: opp.y - side };
+          el.points[2] = { ...(el.points[2] || {}), x: opp.x, y: opp.y };
+          el.points[3] = { ...(el.points[3] || {}), x: opp.x - side, y: opp.y };
         } else if (h.index === 1) {
-          el.points[0] = { x: opp.x, y: opp.y - side };
-          el.points[1] = { x: opp.x + side, y: opp.y - side };
-          el.points[2] = { x: opp.x + side, y: opp.y };
-          el.points[3] = { x: opp.x, y: opp.y };
+          el.points[0] = { ...(el.points[0] || {}), x: opp.x, y: opp.y - side };
+          el.points[1] = { ...(el.points[1] || {}), x: opp.x + side, y: opp.y - side };
+          el.points[2] = { ...(el.points[2] || {}), x: opp.x + side, y: opp.y };
+          el.points[3] = { ...(el.points[3] || {}), x: opp.x, y: opp.y };
         } else if (h.index === 2) {
-          el.points[0] = { x: opp.x, y: opp.y };
-          el.points[1] = { x: opp.x + side, y: opp.y };
-          el.points[2] = { x: opp.x + side, y: opp.y + side };
-          el.points[3] = { x: opp.x, y: opp.y + side };
+          el.points[0] = { ...(el.points[0] || {}), x: opp.x, y: opp.y };
+          el.points[1] = { ...(el.points[1] || {}), x: opp.x + side, y: opp.y };
+          el.points[2] = { ...(el.points[2] || {}), x: opp.x + side, y: opp.y + side };
+          el.points[3] = { ...(el.points[3] || {}), x: opp.x, y: opp.y + side };
         } else if (h.index === 3) {
-          el.points[0] = { x: opp.x - side, y: opp.y };
-          el.points[1] = { x: opp.x, y: opp.y };
-          el.points[2] = { x: opp.x, y: opp.y + side };
-          el.points[3] = { x: opp.x - side, y: opp.y + side };
+          el.points[0] = { ...(el.points[0] || {}), x: opp.x - side, y: opp.y };
+          el.points[1] = { ...(el.points[1] || {}), x: opp.x, y: opp.y };
+          el.points[2] = { ...(el.points[2] || {}), x: opp.x, y: opp.y + side };
+          el.points[3] = { ...(el.points[3] || {}), x: opp.x - side, y: opp.y + side };
         }
         const xs = el.points.map(p => p.x);
         const ys = el.points.map(p => p.y);
@@ -10867,12 +11041,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const cy = (el.points[0].y + el.points[2].y) / 2;
         if (h.id === 'p0' || h.id === 'p2') {
           const ry = Math.max(5, Math.abs(target.y - cy));
-          el.points[0] = { x: cx, y: cy - ry };
-          el.points[2] = { x: cx, y: cy + ry };
+          el.points[0] = { ...(el.points[0] || {}), x: cx, y: cy - ry };
+          el.points[2] = { ...(el.points[2] || {}), x: cx, y: cy + ry };
         } else {
           const rx = Math.max(5, Math.abs(target.x - cx));
-          el.points[1] = { x: cx + rx, y: cy };
-          el.points[3] = { x: cx - rx, y: cy };
+          el.points[1] = { ...(el.points[1] || {}), x: cx + rx, y: cy };
+          el.points[3] = { ...(el.points[3] || {}), x: cx - rx, y: cy };
         }
         const xs = el.points.map(p => p.x);
         const ys = el.points.map(p => p.y);
@@ -10883,15 +11057,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const snap = findSnapTargetForHandle(point, el, h, 24);
         const target = snap ? { x: snap.x, y: snap.y } : { x: point.x, y: point.y };
         const idx = h.index;
-        el.points[idx] = { x: target.x, y: target.y };
+        el.points[idx] = { ...(el.points[idx] || {}), x: target.x, y: target.y };
         if (idx === 0) {
-          el.points[2] = { x: el.points[1].x + el.points[3].x - target.x, y: el.points[1].y + el.points[3].y - target.y };
+          el.points[2] = { ...(el.points[2] || {}), x: el.points[1].x + el.points[3].x - target.x, y: el.points[1].y + el.points[3].y - target.y };
         } else if (idx === 1) {
-          el.points[3] = { x: el.points[0].x + el.points[2].x - target.x, y: el.points[0].y + el.points[2].y - target.y };
+          el.points[3] = { ...(el.points[3] || {}), x: el.points[0].x + el.points[2].x - target.x, y: el.points[0].y + el.points[2].y - target.y };
         } else if (idx === 2) {
-          el.points[0] = { x: el.points[1].x + el.points[3].x - target.x, y: el.points[1].y + el.points[3].y - target.y };
+          el.points[0] = { ...(el.points[0] || {}), x: el.points[1].x + el.points[3].x - target.x, y: el.points[1].y + el.points[3].y - target.y };
         } else if (idx === 3) {
-          el.points[1] = { x: el.points[0].x + el.points[2].x - target.x, y: el.points[0].y + el.points[2].y - target.y };
+          el.points[1] = { ...(el.points[1] || {}), x: el.points[0].x + el.points[2].x - target.x, y: el.points[0].y + el.points[2].y - target.y };
         }
         const xs = el.points.map(p => p.x);
         const ys = el.points.map(p => p.y);
@@ -12022,6 +12196,694 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 5b. Hệ thống Đặt tên / Đổi tên Điểm, Đỉnh & Đường thẳng bằng Chuột phải (Right-Click Rename Popover)
+  let renamePopoverEl = null;
+  let activeRenameTarget = null;
+  let alternateRenameTarget = null;
+
+  function resolveNamingTargetFromHandle(el, handle) {
+    if (!el || !handle) return null;
+    if (el.shape === 'point') {
+      return {
+        category: 'point',
+        kind: 'point-element',
+        element: el,
+        x: el.start.x,
+        y: el.start.y,
+        title: el.isMidpoint ? 'Trung điểm' : 'Điểm hình học'
+      };
+    }
+    if (handle.index !== undefined && el.points && el.points[handle.index]) {
+      const pt = el.points[handle.index];
+      return {
+        category: 'point',
+        kind: 'polygon-vertex',
+        element: el,
+        vIndex: handle.index,
+        x: pt.x,
+        y: pt.y,
+        title: isSolidShape(el.shape) ? 'Đỉnh khối HHKG' : 'Đỉnh hình học'
+      };
+    }
+    if (el.shape === 'inscribed-triangle' && handle.index !== undefined) {
+      return {
+        category: 'point',
+        kind: 'inscribed-vertex',
+        element: el,
+        vIndex: handle.index,
+        x: handle.x,
+        y: handle.y,
+        title: 'Đỉnh tam giác nội tiếp'
+      };
+    }
+    if (handle.id === 'center' && el.start) {
+      return {
+        category: 'point',
+        kind: 'center-point',
+        element: el,
+        x: el.start.x,
+        y: el.start.y,
+        title: 'Tâm hình học'
+      };
+    }
+    if (handle.id === 'start' && el.start) {
+      return {
+        category: 'point',
+        kind: 'start-point',
+        element: el,
+        x: el.start.x,
+        y: el.start.y,
+        title: 'Đầu mút đường thẳng'
+      };
+    }
+    if ((handle.id === 'end' || handle.id === 'external') && el.end) {
+      return {
+        category: 'point',
+        kind: 'end-point',
+        element: el,
+        x: el.end.x,
+        y: el.end.y,
+        title: handle.id === 'external' ? 'Điểm ngoài đường tròn' : 'Đầu mút đường thẳng'
+      };
+    }
+    if (handle.id === 'foot' && el.foot) {
+      return {
+        category: 'point',
+        kind: 'foot-point',
+        element: el,
+        x: el.foot.x,
+        y: el.foot.y,
+        title: 'Chân đường vuông góc'
+      };
+    }
+    if (handle.id === 'midpoint' && el.midpoint) {
+      return {
+        category: 'point',
+        kind: 'midpoint-point',
+        element: el,
+        x: el.midpoint.x,
+        y: el.midpoint.y,
+        title: 'Trung điểm'
+      };
+    }
+    if (handle.id === 'tangentPoint' && el.tangentPoint) {
+      return {
+        category: 'point',
+        kind: 'tangent-point',
+        element: el,
+        x: el.tangentPoint.x,
+        y: el.tangentPoint.y,
+        title: 'Tiếp điểm'
+      };
+    }
+    return null;
+  }
+
+  function resolveNamingTargetFromEdge(edgeHit) {
+    if (!edgeHit || !edgeHit.element) return null;
+    const el = edgeHit.element;
+    const mx = (edgeHit.start.x + edgeHit.end.x) / 2;
+    const my = (edgeHit.start.y + edgeHit.end.y) / 2;
+    if (
+      el.shape === 'line' ||
+      el.shape === 'perpendicular' ||
+      el.shape === 'parallel' ||
+      el.shape === 'bisector' ||
+      el.shape === 'tangent' ||
+      el.shape === 'perpendicular-bisector'
+    ) {
+      return {
+        category: 'line',
+        kind: 'line-element',
+        element: el,
+        x: mx,
+        y: my,
+        title: 'Đường thẳng / Đoạn thẳng'
+      };
+    }
+    if (isSolidShape(el.shape) && edgeHit.v1Index !== undefined && edgeHit.v2Index !== undefined) {
+      const eKey = Math.min(edgeHit.v1Index, edgeHit.v2Index) + '_' + Math.max(edgeHit.v1Index, edgeHit.v2Index);
+      return {
+        category: 'line',
+        kind: 'solid-edge',
+        element: el,
+        edgeKey: eKey,
+        v1Index: edgeHit.v1Index,
+        v2Index: edgeHit.v2Index,
+        x: mx,
+        y: my,
+        title: 'Cạnh khối HHKG'
+      };
+    }
+    if (el.points && el.points.length >= 3 && edgeHit.v1Index !== undefined) {
+      return {
+        category: 'line',
+        kind: 'polygon-edge',
+        element: el,
+        edgeIndex: edgeHit.v1Index,
+        x: mx,
+        y: my,
+        title: 'Cạnh đa giác'
+      };
+    }
+    if (el.shape === 'inscribed-triangle' && edgeHit.v1Index !== undefined) {
+      return {
+        category: 'line',
+        kind: 'inscribed-edge',
+        element: el,
+        edgeIndex: edgeHit.v1Index,
+        x: mx,
+        y: my,
+        title: 'Cạnh tam giác nội tiếp'
+      };
+    }
+    return {
+      category: 'line',
+      kind: 'line-element',
+      element: el,
+      x: mx,
+      y: my,
+      title: 'Đường thẳng / Cạnh'
+    };
+  }
+
+  function resolveNamingTargetAt(x, y) {
+    const list = state.pages[state.currentPage] || [];
+    let bestPoint = null;
+    let bestPointScore = Infinity;
+
+    const considerPoint = (candidate, dist, priorityBonus = 0) => {
+      const score = dist - priorityBonus;
+      if (score < bestPointScore) {
+        bestPointScore = score;
+        bestPoint = { ...candidate, dist };
+      }
+    };
+
+    for (let i = list.length - 1; i >= 0; i--) {
+      const el = list[i];
+      if (!el || el.type !== 'geo') continue;
+
+      if (el.shape === 'point' && el.start) {
+        const d = Math.hypot(x - el.start.x, y - el.start.y);
+        if (d <= 26) {
+          considerPoint({
+            category: 'point',
+            kind: 'point-element',
+            element: el,
+            x: el.start.x,
+            y: el.start.y,
+            title: el.isMidpoint ? 'Trung điểm' : 'Điểm hình học'
+          }, d, 6);
+        }
+      } else if (el.points && el.points.length > 0) {
+        for (let j = 0; j < el.points.length; j++) {
+          const p = el.points[j];
+          if (!p) continue;
+          const d = Math.hypot(x - p.x, y - p.y);
+          if (d <= 26) {
+            considerPoint({
+              category: 'point',
+              kind: 'polygon-vertex',
+              element: el,
+              vIndex: j,
+              x: p.x,
+              y: p.y,
+              title: isSolidShape(el.shape) ? 'Đỉnh khối HHKG' : 'Đỉnh hình học'
+            }, d, 5);
+          }
+        }
+      } else if (el.shape === 'inscribed-triangle' && el.start && el.end) {
+        const r = Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
+        const angles = el.angles || [-Math.PI / 2, (5 * Math.PI) / 6, Math.PI / 6];
+        for (let j = 0; j < 3; j++) {
+          const vx = el.start.x + r * Math.cos(angles[j]);
+          const vy = el.start.y + r * Math.sin(angles[j]);
+          const d = Math.hypot(x - vx, y - vy);
+          if (d <= 26) {
+            considerPoint({
+              category: 'point',
+              kind: 'inscribed-vertex',
+              element: el,
+              vIndex: j,
+              x: vx,
+              y: vy,
+              title: 'Đỉnh tam giác nội tiếp'
+            }, d, 5);
+          }
+        }
+        const dc = Math.hypot(x - el.start.x, y - el.start.y);
+        if (dc <= 22) {
+          considerPoint({
+            category: 'point',
+            kind: 'center-point',
+            element: el,
+            x: el.start.x,
+            y: el.start.y,
+            title: 'Tâm đường tròn ngoại tiếp'
+          }, dc, 4);
+        }
+      } else if ((el.shape === 'circle' || el.shape === 'ellipse' || el.shape === 'two-tangents') && el.start) {
+        const dc = Math.hypot(x - el.start.x, y - el.start.y);
+        if (dc <= 24) {
+          considerPoint({
+            category: 'point',
+            kind: 'center-point',
+            element: el,
+            x: el.start.x,
+            y: el.start.y,
+            title: el.shape === 'ellipse' ? 'Tâm Elip' : 'Tâm đường tròn'
+          }, dc, 4);
+        }
+        if (el.shape === 'two-tangents' && el.end) {
+          const de = Math.hypot(x - el.end.x, y - el.end.y);
+          if (de <= 26) {
+            considerPoint({
+              category: 'point',
+              kind: 'end-point',
+              element: el,
+              x: el.end.x,
+              y: el.end.y,
+              title: 'Điểm ngoài đường tròn'
+            }, de, 5);
+          }
+        }
+      } else if (
+        el.shape === 'line' ||
+        el.shape === 'perpendicular' ||
+        el.shape === 'parallel' ||
+        el.shape === 'bisector' ||
+        el.shape === 'tangent' ||
+        el.shape === 'perpendicular-bisector'
+      ) {
+        if (el.foot) {
+          const df = Math.hypot(x - el.foot.x, y - el.foot.y);
+          if (df <= 24) {
+            considerPoint({
+              category: 'point',
+              kind: 'foot-point',
+              element: el,
+              x: el.foot.x,
+              y: el.foot.y,
+              title: 'Chân đường vuông góc'
+            }, df, 4);
+          }
+        }
+        if (el.midpoint) {
+          const dm = Math.hypot(x - el.midpoint.x, y - el.midpoint.y);
+          if (dm <= 24) {
+            considerPoint({
+              category: 'point',
+              kind: 'midpoint-point',
+              element: el,
+              x: el.midpoint.x,
+              y: el.midpoint.y,
+              title: 'Trung điểm'
+            }, dm, 4);
+          }
+        }
+        if (el.tangentPoint) {
+          const dt = Math.hypot(x - el.tangentPoint.x, y - el.tangentPoint.y);
+          if (dt <= 24) {
+            considerPoint({
+              category: 'point',
+              kind: 'tangent-point',
+              element: el,
+              x: el.tangentPoint.x,
+              y: el.tangentPoint.y,
+              title: 'Tiếp điểm'
+            }, dt, 4);
+          }
+        }
+        if (el.start) {
+          const ds = Math.hypot(x - el.start.x, y - el.start.y);
+          if (ds <= 22) {
+            considerPoint({
+              category: 'point',
+              kind: 'start-point',
+              element: el,
+              x: el.start.x,
+              y: el.start.y,
+              title: 'Đầu mút đường thẳng'
+            }, ds, 1);
+          }
+        }
+        if (el.end) {
+          const de = Math.hypot(x - el.end.x, y - el.end.y);
+          if (de <= 22) {
+            considerPoint({
+              category: 'point',
+              kind: 'end-point',
+              element: el,
+              x: el.end.x,
+              y: el.end.y,
+              title: 'Đầu mút đường thẳng'
+            }, de, 1);
+          }
+        }
+      }
+    }
+
+    let bestLine = null;
+    const edgeHit = findEdgeAt(x, y, 24);
+    if (edgeHit) {
+      bestLine = resolveNamingTargetFromEdge(edgeHit);
+      if (bestLine) bestLine.dist = edgeHit.dist;
+    } else {
+      const circleHit = findCircleAt(x, y, 20);
+      if (circleHit && circleHit.element) {
+        bestLine = {
+          category: 'line',
+          kind: 'circle-element',
+          element: circleHit.element,
+          x: x,
+          y: y,
+          dist: circleHit.dist,
+          title: 'Đường tròn'
+        };
+      }
+    }
+
+    if (bestPoint && bestLine) {
+      const isBareEndpoint = bestPoint.kind === 'start-point' || bestPoint.kind === 'end-point';
+      if (isBareEndpoint && bestPoint.dist > 14 && (bestLine.dist || 0) <= 8) {
+        return { primaryTarget: bestLine, alternateTarget: bestPoint };
+      }
+      return { primaryTarget: bestPoint, alternateTarget: bestLine };
+    }
+    if (bestPoint) {
+      return { primaryTarget: bestPoint, alternateTarget: null };
+    }
+    if (bestLine) {
+      return { primaryTarget: bestLine, alternateTarget: null };
+    }
+
+    // Fallback: Nếu người dùng vừa bấm chọn 1 điểm/đỉnh hoặc đường thẳng ở bước Chọn trước đó rồi bấm chuột phải
+    if (state.lastClickedNamingTarget && state.lastClickedNamingTarget.element && list.includes(state.lastClickedNamingTarget.element)) {
+      const dLast = Math.hypot(x - (state.lastClickedNamingTarget.x || x), y - (state.lastClickedNamingTarget.y || y));
+      if (dLast <= 90 || state.selectedElement === state.lastClickedNamingTarget.element) {
+        return { primaryTarget: state.lastClickedNamingTarget, alternateTarget: null };
+      }
+    }
+    if (state.selectedElement && list.includes(state.selectedElement)) {
+      const sel = state.selectedElement;
+      if (sel.type === 'geo' && sel.shape === 'point') {
+        return {
+          primaryTarget: {
+            category: 'point',
+            kind: 'point-element',
+            element: sel,
+            x: sel.start.x,
+            y: sel.start.y,
+            title: sel.isMidpoint ? 'Trung điểm' : 'Điểm hình học'
+          },
+          alternateTarget: null
+        };
+      }
+      if (
+        sel.type === 'geo' &&
+        (sel.shape === 'line' || sel.shape === 'perpendicular' || sel.shape === 'parallel' || sel.shape === 'bisector' || sel.shape === 'tangent' || sel.shape === 'perpendicular-bisector')
+      ) {
+        return {
+          primaryTarget: {
+            category: 'line',
+            kind: 'line-element',
+            element: sel,
+            x: (sel.start.x + sel.end.x) / 2,
+            y: (sel.start.y + sel.end.y) / 2,
+            title: 'Đường thẳng / Đoạn thẳng'
+          },
+          alternateTarget: null
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function getTargetCurrentName(target) {
+    if (!target || !target.element) return '';
+    const el = target.element;
+    switch (target.kind) {
+      case 'point-element':
+      case 'line-element':
+      case 'circle-element':
+        return el.name || '';
+      case 'polygon-vertex':
+        return (el.points && el.points[target.vIndex] && el.points[target.vIndex].name) || '';
+      case 'inscribed-vertex':
+        return (el.vertexNames && el.vertexNames[target.vIndex]) || '';
+      case 'center-point':
+        return el.centerName || '';
+      case 'start-point':
+        return el.startName || '';
+      case 'end-point':
+        return el.endName || '';
+      case 'foot-point':
+        return el.footName || '';
+      case 'midpoint-point':
+        return el.midpointName || '';
+      case 'tangent-point':
+        return el.tangentPointName || '';
+      case 'polygon-edge':
+      case 'inscribed-edge':
+        return (el.edgeNames && (el.edgeNames[target.edgeIndex] || el.edgeNames['edge_' + target.edgeIndex])) || '';
+      case 'solid-edge':
+        return (el.edgeNames && el.edgeNames[target.edgeKey]) || '';
+      default:
+        return el.name || '';
+    }
+  }
+
+  function applyNameToTarget(target, rawName, recordHistory = true) {
+    if (!target || !target.element) return false;
+    const el = target.element;
+    const newName = (rawName !== undefined && rawName !== null) ? String(rawName).trim() : '';
+    const prevName = getTargetCurrentName(target);
+    if (prevName === newName) return false;
+
+    const beforeSnapshot = recordHistory ? JSON.parse(JSON.stringify(el)) : null;
+
+    switch (target.kind) {
+      case 'point-element':
+      case 'line-element':
+      case 'circle-element':
+        el.name = newName;
+        break;
+      case 'polygon-vertex':
+        if (el.points && el.points[target.vIndex]) {
+          el.points[target.vIndex].name = newName;
+        }
+        break;
+      case 'inscribed-vertex':
+        if (!el.vertexNames) el.vertexNames = {};
+        el.vertexNames[target.vIndex] = newName;
+        break;
+      case 'center-point':
+        el.centerName = newName;
+        break;
+      case 'start-point':
+        el.startName = newName;
+        break;
+      case 'end-point':
+        el.endName = newName;
+        break;
+      case 'foot-point':
+        el.footName = newName;
+        break;
+      case 'midpoint-point':
+        el.midpointName = newName;
+        break;
+      case 'tangent-point':
+        el.tangentPointName = newName;
+        break;
+      case 'polygon-edge':
+      case 'inscribed-edge':
+        if (!el.edgeNames) el.edgeNames = {};
+        el.edgeNames[target.edgeIndex] = newName;
+        delete el.edgeNames['edge_' + target.edgeIndex];
+        break;
+      case 'solid-edge':
+        if (!el.edgeNames) el.edgeNames = {};
+        el.edgeNames[target.edgeKey] = newName;
+        break;
+      default:
+        el.name = newName;
+        break;
+    }
+
+    if (recordHistory && beforeSnapshot) {
+      pushCommand({
+        type: 'modify-element',
+        element: el,
+        before: beforeSnapshot,
+        after: JSON.parse(JSON.stringify(el))
+      });
+    }
+
+    renderPage();
+    if (newName) {
+      showPageToast(`🏷️ Đã ${prevName ? 'đổi tên thành' : 'đặt tên'} "${newName}"`);
+    } else if (prevName) {
+      showPageToast(`🗑️ Đã xóa tên "${prevName}"`);
+    }
+    return true;
+  }
+
+  function closeRenamePopover() {
+    if (renamePopoverEl) {
+      renamePopoverEl.remove();
+      renamePopoverEl = null;
+    }
+    activeRenameTarget = null;
+    alternateRenameTarget = null;
+  }
+
+  function openRenamePopover(resolved, clientX, clientY) {
+    closeRenamePopover();
+    if (!resolved || !resolved.primaryTarget) return;
+
+    activeRenameTarget = resolved.primaryTarget;
+    alternateRenameTarget = resolved.alternateTarget || null;
+
+    const currentName = getTargetCurrentName(activeRenameTarget);
+    const isPoint = activeRenameTarget.category === 'point';
+    const actionLabel = currentName ? 'Đổi tên' : 'Đặt tên';
+    const targetBadge = isPoint ? `📍 ${activeRenameTarget.title || 'Điểm / Đỉnh'}` : `📏 ${activeRenameTarget.title || 'Đường thẳng / Cạnh'}`;
+    const quickChips = isPoint
+      ? ['A', 'B', 'C', 'D', 'S', 'M', 'N', 'H', 'I', 'O', "A'", "B'", "C'"]
+      : ['d', 'd₁', 'd₂', 'Δ', 'a', 'b', 'c', 'h', 'l', 'R'];
+
+    const pop = document.createElement('div');
+    pop.className = 'net-rename-popover';
+    pop.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+    pop.addEventListener('contextmenu', (ev) => ev.preventDefault());
+
+    let switchBtnHtml = '';
+    if (alternateRenameTarget) {
+      const altIsPoint = alternateRenameTarget.category === 'point';
+      const altLabel = altIsPoint ? '📍 Chọn Đỉnh/Điểm' : '📏 Chọn Đường/Cạnh';
+      switchBtnHtml = `<button type="button" class="net-rename-switch-btn" id="btn-rename-switch" title="Chuyển sang đặt tên cho ${alternateRenameTarget.title}">${altLabel}</button>`;
+    }
+
+    pop.innerHTML = `
+      <div class="net-rename-header">
+        <span class="net-rename-title">${actionLabel}: <strong>${targetBadge}</strong></span>
+        ${switchBtnHtml}
+      </div>
+      <div class="net-rename-input-row">
+        <input type="text" id="input-net-rename" class="net-rename-input" maxlength="16" placeholder="${isPoint ? 'VD: A, S, M, O...' : 'VD: d, Δ, a, h...'}" value="${currentName.replace(/"/g, '&quot;')}" autocomplete="off" spellcheck="false" />
+        <button type="button" id="btn-net-rename-save" class="net-rename-btn primary">${actionLabel}</button>
+      </div>
+      <div class="net-rename-chips" id="net-rename-chips">
+        ${quickChips.map(ch => `<button type="button" class="net-rename-chip${currentName === ch ? ' active' : ''}" data-chip="${ch}">${ch}</button>`).join('')}
+      </div>
+      <div class="net-rename-footer">
+        ${currentName ? '<button type="button" id="btn-net-rename-clear" class="net-rename-btn danger">Xóa tên</button>' : '<span class="net-rename-hint">Nhấn Enter để lưu · Esc để đóng</span>'}
+        <button type="button" id="btn-net-rename-cancel" class="net-rename-btn ghost">Đóng</button>
+      </div>
+    `;
+
+    document.body.appendChild(pop);
+    renamePopoverEl = pop;
+
+    const vw = window.innerWidth || 1024;
+    const vh = window.innerHeight || 768;
+    const popWidth = 286;
+    const popHeight = 168;
+    const left = Math.max(12, Math.min(vw - popWidth - 12, (clientX || 240) + 6));
+    const top = Math.max(12, Math.min(vh - popHeight - 12, (clientY || 180) + 6));
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+
+    const inputEl = pop.querySelector('#input-net-rename');
+    const saveBtn = pop.querySelector('#btn-net-rename-save');
+    const clearBtn = pop.querySelector('#btn-net-rename-clear');
+    const cancelBtn = pop.querySelector('#btn-net-rename-cancel');
+    const switchBtn = pop.querySelector('#btn-rename-switch');
+
+    const commitRename = (val) => {
+      applyNameToTarget(activeRenameTarget, val, true);
+      closeRenamePopover();
+    };
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        commitRename(inputEl ? inputEl.value : '');
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        commitRename('');
+      });
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        closeRenamePopover();
+      });
+    }
+    if (switchBtn) {
+      switchBtn.addEventListener('click', () => {
+        openRenamePopover(
+          { primaryTarget: alternateRenameTarget, alternateTarget: activeRenameTarget },
+          left - 6,
+          top - 6
+        );
+      });
+    }
+
+    pop.querySelectorAll('.net-rename-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const chipVal = btn.getAttribute('data-chip') || '';
+        commitRename(chipVal);
+      });
+    });
+
+    if (inputEl) {
+      inputEl.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          commitRename(inputEl.value);
+        } else if (ev.key === 'Escape') {
+          ev.preventDefault();
+          closeRenamePopover();
+        }
+      });
+      setTimeout(() => {
+        inputEl.focus();
+        inputEl.select();
+      }, 10);
+    }
+  }
+
+  function handleCanvasContextMenu(e) {
+    if (!e) return;
+    e.preventDefault();
+    const targetCanvas = (e.currentTarget || (e.target && e.target.closest && e.target.closest('canvas'))) || getCanvasForPage(state.currentPage) || canvas;
+    const pageNum = parseInt((targetCanvas && targetCanvas.dataset && targetCanvas.dataset.page) || state.currentPage, 10);
+    if (!isNaN(pageNum) && pageNum !== state.currentPage) {
+      state.currentPage = pageNum;
+      updatePageTabsActive(pageNum, false);
+    }
+    state.activeCanvas = targetCanvas;
+    const point = getCanvasCoordinates(e);
+
+    // Cho phép bấm chuột phải đặt tên / đổi tên ngay trong chế độ Chọn (hoặc bất kỳ lúc nào bấm chuột phải trúng điểm/đường)
+    const resolved = resolveNamingTargetAt(point.x, point.y);
+    if (resolved && resolved.primaryTarget) {
+      if (resolved.primaryTarget.element) {
+        setSelectedElements([resolved.primaryTarget.element]);
+        renderPage();
+      }
+      openRenamePopover(resolved, e.clientX, e.clientY);
+    } else {
+      closeRenamePopover();
+      if (state.activeTool === 'select') {
+        showPageToast('💡 Bấm chuột phải vào Điểm, Đỉnh hoặc Đường thẳng/Cạnh để Đặt tên / Đổi tên');
+      }
+    }
+  }
+
   function attachCanvasEvents(targetCanvas) {
     if (!targetCanvas || targetCanvas.__eventsAttached) return;
     targetCanvas.__eventsAttached = true;
@@ -12030,6 +12892,7 @@ document.addEventListener('DOMContentLoaded', () => {
     targetCanvas.addEventListener('pointerup', finishDrawing);
     targetCanvas.addEventListener('pointercancel', finishDrawing);
     targetCanvas.addEventListener('pointerleave', handlePointerLeave);
+    targetCanvas.addEventListener('contextmenu', handleCanvasContextMenu);
     targetCanvas.addEventListener('dblclick', (e) => {
       const point = getCanvasCoordinates(e);
       const el = findElementAt(point.x, point.y);
@@ -16051,7 +16914,15 @@ document.addEventListener('DOMContentLoaded', () => {
       groupSelectedElements,
       ungroupSelectedElements,
       showFloatingSelectionBar,
-      hideFloatingSelectionBar
+      hideFloatingSelectionBar,
+      resolveNamingTargetAt,
+      resolveNamingTargetFromHandle,
+      resolveNamingTargetFromEdge,
+      getTargetCurrentName,
+      applyNameToTarget,
+      openRenamePopover,
+      closeRenamePopover,
+      handleCanvasContextMenu
     };
     window.__netRotate2D = rotateElement2D;
     window.__netAnimateSmoothRotation3D = animateSmoothRotation3D;

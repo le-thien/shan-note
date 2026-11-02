@@ -2,6 +2,18 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Đặt Tên / Đổi Tên Điểm & Đường Thẳng Bằng Chuột Phải + Sinh Hình 2D & HHKG Không Có Tên Sẵn (v51)] - 02/11/2026
+
+- **1. Sinh Hình Phẳng ("Hình") và Hình Học Không Gian ("HHKG") Không Có Tên Đỉnh Sẵn:**
+  - Cập nhật `computeSolidShapeData` và `updateRegularPyramidCenterAndApex` trong `web/app.js` cùng `projectModel`, `rotateElementOnCanvas`, `render3DViewer` trong `web/hhkg3d.js`: tất cả 16 khối HHKG và các hình 2D khi tạo mới đều hoàn toàn trống nhãn chữ (`name: ''`), không tự gắn sẵn `S, A, B, C, D, O, A', B', C'...`.
+  - Khi xoay 3D trực tiếp trên trang giấy hoặc trong phòng chiếu 3D 360°, hoặc khi kéo rê đỉnh hình 2D/3D, hệ thống giữ nguyên các đỉnh trống và bảo toàn tuyệt đối những tên đỉnh mà người dùng đã tự đặt.
+- **2. Thao Tác "Chọn" Bấm Vào Điểm / Đỉnh Hoặc Đường Thẳng / Cạnh — Chuột Phải Để Đặt Tên / Đổi Tên:**
+  - Bổ sung bộ nhận diện mục tiêu chuột phải `resolveNamingTargetAt`, `resolveNamingTargetFromHandle`, `resolveNamingTargetFromEdge` và hộp thoại nổi `.net-rename-popover`.
+  - Hỗ trợ đặt tên, đổi tên và xóa tên cho: Điểm rời, Trung điểm (`isMidpoint`), Đỉnh đa giác 2D, Đỉnh tam giác nội tiếp, Đỉnh khối 3D HHKG, Tâm đường tròn/Elip, Chân đường vuông góc, Tiếp điểm, Đầu mút đoạn thẳng, Đường thẳng/Đoạn thẳng, Đường vuông góc/Song song/Phân giác/Trung trực/Tiếp tuyến, Cạnh đa giác 2D và Cạnh khối 3D HHKG.
+  - Tích hợp dải nút gợi ý nhanh ký hiệu Toán học (`A, B, C, D, S, M, N, H, I, O...` cho Điểm; `d, d₁, d₂, Δ, a, b, c, h...` cho Đường thẳng) và lưu lịch sử Hoàn tác / Làm lại (`⌘Z` / `⌘⇧Z`).
+- **3. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v51` và query string `?v=20261102_1850` trong `web/index.html`.
+
 ## [Rà Soát Mã Nguồn & Tối Ưu Toàn Diện Tính Năng Nhóm (Group Optimization v50)] - 01/11/2026
 
 - **1. Phân Tách Thông Minh Giữa Nhóm Tự Động Khi Dựng Hình và Nhóm Thủ Công (`⌘G`):**

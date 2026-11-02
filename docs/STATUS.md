@@ -1,12 +1,21 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 01/11/2026
+**Cập nhật lần cuối:** 02/11/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Đặt Tên / Đổi Tên Điểm & Đường Thẳng Bằng Chuột Phải + Sinh Hình 2D & HHKG Không Có Tên Sẵn (Right-Click Naming & Clean Blank Shapes - v51):**
+    + *Sinh hình "Hình" (2D) & "HHKG" (3D) hoàn toàn không có tên sẵn:*
+      * Toàn bộ 16 khối Hình học không gian (`tetrahedron`, `pyramid-quad`, `pyramid-trapezoid`, `pyramid-parallelogram`, `pyramid-pentagon`, `pyramid-regular`, `pyramid-sa-triangle`, `pyramid-sa-parallelogram`, `pyramid-sa-trapezoid`, `pyramid-sa-quad`, `prism-stand`, `prism-oblique`, `box-rect`, `cone`, `cylinder`, `sphere`) và toàn bộ các hình phẳng 2D khi tạo mới đều có `name: ''` (không tự động điền sẵn chữ `S, A, B, C, D, O...`), giúp hình vẽ luôn sạch sẽ, thoáng mắt.
+      * Khi xoay khối 3D bằng tay cầm xoay 3D (`hhkg3d.js`) hoặc kéo chỉnh đỉnh khối chóp đều (`updateRegularPyramidCenterAndApex`) hoặc kéo chỉnh đỉnh đa giác 2D (`triangle`, `rectangle`, `square`, `rhombus`, `parallelogram`), các đỉnh chưa đặt tên vẫn giữ trống và các đỉnh đã được người dùng đặt tên sẽ được bảo toàn nguyên vẹn.
+    + *Thao tác "Chọn" bấm vào Điểm / Đỉnh hoặc Đường thẳng / Cạnh -> Bấm Chuột Phải để Đặt tên / Đổi tên:*
+      * Khi bấm chuột phải (`contextmenu`) trực tiếp vào một Điểm/Đỉnh/Tâm/Trung điểm/Đầu mút hoặc vào một Đường thẳng/Đoạn thẳng/Cạnh 2D/Cạnh 3D (hoặc bấm chuột trái chọn trước rồi bấm chuột phải), hệ thống mở **Menu nổi Đặt tên / Đổi tên (`.net-rename-popover`)** ngay tại con trỏ chuột.
+      * Hỗ trợ nhập tên tùy ý, bấm chọn nhanh các chip ký hiệu toán học phổ biến (`A, B, C, D, S, M, N, H, I, O, A', B', C'` cho Điểm/Đỉnh; `d, d₁, d₂, Δ, a, b, c, h, l, R` cho Đường/Cạnh), nút chuyển đổi nhanh `📍 Chọn Đỉnh/Điểm` ⇋ `📏 Chọn Đường/Cạnh` khi bấm ở vị trí giao nhau, và nút `Xóa tên` khi cần gỡ nhãn.
+      * Hiển thị nhãn chữ toán học sắc nét với viền sáng trắng mảnh (`drawMathLabel`) trên Canvas và hỗ trợ 100% Hoàn tác / Làm lại (`⌘Z` / `⌘⇧Z`).
+    + *Nâng cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v51` và query string `?v=20261102_1850` trong `web/index.html`.
   - **Tối Ưu Hóa Toàn Diện Tính Năng Nhóm Đối Tượng & Kéo Điểm Động (Group Optimization & Dynamic Control Points - v50):**
     + *Phân tách thông minh giữa Nhóm Liên Kết Tự Động (`groupId`) và Nhóm Thủ Công (`isManualGroup` - `⌘G`):*
       * Khi dựng hình tự động (Trung điểm, Đường trung trực, Đối xứng, Đường tròn ngoại/nội tiếp...), các đối tượng tự động liên kết với nhau để khi kéo thân hình thì cả cụm cùng di chuyển đồng bộ, nhưng **khi nhấp đơn vào 1 đối tượng** thì hệ thống chỉ chọn gọn gàng đúng đối tượng đó (không tự bung chọn cả cụm gây rối mắt hoặc hiện thanh tác vụ nổi ngoài ý muốn).

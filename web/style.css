@@ -5979,5 +5979,180 @@ kbd {
   border-radius: 2px;
 }
 
+/* ==========================================
+   Menu Chuột phải Đặt tên / Đổi tên Điểm & Đường thẳng
+   ========================================== */
+.net-rename-popover {
+  position: fixed;
+  z-index: 12000;
+  width: 286px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(40, 99, 78, 0.22);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(20, 45, 36, 0.18), 0 2px 6px rgba(0, 0, 0, 0.06);
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: fsbPaletteFade 0.14s ease-out;
+}
+
+.net-rename-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.net-rename-title {
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.3;
+}
+
+.net-rename-title strong {
+  color: #184e3a;
+  font-weight: 700;
+}
+
+.net-rename-switch-btn {
+  border: 1px solid rgba(40, 99, 78, 0.25);
+  background: rgba(40, 99, 78, 0.07);
+  color: #184e3a;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.net-rename-switch-btn:hover {
+  background: rgba(40, 99, 78, 0.15);
+}
+
+.net-rename-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.net-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1.5px solid rgba(40, 99, 78, 0.28);
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #111827;
+  background: #f9fafb;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.net-rename-input:focus {
+  border-color: #28634e;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(40, 99, 78, 0.14);
+}
+
+.net-rename-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.net-rename-chip {
+  min-width: 26px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid rgba(40, 99, 78, 0.18);
+  background: #f3f7f5;
+  color: #1e4f3e;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.net-rename-chip:hover {
+  background: #28634e;
+  color: #ffffff;
+  border-color: #28634e;
+}
+
+.net-rename-chip.active {
+  background: #184e3a;
+  color: #ffffff;
+  border-color: #184e3a;
+}
+
+.net-rename-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+
+.net-rename-hint {
+  font-size: 10.5px;
+  color: #6b7280;
+}
+
+.net-rename-btn {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.net-rename-btn.primary {
+  height: 32px;
+  background: #28634e;
+  color: #ffffff;
+}
+
+.net-rename-btn.primary:hover {
+  background: #1e4f3e;
+}
+
+.net-rename-btn.danger {
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.2);
+  height: 26px;
+  font-size: 11px;
+  padding: 0 9px;
+}
+
+.net-rename-btn.danger:hover {
+  background: rgba(220, 38, 38, 0.15);
+}
+
+.net-rename-btn.ghost {
+  background: transparent;
+  color: #4b5563;
+  height: 26px;
+  font-size: 11px;
+  padding: 0 8px;
+}
+
+.net-rename-btn.ghost:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+
 
 

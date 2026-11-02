@@ -193,7 +193,7 @@
   }
 
   // Chiếu mô hình 3D sang mặt phẳng 2D và xác định cạnh đứt / liền
-  function projectModel(shapeKey, rotX, rotY, bounds) {
+  function projectModel(shapeKey, rotX, rotY, bounds, existingPoints) {
     const model = MODELS_3D[shapeKey];
     if (!model) return null;
 
@@ -249,11 +249,13 @@
     const projectedPoints = rotated.map((v, i) => {
       const px = Math.round(cx + v[0] * scaleX);
       const py = Math.round(cy - v[1] * scaleY); // Y hướng lên trong 3D, hướng xuống trong canvas
-      const name = model.vertexNames[i] || '';
+      const existingPt = (existingPoints && existingPoints[i]) ? existingPoints[i] : null;
+      const name = (existingPt && existingPt.name !== undefined) ? existingPt.name : '';
+      const refRole = model.vertexNames[i] || '';
 
-      // Tự động căn chỉnh nhãn chữ S, A, B, C... theo hướng vector từ tâm
+      // Tự động căn chỉnh vị trí nhãn chữ theo hướng vector từ tâm
       let offX = 0, offY = 0;
-      if (name === 'S') {
+      if (refRole === 'S' || name === 'S') {
         offX = -4; offY = -12;
       } else {
         const dirX = v[0], dirY = -v[1];
@@ -307,7 +309,7 @@
       scaleY: h * 0.44
     };
 
-    const proj = projectModel(geo.shape, geo.rotX, geo.rotY, bounds);
+    const proj = projectModel(geo.shape, geo.rotX, geo.rotY, bounds, geo.points);
     if (proj) {
       geo.points = proj.points;
       geo.edges = proj.edges;
@@ -434,7 +436,13 @@
       scaleY: viewerState.scale
     };
 
-    const proj = projectModel(viewerState.shape, viewerState.rotX, viewerState.rotY, bounds);
+    const proj = projectModel(
+      viewerState.shape,
+      viewerState.rotX,
+      viewerState.rotY,
+      bounds,
+      activeGeoElement ? activeGeoElement.points : null
+    );
     if (!proj) return;
 
     const model = MODELS_3D[viewerState.shape];
