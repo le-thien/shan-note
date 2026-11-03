@@ -212,33 +212,41 @@
     return points;
   }
 
-  // Tính thể tích khối tròn xoay bằng công thức Simpson
-  function calculateRevolutionVolume(funcStr, axis, a, b) {
-    const fn = compileMathExpr(funcStr);
-    if (!fn) return null;
-    const n = 500; // Số phân đoạn Simpson
-    const h = (b - a) / n;
+  // Tính thể tích khối tròn xoay bằng công thức Simpson (hỗ trợ cả 1 hàm f(x) hoặc miền giới hạn bởi 2 hàm f(x), g(x))
+  function calculateRevolutionVolume(funcStr, axis, a, b, func2Str = null) {
+    const fn1 = compileMathExpr(funcStr);
+    if (!fn1) return null;
+    const fn2 = (func2Str && String(func2Str).trim()) ? compileMathExpr(func2Str) : null;
+    if (a === b) return 0;
+    const xMin = Math.min(a, b);
+    const xMax = Math.max(a, b);
+    const n = 500; // Số phân đoạn Simpson chẵn
+    const h = (xMax - xMin) / n;
     let sum = 0;
 
-    if (axis === 'Ox') {
-      // V = pi * integral_a^b [f(x)]^2 dx
+    if (axis === 'Ox' || axis === 'ox') {
+      // Phương pháp Đĩa / Vành khăn (Disk / Washer Method):
+      // V = pi * integral_a^b |[f(x)]^2 - [g(x)]^2| dx
       for (let i = 0; i <= n; i++) {
-        const x = a + i * h;
-        const y = fn(x);
-        if (isNaN(y)) return null;
-        const val = y * y;
+        const x = xMin + i * h;
+        const y1 = fn1(x);
+        const y2 = fn2 ? fn2(x) : 0;
+        if (isNaN(y1) || isNaN(y2) || !isFinite(y1) || !isFinite(y2)) return null;
+        const val = Math.abs(y1 * y1 - y2 * y2);
         if (i === 0 || i === n) sum += val;
         else if (i % 2 === 1) sum += 4 * val;
         else sum += 2 * val;
       }
       return Math.PI * (h / 3) * sum;
     } else {
-      // Xoay quanh Oy: V = 2 * pi * integral_a^b x * |f(x)| dx (phương pháp vỏ trụ Cylindrical shells)
+      // Xoay quanh Oy — Phương pháp Vỏ trụ (Cylindrical Shells Method):
+      // V = 2 * pi * integral_a^b |x| * |f(x) - g(x)| dx
       for (let i = 0; i <= n; i++) {
-        const x = a + i * h;
-        const y = fn(x);
-        if (isNaN(y)) return null;
-        const val = Math.abs(x * y);
+        const x = xMin + i * h;
+        const y1 = fn1(x);
+        const y2 = fn2 ? fn2(x) : 0;
+        if (isNaN(y1) || isNaN(y2) || !isFinite(y1) || !isFinite(y2)) return null;
+        const val = Math.abs(x * (y1 - y2));
         if (i === 0 || i === n) sum += val;
         else if (i % 2 === 1) sum += 4 * val;
         else sum += 2 * val;
@@ -1107,420 +1115,651 @@
     }
   }
 
-  function drawSolidOfRevolution3D(ctx, widget) {
+  // ============================================================================
+  // THUẬT TOÁN TỐI ƯU MÔ PHỎNG 3D KHỐI TRÒN XOAY QUANH TRỤC Ox VÀ Oy
+  // (Parametric 3D Surface Mesh + Painter's Depth Sorting + Lambertian Shading
+  //  + Representative Differential Slice ΔV: Disk/Washer cho Ox & Cylindrical Shell cho Oy)
+  // ============================================================================
+  function project3DSolidPoint(X, Y, Z, origin, scale, tiltRad, yawRad = 0.22) {
+    const cosT = Math.cos(tiltRad);
+    const sinT = Math.sin(tiltRad);
+    const sinYaw = Math.sin(yawRad);
+    // Phối cảnh trục đo nghiêng 3D chuẩn sách giáo khoa Giải tích 12:
+    // - Trục X nằm ngang (hơi chếch nhẹ theo chiều sâu Z)
+    // - Trục Y thẳng đứng
+    // - Trục Z hướng ra phía người nhìn (Z > 0 là phía trước mặt phẳng Oxy, Z < 0 là phía sau)
+    const sx = origin.x + (X - Z * sinYaw) * scale;
+    const sy = origin.y - (Y * cosT - Z * sinT) * scale;
+    const depth = Z * cosT + Y * sinT * 0.35;
+    return { x: sx, y: sy, depth };
+  }
+
+  function computeQuadNormalShade(P00, P10, P11, P01) {
+    const ux = P10.X - P00.X, uy = P10.Y - P00.Y, uz = P10.Z - P00.Z;
+    const vx = P01.X - P00.X, vy = P01.Y - P00.Y, vz = P01.Z - P00.Z;
+    let nx = uy * vz - uz * vy;
+    let ny = uz * vx - ux * vz;
+    let nz = ux * vy - uy * vx;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    nx /= len; ny /= len; nz /= len;
+    // Nguồn sáng định hướng từ góc trên-trái-trước: L = (-0.35, 0.65, 0.67)
+    const dot = Math.abs(nx * (-0.35) + ny * 0.65 + nz * 0.67);
+    return Math.min(1, Math.max(0.25, 0.32 + 0.68 * dot));
+  }
+
+  function drawSolidOfRevolution3D(ctx, widget, isModalPreview = false) {
     const { x, y, width, height, origin, scale } = widget;
     const rev = widget.revolution3D || {};
     const axis = rev.axis || 'Ox';
     const isOy = (axis === 'Oy' || axis === 'oy');
 
-    // 1. Lấy khoảng cận hiển thị của Trục Ox và Trục Oy theo yêu cầu
+    // 1. Lấy khoảng cận quay [a, b]
     const oxMin = (rev.rangeX && rev.rangeX[0] !== undefined) ? rev.rangeX[0] : (rev.range ? rev.range[0] : 0);
     const oxMax = (rev.rangeX && rev.rangeX[1] !== undefined) ? rev.rangeX[1] : (rev.range ? rev.range[1] : 2.5);
     const oyMin = (rev.rangeY && rev.rangeY[0] !== undefined) ? rev.rangeY[0] : -2;
     const oyMax = (rev.rangeY && rev.rangeY[1] !== undefined) ? rev.rangeY[1] : 3;
 
-    // Cận tích phân quay:
-    // - Quay quanh Ox: biến x chạy từ oxMin đến oxMax
-    // - Quay quanh Oy: bán kính r = x >= 0 chạy từ max(0, oxMin) đến oxMax
-    const a = isOy ? Math.max(0, oxMin) : oxMin;
-    const b = isOy ? Math.max(a + 0.1, oxMax) : oxMax;
+    const rawMin = Math.min(oxMin, oxMax);
+    const rawMax = Math.max(oxMin, oxMax);
+    const a = isOy ? Math.max(0, rawMin) : rawMin;
+    const b = isOy ? Math.max(a + 0.1, rawMax) : (Math.abs(rawMax - rawMin) < 0.05 ? rawMin + 1 : rawMax);
 
     const angleDeg = rev.angleDeg !== undefined ? rev.angleDeg : 0;
-    const angleRad = (angleDeg * Math.PI) / 180;
-    const tiltRad = ((rev.tiltDeg || 28) * Math.PI) / 180; // Độ nghiêng phối cảnh
+    const angleRad = (Math.max(0, Math.min(360, angleDeg)) * Math.PI) / 180;
+    const tiltDeg = rev.tiltDeg !== undefined ? rev.tiltDeg : 28;
+    const tiltRad = (tiltDeg * Math.PI) / 180;
+    const yawRad = isOy ? 0.18 : 0.24;
+    const showSlice = rev.showSlice !== false;
 
-    const fObj = (widget.functions && widget.functions[rev.funcIndex || 0]) || (widget.functions ? widget.functions[0] : null);
-    if (!fObj) return;
-    const fn = compileMathExpr(fObj.expr);
-    if (!fn) return;
+    const funcs = widget.functions || [];
+    const fObj = funcs[rev.funcIndex || 0] || funcs[0];
+    if (!fObj || !fObj.expr) return;
+    const fn1 = compileMathExpr(fObj.expr);
+    if (!fn1) return;
+
+    const func2Idx = rev.func2Index !== undefined ? rev.func2Index : -1;
+    const f2Obj = (func2Idx >= 0 && funcs[func2Idx]) ? funcs[func2Idx] : null;
+    const fn2 = (f2Obj && f2Obj.expr) ? compileMathExpr(f2Obj.expr) : null;
+    const safeF1 = (t) => { const v = fn1(t); return (isNaN(v) || !isFinite(v)) ? 0 : v; };
+    const safeF2 = (t) => { if (!fn2) return 0; const v = fn2(t); return (isNaN(v) || !isFinite(v)) ? 0 : v; };
 
     ctx.save();
 
-    // Nền gradient 3D tinh khiết, sáng sủa, tương phản cao
+    // Nền 3D Studio sáng rõ, độ tương phản cao
     const bgGrad = ctx.createLinearGradient(x, y, x, y + height);
     bgGrad.addColorStop(0, '#ffffff');
     bgGrad.addColorStop(1, '#f1f5f9');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(x, y, width, height);
 
-    // Vẽ lưới phối cảnh sàn màu lam xám nhẹ nhàng
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
-    ctx.lineWidth = 0.8;
-    for (let i = -6; i <= 6; i += 2) {
-      const p1 = mathToCanvas(i, -3, widget);
-      const p2 = mathToCanvas(i, 3, widget);
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y + Math.sin(tiltRad) * 40);
-      ctx.lineTo(p2.x, p2.y - Math.sin(tiltRad) * 40);
-      ctx.stroke();
-    }
-
-    // 2. Vẽ 2 trục tọa độ Ox và Oy với giới hạn hiển thị (ĐẶC BIỆT NHẤN MẠNH TRỤC OY KHI QUAY OY)
+    // 2. Vẽ mặt phẳng lưới phối cảnh 3D (mặt phẳng Z = 0 và sàn tham chiếu)
     ctx.save();
-
-    // Trục Ox (than xám lịch lãm)
-    ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(x + 20, origin.y);
-    ctx.lineTo(x + width - 20, origin.y);
-    ctx.stroke();
-
-    // Mũi tên Ox
-    ctx.fillStyle = '#334155';
-    ctx.beginPath();
-    ctx.moveTo(x + width - 20, origin.y);
-    ctx.lineTo(x + width - 28, origin.y - 4);
-    ctx.lineTo(x + width - 28, origin.y + 4);
-    ctx.fill();
-
-    // Vạch mốc Ox
-    ctx.font = '10px -apple-system, sans-serif';
-    ctx.fillStyle = '#475569';
-    ctx.textAlign = 'center';
-    const pOxMin = mathToCanvas(oxMin, 0, widget);
-    const pOxMax = mathToCanvas(oxMax, 0, widget);
-    ctx.beginPath();
-    ctx.moveTo(pOxMin.x, origin.y - 4);
-    ctx.lineTo(pOxMin.x, origin.y + 4);
-    ctx.stroke();
-    ctx.fillText(`x=${oxMin}`, pOxMin.x, origin.y + 14);
-
-    ctx.beginPath();
-    ctx.moveTo(pOxMax.x, origin.y - 4);
-    ctx.lineTo(pOxMax.x, origin.y + 4);
-    ctx.stroke();
-    ctx.fillText(`x=${oxMax}`, pOxMax.x, origin.y + 14);
-
-    // TRỤC OY: KHI QUAY QUANH OY ĐƯỢC NHẤN MẠNH RỰC RỠ BẰNG MÀU ĐỎ RUBY #dc2626
-    if (isOy) {
-      ctx.strokeStyle = '#dc2626';
-      ctx.lineWidth = 2.4;
-
-      // Đoạn trục thẳng đứng xuyên tâm
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+    ctx.lineWidth = 0.8;
+    for (let gx = -6; gx <= 6; gx += 1) {
+      const p1 = project3DSolidPoint(gx, 0, -2.5, origin, scale, tiltRad, yawRad);
+      const p2 = project3DSolidPoint(gx, 0, 2.5, origin, scale, tiltRad, yawRad);
       ctx.beginPath();
-      ctx.moveTo(origin.x, y + height - 58);
-      ctx.lineTo(origin.x, y + 25);
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
       ctx.stroke();
-
-      // Mũi tên nhọn trục Oy màu đỏ
-      ctx.fillStyle = '#dc2626';
-      ctx.beginPath();
-      ctx.moveTo(origin.x, y + 18);
-      ctx.lineTo(origin.x - 5, y + 30);
-      ctx.lineTo(origin.x + 5, y + 30);
-      ctx.fill();
-
-      // Khung nhãn nổi bật: "⟳ TRỤC QUAY Oy"
-      ctx.save();
-      ctx.fillStyle = 'rgba(254, 226, 226, 0.92)';
-      ctx.roundRect(origin.x + 8, y + 18, 126, 18, 4);
-      ctx.fill();
-      ctx.strokeStyle = '#dc2626';
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-      ctx.font = 'bold 11px -apple-system, sans-serif';
-      ctx.fillStyle = '#b91c1c';
-      ctx.textAlign = 'left';
-      ctx.fillText('⟳ Trục quay Oy (Tung)', origin.x + 12, y + 31);
-      ctx.restore();
-
-      // Biểu tượng vòng xoay tròn quanh trục Oy màu cam cháy
-      ctx.save();
-      ctx.strokeStyle = '#ea580c';
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      safeEllipse(ctx, origin.x, y + 44, 15, 5, 0, 0, Math.PI * 1.7);
-      ctx.stroke();
-      // Mũi tên nhỏ ở đầu vòng xoay
-      ctx.fillStyle = '#ea580c';
-      ctx.beginPath();
-      ctx.moveTo(origin.x + 15, y + 44);
-      ctx.lineTo(origin.x + 12, y + 40);
-      ctx.lineTo(origin.x + 18, y + 41);
-      ctx.fill();
-      ctx.restore();
-    } else {
-      // Trục Oy bình thường
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(origin.x, y + height - 58);
-      ctx.lineTo(origin.x, y + 25);
-      ctx.stroke();
-
-      ctx.fillStyle = '#334155';
-      ctx.beginPath();
-      ctx.moveTo(origin.x, y + 25);
-      ctx.lineTo(origin.x - 4, y + 33);
-      ctx.lineTo(origin.x + 4, y + 33);
-      ctx.fill();
     }
-
-    // Vạch chia và mốc cận hiển thị Oy
-    ctx.textAlign = 'right';
-    ctx.font = '10px -apple-system, sans-serif';
-    ctx.fillStyle = isOy ? '#b91c1c' : '#475569';
-    const pOyMin = mathToCanvas(0, oyMin, widget);
-    const pOyMax = mathToCanvas(0, oyMax, widget);
-
-    ctx.beginPath();
-    ctx.moveTo(origin.x - 4, pOyMin.y);
-    ctx.lineTo(origin.x + 4, pOyMin.y);
-    ctx.stroke();
-    ctx.fillText(`y=${oyMin}`, origin.x - 6, pOyMin.y + 3.5);
-
-    ctx.beginPath();
-    ctx.moveTo(origin.x - 4, pOyMax.y);
-    ctx.lineTo(origin.x + 4, pOyMax.y);
-    ctx.stroke();
-    ctx.fillText(`y=${oyMax}`, origin.x - 6, pOyMax.y + 3.5);
-
+    for (let gz = -2; gz <= 2; gz += 1) {
+      if (gz === 0) continue;
+      const p1 = project3DSolidPoint(-6, 0, gz, origin, scale, tiltRad, yawRad);
+      const p2 = project3DSolidPoint(6, 0, gz, origin, scale, tiltRad, yawRad);
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
     ctx.restore();
 
-    // 3. VẼ HÌNH PHẲNG BAN ĐẦU S (Khi angleDeg === 0 hoặc vẽ mờ khi đang quay)
-    const slices = 36;
-    const step = (b - a) / slices;
-
-    if (!isOy) {
-      // Quay quanh Ox: Miền giới hạn bởi y = f(x), trục Ox, x = a, x = b
+    // Hàm vẽ đoạn trục tọa độ Ox, Oy (có thể gọi trước và sau khối 3D để tạo hiệu ứng trục xuyên tâm)
+    const drawCoordinateAxes3D = (onlyForegroundAxis = false) => {
       ctx.save();
-      ctx.beginPath();
-      const pStart = mathToCanvas(a, 0, widget);
-      ctx.moveTo(pStart.x, pStart.y);
-      for (let i = 0; i <= slices; i++) {
-        const t = a + i * step;
-        const pt = mathToCanvas(t, fn(t) || 0, widget);
-        ctx.lineTo(pt.x, pt.y);
-      }
-      const pEnd = mathToCanvas(b, 0, widget);
-      ctx.lineTo(pEnd.x, pEnd.y);
-      ctx.closePath();
+      const bottomLimit = isModalPreview ? (y + height - 14) : (y + height - 58);
 
-      // Hình phẳng S quay quanh Ox: Màu Tím Thạch Anh / Violet
-      ctx.fillStyle = angleDeg === 0 ? 'rgba(139, 92, 246, 0.42)' : 'rgba(139, 92, 246, 0.14)';
-      ctx.fill();
-      ctx.strokeStyle = '#7c3aed';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 3]);
-      ctx.stroke();
+      if (!onlyForegroundAxis) {
+        // Trục Ox
+        ctx.strokeStyle = !isOy ? '#6d28d9' : '#334155';
+        ctx.lineWidth = !isOy ? 2.4 : 1.6;
+        ctx.beginPath();
+        ctx.moveTo(x + 16, origin.y);
+        ctx.lineTo(x + width - 16, origin.y);
+        ctx.stroke();
 
-      if (angleDeg === 0) {
+        // Mũi tên Ox
+        ctx.fillStyle = !isOy ? '#6d28d9' : '#334155';
+        ctx.beginPath();
+        ctx.moveTo(x + width - 14, origin.y);
+        ctx.lineTo(x + width - 23, origin.y - 4.5);
+        ctx.lineTo(x + width - 23, origin.y + 4.5);
+        ctx.fill();
+
+        // Nhãn x & vạch cận a, b
         ctx.font = 'bold 11px -apple-system, sans-serif';
-        ctx.fillStyle = '#6d28d9';
+        ctx.fillText('x', x + width - 18, origin.y - 8);
+
+        ctx.font = '10px -apple-system, sans-serif';
         ctx.textAlign = 'center';
-        const midPt = mathToCanvas((a + b) / 2, (fn((a + b) / 2) || 0) / 2, widget);
-        ctx.fillText('📐 Miền S (chuẩn bị quay Ox)', midPt.x, midPt.y);
+        const pA = project3DSolidPoint(a, 0, 0, origin, scale, tiltRad, yawRad);
+        const pB = project3DSolidPoint(b, 0, 0, origin, scale, tiltRad, yawRad);
+        ctx.fillStyle = '#475569';
+        ctx.beginPath();
+        ctx.moveTo(pA.x, origin.y - 4);
+        ctx.lineTo(pA.x, origin.y + 4);
+        ctx.moveTo(pB.x, origin.y - 4);
+        ctx.lineTo(pB.x, origin.y + 4);
+        ctx.stroke();
+        ctx.fillText(`a=${Number(a.toFixed(2))}`, pA.x, origin.y + 14);
+        ctx.fillText(`b=${Number(b.toFixed(2))}`, pB.x, origin.y + 14);
+
+        // Nếu quay quanh Ox: vẽ biểu tượng vòng xoay tròn quanh trục Ox ở bên phải
+        if (!isOy) {
+          const ringX = Math.min(x + width - 38, Math.max(origin.x + 50, pB.x + 24));
+          ctx.save();
+          ctx.strokeStyle = '#7c3aed';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          safeEllipse(ctx, ringX, origin.y, 5, 14, 0, -Math.PI * 0.75, Math.PI * 0.85);
+          ctx.stroke();
+          ctx.fillStyle = '#7c3aed';
+          ctx.beginPath();
+          ctx.moveTo(ringX - 4, origin.y + 12);
+          ctx.lineTo(ringX - 8, origin.y + 7);
+          ctx.lineTo(ringX - 1, origin.y + 7);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Trục Oy
+        ctx.strokeStyle = isOy ? '#dc2626' : '#334155';
+        ctx.lineWidth = isOy ? 2.4 : 1.6;
+        ctx.beginPath();
+        ctx.moveTo(origin.x, bottomLimit);
+        ctx.lineTo(origin.x, y + 18);
+        ctx.stroke();
+
+        // Mũi tên Oy
+        ctx.fillStyle = isOy ? '#dc2626' : '#334155';
+        ctx.beginPath();
+        ctx.moveTo(origin.x, y + 14);
+        ctx.lineTo(origin.x - 4.5, y + 23);
+        ctx.lineTo(origin.x + 4.5, y + 23);
+        ctx.fill();
+        ctx.font = 'bold 11px -apple-system, sans-serif';
+        ctx.fillText('y', origin.x - 12, y + 22);
+
+        if (isOy) {
+          // Biểu tượng vòng xoay quanh trục đứng Oy
+          ctx.save();
+          ctx.strokeStyle = '#ea580c';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          safeEllipse(ctx, origin.x, y + 34, 15, 5, 0, 0, Math.PI * 1.65);
+          ctx.stroke();
+          ctx.fillStyle = '#ea580c';
+          ctx.beginPath();
+          ctx.moveTo(origin.x + 15, y + 34);
+          ctx.lineTo(origin.x + 11, y + 30);
+          ctx.lineTo(origin.x + 18, y + 30);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Nhãn hiệu Trục quay góc trên trái
+        ctx.save();
+        const badgeText = isOy ? '⟳ TRỤC QUAY: Oy (Trục tung)' : '⟳ TRỤC QUAY: Ox (Trục hoành)';
+        ctx.font = 'bold 10.5px -apple-system, sans-serif';
+        const bw = ctx.measureText(badgeText).width + 16;
+        ctx.fillStyle = isOy ? 'rgba(254, 226, 226, 0.94)' : 'rgba(237, 233, 254, 0.94)';
+        ctx.beginPath();
+        ctx.roundRect(x + 10, y + 10, bw, 20, 5);
+        ctx.fill();
+        ctx.strokeStyle = isOy ? '#dc2626' : '#7c3aed';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = isOy ? '#b91c1c' : '#5b21b6';
+        ctx.textAlign = 'left';
+        ctx.fillText(badgeText, x + 18, y + 24);
+        ctx.restore();
+      } else {
+        // Vẽ nét đứt mờ của trục quay xuyên qua tâm khối 3D để học sinh thấy rõ tâm đối xứng
+        ctx.save();
+        ctx.setLineDash([4, 3]);
+        ctx.lineWidth = 1.4;
+        if (!isOy) {
+          const pA = project3DSolidPoint(a, 0, 0, origin, scale, tiltRad, yawRad);
+          const pB = project3DSolidPoint(b, 0, 0, origin, scale, tiltRad, yawRad);
+          ctx.strokeStyle = 'rgba(109, 40, 217, 0.65)';
+          ctx.beginPath();
+          ctx.moveTo(pA.x, pA.y);
+          ctx.lineTo(pB.x, pB.y);
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = 'rgba(220, 38, 38, 0.65)';
+          ctx.beginPath();
+          ctx.moveTo(origin.x, bottomLimit - 10);
+          ctx.lineTo(origin.x, y + 26);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
       ctx.restore();
-    } else {
-      // Hình phẳng S quay quanh Oy: Màu Vàng Cam Hổ Phách (Amber Gold) rực rỡ, dễ thấy
+    };
+
+    // Vẽ hệ trục nền
+    drawCoordinateAxes3D(false);
+
+    // 3. TẠO LƯỚI BỀ MẶT 3D THAM SỐ & SẮP XẾP ĐỘ SÂU (PAINTER'S ALGORITHM)
+    const nx = isModalPreview ? 28 : 36;
+    const dx = (b - a) / nx;
+
+    if (angleDeg > 0.5) {
+      const nAlpha = Math.max(8, Math.min(40, Math.ceil((angleDeg / 360) * (isModalPreview ? 30 : 38))));
+      const dAlpha = angleRad / nAlpha;
+      const quads = [];
+
+      const pushSurfaceQuad = (P00, P10, P11, P01, colorType) => {
+        const s00 = project3DSolidPoint(P00.X, P00.Y, P00.Z, origin, scale, tiltRad, yawRad);
+        const s10 = project3DSolidPoint(P10.X, P10.Y, P10.Z, origin, scale, tiltRad, yawRad);
+        const s11 = project3DSolidPoint(P11.X, P11.Y, P11.Z, origin, scale, tiltRad, yawRad);
+        const s01 = project3DSolidPoint(P01.X, P01.Y, P01.Z, origin, scale, tiltRad, yawRad);
+        const avgDepth = (s00.depth + s10.depth + s11.depth + s01.depth) * 0.25;
+        const shade = computeQuadNormalShade(P00, P10, P11, P01);
+        quads.push({ s00, s10, s11, s01, avgDepth, shade, colorType });
+      };
+
+      if (!isOy) {
+        // ===============================================================
+        // TRƯỜNG HỢP 1: QUAY QUANH TRỤC HOÀNH Ox (PHƯƠNG PHÁP ĐĨA / VÀNH KHĂN)
+        // P(x, alpha) = (x, R(x)*cos(alpha), R(x)*sin(alpha))
+        // ===============================================================
+        for (let i = 0; i < nx; i++) {
+          const x0 = a + i * dx;
+          const x1 = a + (i + 1) * dx;
+          const yOuter0 = safeF1(x0);
+          const yOuter1 = safeF1(x1);
+          const yInner0 = safeF2(x0);
+          const yInner1 = safeF2(x1);
+
+          for (let j = 0; j < nAlpha; j++) {
+            const a0 = j * dAlpha;
+            const a1 = (j + 1) * dAlpha;
+            const c0 = Math.cos(a0), s0 = Math.sin(a0);
+            const c1 = Math.cos(a1), s1 = Math.sin(a1);
+
+            // Mặt cong ngoài y = f(x)
+            pushSurfaceQuad(
+              { X: x0, Y: yOuter0 * c0, Z: yOuter0 * s0 },
+              { X: x1, Y: yOuter1 * c0, Z: yOuter1 * s0 },
+              { X: x1, Y: yOuter1 * c1, Z: yOuter1 * s1 },
+              { X: x0, Y: yOuter0 * c1, Z: yOuter0 * s1 },
+              'ox-outer'
+            );
+
+            // Mặt cong trong y = g(x) (nếu có hàm thứ 2 khác 0)
+            if (fn2 && (Math.abs(yInner0) > 1e-3 || Math.abs(yInner1) > 1e-3)) {
+              pushSurfaceQuad(
+                { X: x0, Y: yInner0 * c0, Z: yInner0 * s0 },
+                { X: x1, Y: yInner1 * c0, Z: yInner1 * s0 },
+                { X: x1, Y: yInner1 * c1, Z: yInner1 * s1 },
+                { X: x0, Y: yInner0 * c1, Z: yInner0 * s1 },
+                'ox-inner'
+              );
+            }
+          }
+        }
+      } else {
+        // ===============================================================
+        // TRƯỜNG HỢP 2: QUAY QUANH TRỤC TUNG Oy (PHƯƠNG PHÁP VỎ TRỤ / ĐĨA NGANG)
+        // Điểm (x, y) quay quanh trục đứng Oy với bán kính r = x:
+        // P(x, alpha) = (x*cos(alpha), y, x*sin(alpha))
+        // ===============================================================
+        for (let i = 0; i < nx; i++) {
+          const x0 = a + i * dx;
+          const x1 = a + (i + 1) * dx;
+          const yTop0 = safeF1(x0);
+          const yTop1 = safeF1(x1);
+          const yBot0 = safeF2(x0);
+          const yBot1 = safeF2(x1);
+
+          for (let j = 0; j < nAlpha; j++) {
+            const a0 = j * dAlpha;
+            const a1 = (j + 1) * dAlpha;
+            const c0 = Math.cos(a0), s0 = Math.sin(a0);
+            const c1 = Math.cos(a1), s1 = Math.sin(a1);
+
+            // Mặt cong phía trên y = f(x) xoay quanh Oy
+            pushSurfaceQuad(
+              { X: x0 * c0, Y: yTop0, Z: x0 * s0 },
+              { X: x1 * c0, Y: yTop1, Z: x1 * s0 },
+              { X: x1 * c1, Y: yTop1, Z: x1 * s1 },
+              { X: x0 * c1, Y: yTop0, Z: x0 * s1 },
+              'oy-top'
+            );
+
+            // Mặt đáy dưới y = g(x) (hoặc y = 0) xoay quanh Oy
+            pushSurfaceQuad(
+              { X: x0 * c0, Y: yBot0, Z: x0 * s0 },
+              { X: x1 * c0, Y: yBot1, Z: x1 * s0 },
+              { X: x1 * c1, Y: yBot1, Z: x1 * s1 },
+              { X: x0 * c1, Y: yBot0, Z: x0 * s1 },
+              'oy-bottom'
+            );
+          }
+        }
+
+        // Thành trụ ngoài tại biên x = b (từ y = g(b) đến y = f(b)) để khép kín khối thể tích 3D
+        const ybTop = safeF1(b);
+        const ybBot = safeF2(b);
+        if (Math.abs(ybTop - ybBot) > 1e-3 && b > 1e-3) {
+          for (let j = 0; j < nAlpha; j++) {
+            const a0 = j * dAlpha;
+            const a1 = (j + 1) * dAlpha;
+            const c0 = Math.cos(a0), s0 = Math.sin(a0);
+            const c1 = Math.cos(a1), s1 = Math.sin(a1);
+            pushSurfaceQuad(
+              { X: b * c0, Y: ybBot, Z: b * s0 },
+              { X: b * c0, Y: ybTop, Z: b * s0 },
+              { X: b * c1, Y: ybTop, Z: b * s1 },
+              { X: b * c1, Y: ybBot, Z: b * s1 },
+              'oy-wall-outer'
+            );
+          }
+        }
+
+        // Thành trụ trong tại biên x = a (nếu a > 0)
+        const yaTop = safeF1(a);
+        const yaBot = safeF2(a);
+        if (a > 0.05 && Math.abs(yaTop - yaBot) > 1e-3) {
+          for (let j = 0; j < nAlpha; j++) {
+            const a0 = j * dAlpha;
+            const a1 = (j + 1) * dAlpha;
+            const c0 = Math.cos(a0), s0 = Math.sin(a0);
+            const c1 = Math.cos(a1), s1 = Math.sin(a1);
+            pushSurfaceQuad(
+              { X: a * c0, Y: yaBot, Z: a * s0 },
+              { X: a * c0, Y: yaTop, Z: a * s0 },
+              { X: a * c1, Y: yaTop, Z: a * s1 },
+              { X: a * c1, Y: yaBot, Z: a * s1 },
+              'oy-wall-inner'
+            );
+          }
+        }
+      }
+
+      // Sắp xếp các mảnh bề mặt từ xa đến gần (Painter's Algorithm: avgDepth tăng dần)
+      quads.sort((qA, qB) => qA.avgDepth - qB.avgDepth);
+
+      // Vẽ từng mảnh tứ giác với độ sáng bóng 3D (Lambertian Shading)
+      for (const q of quads) {
+        const sh = q.shade;
+        let fillCol = '';
+        let strokeCol = '';
+        if (q.colorType === 'ox-outer') {
+          const r = Math.round(95 + 75 * sh);
+          const g = Math.round(45 + 65 * sh);
+          const bl = Math.round(185 + 65 * sh);
+          fillCol = `rgba(${r}, ${g}, ${bl}, 0.46)`;
+          strokeCol = `rgba(${r}, ${g}, ${bl}, 0.16)`;
+        } else if (q.colorType === 'ox-inner') {
+          const r = Math.round(210 * sh);
+          const g = Math.round(110 + 70 * sh);
+          const bl = Math.round(60 + 40 * sh);
+          fillCol = `rgba(${r}, ${g}, ${bl}, 0.36)`;
+          strokeCol = `rgba(${r}, ${g}, ${bl}, 0.15)`;
+        } else if (q.colorType === 'oy-top') {
+          const r = Math.round(12 + 55 * sh);
+          const g = Math.round(125 + 85 * sh);
+          const bl = Math.round(190 + 60 * sh);
+          fillCol = `rgba(${r}, ${g}, ${bl}, 0.50)`;
+          strokeCol = `rgba(${r}, ${g}, ${bl}, 0.18)`;
+        } else if (q.colorType === 'oy-wall-outer') {
+          const r = Math.round(8 + 38 * sh);
+          const g = Math.round(105 + 70 * sh);
+          const bl = Math.round(168 + 65 * sh);
+          fillCol = `rgba(${r}, ${g}, ${bl}, 0.44)`;
+          strokeCol = `rgba(${r}, ${g}, ${bl}, 0.16)`;
+        } else {
+          const r = Math.round(30 + 60 * sh);
+          const g = Math.round(140 + 70 * sh);
+          const bl = Math.round(200 + 45 * sh);
+          fillCol = `rgba(${r}, ${g}, ${bl}, 0.26)`;
+          strokeCol = `rgba(${r}, ${g}, ${bl}, 0.10)`;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(q.s00.x, q.s00.y);
+        ctx.lineTo(q.s10.x, q.s10.y);
+        ctx.lineTo(q.s11.x, q.s11.y);
+        ctx.lineTo(q.s01.x, q.s01.y);
+        ctx.closePath();
+        ctx.fillStyle = fillCol;
+        ctx.fill();
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+
+      // 4. VẼ CÁC VÒNG VĨ TUYẾN (WIREFRAME RINGS: NÉT ĐỨT Ở MẶT SAU Z < 0, NÉT LIỀN Ở MẶT TRƯỚC Z >= 0)
+      const ringCount = 6;
+      const ringStep = Math.max(1, Math.floor(nx / ringCount));
+      for (let i = 0; i <= nx; i += ringStep) {
+        const tx = a + i * dx;
+        const yVal = safeF1(tx);
+        const stepsArc = 40;
+        const dA = angleRad / stepsArc;
+
+        // Vẽ nửa sau (sin(alpha) < 0 -> Z < 0) bằng nét đứt, nửa trước (sin(alpha) >= 0 -> Z >= 0) bằng nét liền
+        for (const isFrontPass of [false, true]) {
+          ctx.save();
+          if (!isFrontPass) {
+            ctx.setLineDash([4, 3]);
+            ctx.lineWidth = 1.0;
+            ctx.strokeStyle = isOy ? 'rgba(2, 132, 199, 0.42)' : 'rgba(109, 40, 217, 0.42)';
+          } else {
+            ctx.setLineDash([]);
+            ctx.lineWidth = (i === 0 || i === nx) ? 1.8 : 1.2;
+            ctx.strokeStyle = isOy ? '#0284c7' : '#6d28d9';
+          }
+          ctx.beginPath();
+          let penDown = false;
+          for (let k = 0; k <= stepsArc; k++) {
+            const al = k * dA;
+            const c = Math.cos(al), s = Math.sin(al);
+            const P3 = !isOy
+              ? { X: tx, Y: yVal * c, Z: yVal * s }
+              : { X: tx * c, Y: yVal, Z: tx * s };
+            const isFront = P3.Z >= -1e-4;
+            if (isFront === isFrontPass) {
+              const scr = project3DSolidPoint(P3.X, P3.Y, P3.Z, origin, scale, tiltRad, yawRad);
+              if (!penDown) {
+                ctx.moveTo(scr.x, scr.y);
+                penDown = true;
+              } else {
+                ctx.lineTo(scr.x, scr.y);
+              }
+            } else {
+              penDown = false;
+            }
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
+    // Vẽ đường trục xuyên tâm khối 3D
+    drawCoordinateAxes3D(true);
+
+    // 5. VẼ LÁT CẮT VI PHÂN MẪU ΔV (ĐĨA TRÒN / VÀNH KHĂN CHO Ox — VỎ TRỤ / ĐĨA NGANG CHO Oy)
+    if (showSlice && b > a + 0.05) {
+      const xm = (a + b) * 0.5;
+      const ym1 = safeF1(xm);
+      const ym2 = safeF2(xm);
+      const sliceSweep = angleDeg > 15 ? angleRad : Math.PI * 2;
+      const sliceSteps = 44;
+
+      ctx.save();
+      if (!isOy) {
+        // Đĩa tròn / Vành khăn mẫu vuông góc với trục Ox tại x = xm
+        ctx.beginPath();
+        for (let k = 0; k <= sliceSteps; k++) {
+          const al = (k / sliceSteps) * sliceSweep;
+          const pt = project3DSolidPoint(xm, ym1 * Math.cos(al), ym1 * Math.sin(al), origin, scale, tiltRad, yawRad);
+          if (k === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        }
+        if (fn2 && Math.abs(ym2) > 1e-3) {
+          for (let k = sliceSteps; k >= 0; k--) {
+            const al = (k / sliceSteps) * sliceSweep;
+            const pt = project3DSolidPoint(xm, ym2 * Math.cos(al), ym2 * Math.sin(al), origin, scale, tiltRad, yawRad);
+            ctx.lineTo(pt.x, pt.y);
+          }
+        } else {
+          const centerPt = project3DSolidPoint(xm, 0, 0, origin, scale, tiltRad, yawRad);
+          ctx.lineTo(centerPt.x, centerPt.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.42)';
+        ctx.fill();
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+        // Bán kính R = |f(x)| từ trục Ox lên đỉnh đĩa
+        const cPt = project3DSolidPoint(xm, 0, 0, origin, scale, tiltRad, yawRad);
+        const rPt = project3DSolidPoint(xm, ym1, 0, origin, scale, tiltRad, yawRad);
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(cPt.x, cPt.y);
+        ctx.lineTo(rPt.x, rPt.y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#b45309';
+        ctx.font = 'bold 10px -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('R = |f(x)|', (cPt.x + rPt.x) / 2 + 4, (cPt.y + rPt.y) / 2);
+      } else {
+        // Vỏ trụ mẫu (Cylindrical Shell) bán kính r = xm, chiều cao h = |f(xm) - g(xm)| quay quanh trục Oy
+        ctx.beginPath();
+        for (let k = 0; k <= sliceSteps; k++) {
+          const al = (k / sliceSteps) * sliceSweep;
+          const pt = project3DSolidPoint(xm * Math.cos(al), ym1, xm * Math.sin(al), origin, scale, tiltRad, yawRad);
+          if (k === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 2.0;
+        ctx.stroke();
+
+        // Thanh đứng chiều cao h = |f(x)| tại mặt phẳng gốc alpha = 0 và tại góc đang quét alpha = angleRad
+        const pBot0 = project3DSolidPoint(xm, ym2, 0, origin, scale, tiltRad, yawRad);
+        const pTop0 = project3DSolidPoint(xm, ym1, 0, origin, scale, tiltRad, yawRad);
+        const pAxisOy = project3DSolidPoint(0, ym1, 0, origin, scale, tiltRad, yawRad);
+
+        // Đường bán kính r = x từ trục Oy ra điểm (xm, ym1)
+        ctx.save();
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([3, 2]);
+        ctx.beginPath();
+        ctx.moveTo(pAxisOy.x, pAxisOy.y);
+        ctx.lineTo(pTop0.x, pTop0.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Chiều cao h = f(x) của vỏ trụ
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(pBot0.x, pBot0.y);
+        ctx.lineTo(pTop0.x, pTop0.y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#b45309';
+        ctx.font = 'bold 10px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('r = x', (pAxisOy.x + pTop0.x) / 2, pTop0.y - 5);
+      }
+      ctx.restore();
+    }
+
+    // 6. VẼ MIỀN PHẲNG GỐC S TẠI GÓC 0° VÀ LÁ MẶT CẮT ĐANG QUÉT TẠI GÓC θ
+    const drawCrossSectionLeaf = (alpha, isInitialLeaf) => {
+      const cosA = Math.cos(alpha);
+      const sinA = Math.sin(alpha);
       ctx.save();
       ctx.beginPath();
-      // Bắt đầu từ trục Oy tại y = 0
-      const pO = mathToCanvas(0, 0, widget);
-      ctx.moveTo(pO.x, pO.y);
 
-      // Đi dọc theo trục Ox đến x = a (nếu a > 0)
-      if (a > 0) {
-        const pA = mathToCanvas(a, 0, widget);
-        ctx.lineTo(pA.x, pA.y);
+      for (let i = 0; i <= nx; i++) {
+        const tx = a + i * dx;
+        const yTop = safeF1(tx);
+        const P3 = !isOy
+          ? { X: tx, Y: yTop * cosA, Z: yTop * sinA }
+          : { X: tx * cosA, Y: yTop, Z: tx * sinA };
+        const scr = project3DSolidPoint(P3.X, P3.Y, P3.Z, origin, scale, tiltRad, yawRad);
+        if (i === 0) ctx.moveTo(scr.x, scr.y);
+        else ctx.lineTo(scr.x, scr.y);
       }
 
-      // Đi dọc theo đường cong y = f(x) từ x = a đến x = b
-      for (let i = 0; i <= slices; i++) {
-        const t = a + i * step;
-        const pt = mathToCanvas(t, fn(t) || 0, widget);
-        ctx.lineTo(pt.x, pt.y);
+      for (let i = nx; i >= 0; i--) {
+        const tx = a + i * dx;
+        const yBot = safeF2(tx);
+        const P3 = !isOy
+          ? { X: tx, Y: yBot * cosA, Z: yBot * sinA }
+          : { X: tx * cosA, Y: yBot, Z: tx * sinA };
+        const scr = project3DSolidPoint(P3.X, P3.Y, P3.Z, origin, scale, tiltRad, yawRad);
+        ctx.lineTo(scr.x, scr.y);
       }
-
-      // Điểm cuối (b, f(b)) dóng vuông góc về trục Oy tại (0, f(b))
-      const yEnd = fn(b) || 0;
-      const ptEndOy = mathToCanvas(0, yEnd, widget);
-      ctx.lineTo(ptEndOy.x, ptEndOy.y);
       ctx.closePath();
 
-      // Màu vàng cam hổ phách ấm, viền cam cháy nổi bật
-      ctx.fillStyle = angleDeg === 0 ? 'rgba(245, 158, 11, 0.45)' : 'rgba(245, 158, 11, 0.15)';
-      ctx.fill();
-      ctx.strokeStyle = '#d97706';
-      ctx.lineWidth = 1.6;
-      ctx.setLineDash([4, 3]);
-      ctx.stroke();
+      if (isInitialLeaf) {
+        const isZero = angleDeg <= 0.5;
+        ctx.fillStyle = !isOy
+          ? (isZero ? 'rgba(139, 92, 246, 0.42)' : 'rgba(139, 92, 246, 0.18)')
+          : (isZero ? 'rgba(245, 158, 11, 0.45)' : 'rgba(245, 158, 11, 0.20)');
+        ctx.fill();
+        ctx.strokeStyle = !isOy ? '#7c3aed' : '#d97706';
+        ctx.lineWidth = isZero ? 2.0 : 1.4;
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
 
-      if (angleDeg === 0) {
-        ctx.font = 'bold 11.5px -apple-system, sans-serif';
-        ctx.fillStyle = '#b45309';
-        ctx.textAlign = 'center';
-        const midX = (a + b) / 2;
-        const midY = (fn(midX) || 0) / 2;
-        const midPt = mathToCanvas(midX, midY, widget);
-        ctx.fillText('📐 Miền S (chuẩn bị quay Oy)', midPt.x, midPt.y);
+        if (isZero) {
+          const midX = (a + b) * 0.5;
+          const midY = (safeF1(midX) + safeF2(midX)) * 0.5;
+          const midScr = project3DSolidPoint(midX, midY, 0, origin, scale, tiltRad, yawRad);
+          ctx.font = 'bold 11px -apple-system, sans-serif';
+          ctx.fillStyle = !isOy ? '#5b21b6' : '#b45309';
+          ctx.textAlign = 'center';
+          ctx.fillText(isOy ? '📐 Miền S (quay quanh Oy)' : '📐 Miền S (quay quanh Ox)', midScr.x, midScr.y);
+        }
+      } else {
+        // Lá mặt cắt đang quét tại góc theta
+        ctx.fillStyle = 'rgba(249, 115, 22, 0.35)';
+        ctx.fill();
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([]);
+        ctx.stroke();
       }
       ctx.restore();
+    };
+
+    // Vẽ lá mặt cắt gốc tại 0°
+    drawCrossSectionLeaf(0, true);
+    // Nếu đang quét dở (0° < angleDeg < 359°), vẽ lá mặt cắt đang quét tại góc angleRad
+    if (angleDeg > 0.5 && angleDeg < 359.5) {
+      drawCrossSectionLeaf(angleRad, false);
     }
 
-    // 4. QUÁ TRÌNH XOAY QUÉT 3D TỪ TỪ (Khi angleDeg > 0)
-    if (angleDeg > 0) {
-      for (let i = 0; i < slices; i++) {
-        const t1 = a + i * step;
-        const t2 = a + (i + 1) * step;
-
-        if (!isOy) {
-          // Xoay quanh Ox
-          const r1 = Math.abs(fn(t1) || 0);
-          const r2 = Math.abs(fn(t2) || 0);
-          const cx1 = origin.x + t1 * scale;
-          const cx2 = origin.x + t2 * scale;
-          const cy = origin.y;
-          const ry1 = r1 * scale;
-          const rz1 = ry1 * Math.sin(tiltRad);
-          const ry2 = r2 * scale;
-          const rz2 = ry2 * Math.sin(tiltRad);
-
-          ctx.beginPath();
-          safeEllipse(ctx, cx1, cy, rz1, ry1, 0, -Math.PI / 2, -Math.PI / 2 + angleRad);
-          ctx.lineTo(cx2, cy + ry2 * Math.sin(-Math.PI / 2 + angleRad));
-          safeEllipse(ctx, cx2, cy, rz2, ry2, 0, -Math.PI / 2 + angleRad, -Math.PI / 2, true);
-          ctx.closePath();
-
-          // Quét quanh Ox: Tông Tím Lam Thạch Anh sang trọng
-          const grad = ctx.createLinearGradient(cx1, cy - ry1, cx1, cy + ry1);
-          grad.addColorStop(0, 'rgba(124, 58, 237, 0.52)');
-          grad.addColorStop(0.5, 'rgba(167, 139, 250, 0.22)');
-          grad.addColorStop(1, 'rgba(91, 33, 182, 0.58)');
-          ctx.fillStyle = grad;
-          ctx.fill();
-        } else {
-          // Quét quanh Oy: TÔNG XANH LAM NGỌC BIỂN PHA LÊ (Crystal Sky Blue) TRONG SUỐT, TƯƠNG PHẢN CAO
-          const y1 = fn(t1) || 0;
-          const y2 = fn(t2) || 0;
-          const cy1 = origin.y - y1 * scale;
-          const cy2 = origin.y - y2 * scale;
-          const cx = origin.x; // Tâm nằm chính xác trên trục Oy!
-          const rx1 = t1 * scale;
-          const rz1 = rx1 * Math.sin(tiltRad);
-          const rx2 = t2 * scale;
-          const rz2 = rx2 * Math.sin(tiltRad);
-
-          ctx.beginPath();
-          safeEllipse(ctx, cx, cy1, rx1, rz1, 0, 0, angleRad);
-          ctx.lineTo(cx + rx2 * Math.cos(angleRad), cy2 + rz2 * Math.sin(angleRad));
-          safeEllipse(ctx, cx, cy2, rx2, rz2, 0, angleRad, 0, true);
-          ctx.closePath();
-
-          // Gradient xanh lam pha lê trong suốt, thấy rõ trục đỏ Oy ở giữa
-          const grad = ctx.createLinearGradient(cx - rx2, cy1, cx + rx2, cy1);
-          grad.addColorStop(0, 'rgba(14, 165, 233, 0.55)');   // Sky 500
-          grad.addColorStop(0.3, 'rgba(56, 189, 248, 0.25)'); // Sky 400 trong suốt
-          grad.addColorStop(0.7, 'rgba(56, 189, 248, 0.25)');
-          grad.addColorStop(1, 'rgba(2, 132, 199, 0.60)');   // Sky 600
-          ctx.fillStyle = grad;
-          ctx.fill();
-        }
-      }
-
-      // Các đường tròn vĩ tuyến (wireframe rings)
-      ctx.lineWidth = 1.0;
-      const ringStep = Math.max(1, Math.floor(slices / 6));
-
-      for (let i = 0; i <= slices; i += ringStep) {
-        const t = a + i * step;
-
-        if (!isOy) {
-          const r = Math.abs(fn(t) || 0);
-          const cx = origin.x + t * scale;
-          const cy = origin.y;
-          const ry = r * scale;
-          const rz = ry * Math.sin(tiltRad);
-
-          ctx.strokeStyle = 'rgba(109, 40, 217, 0.50)';
-          ctx.beginPath();
-          safeEllipse(ctx, cx, cy, rz, ry, 0, -Math.PI / 2, -Math.PI / 2 + angleRad);
-          ctx.stroke();
-
-          if (angleDeg >= 359 && (i === 0 || i === slices)) {
-            ctx.save();
-            ctx.fillStyle = 'rgba(167, 139, 250, 0.35)';
-            ctx.beginPath();
-            safeEllipse(ctx, cx, cy, rz, ry, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          }
-        } else {
-          // Vĩ tuyến quanh Oy: Màu Xanh Lam Biển Sâu #0284c7 rõ nét
-          const yVal = fn(t) || 0;
-          const cy = origin.y - yVal * scale;
-          const cx = origin.x;
-          const rx = t * scale;
-          const rz = rx * Math.sin(tiltRad);
-
-          // Nửa sau nét đứt (thể hiện bị che khuất trong không gian)
-          ctx.save();
-          ctx.strokeStyle = 'rgba(2, 132, 199, 0.40)';
-          ctx.setLineDash([4, 4]);
-          ctx.beginPath();
-          safeEllipse(ctx, cx, cy, rx, rz, 0, Math.PI, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-
-          // Nửa trước nét liền theo góc quét
-          ctx.save();
-          ctx.strokeStyle = '#0284c7';
-          ctx.lineWidth = 1.3;
-          ctx.beginPath();
-          safeEllipse(ctx, cx, cy, rx, rz, 0, 0, Math.min(Math.PI, angleRad));
-          ctx.stroke();
-          ctx.restore();
-
-          // Nắp khi quét trọn vòng 360 độ
-          if (angleDeg >= 359 && (i === 0 || i === slices)) {
-            ctx.save();
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
-            ctx.beginPath();
-            safeEllipse(ctx, cx, cy, rx, rz, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          }
-        }
-      }
-
-      // Đường sinh quét tại góc quay hiện tại
-      ctx.save();
-      ctx.strokeStyle = '#f97316';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      for (let i = 0; i <= slices; i++) {
-        const t = a + i * step;
-        if (!isOy) {
-          const r = fn(t) || 0;
-          const cx = origin.x + t * scale;
-          const cy = origin.y;
-          const ry = r * scale;
-          const rz = ry * Math.sin(tiltRad);
-          const curY = cy + ry * Math.sin(-Math.PI / 2 + angleRad);
-          const curX = cx + rz * Math.cos(-Math.PI / 2 + angleRad);
-          if (i === 0) ctx.moveTo(curX, curY);
-          else ctx.lineTo(curX, curY);
-        } else {
-          // Đường sinh quanh Oy: tại mỗi x, quay quanh trục Oy
-          const yVal = fn(t) || 0;
-          const cy = origin.y - yVal * scale;
-          const cx = origin.x;
-          const rx = t * scale;
-          const rz = rx * Math.sin(tiltRad);
-          const curX = cx + rx * Math.cos(angleRad);
-          const curY = cy + rz * Math.sin(angleRad);
-          if (i === 0) ctx.moveTo(curX, curY);
-          else ctx.lineTo(curX, curY);
-        }
-      }
-      ctx.stroke();
-      ctx.restore();
+    // 7. THANH ĐIỀU KHIỂN CHUYỂN ĐỘNG TRỰC TIẾP TRÊN WIDGET (Ẩn khi ở khung Preview nhỏ trong Modal)
+    if (!isModalPreview) {
+      drawWidget3DControls(ctx, widget, a, b, oxMin, oxMax, oyMin, oyMax, isOy);
     }
-
-    // 5. THANH ĐIỀU KHIỂN CHUYỂN ĐỘNG TRỰC TIẾP TRÊN WIDGET (Interactive 3D Control Bar)
-    drawWidget3DControls(ctx, widget, a, b, oxMin, oxMax, oyMin, oyMax, isOy);
 
     ctx.restore();
   }
@@ -1592,25 +1831,29 @@
     const axisName = isOy ? 'trục Oy' : 'trục Ox';
     ctx.fillText(`📐 Quét quanh ${axisName}: ${angleDeg}° / 360°`, barX + barW - 10, btnPlayY + 14);
 
-    // Hàng 2: Hiển thị cận Trục Ox và Trục Oy + Thể tích V
+    // Hàng 2: Hiển thị cận + Thể tích V chuẩn xác (cả dạng hệ số π và số thập phân)
     const row2Y = barY + 32;
     ctx.textAlign = 'left';
     ctx.font = '10px -apple-system, sans-serif';
 
-    const fObj = (widget.functions && widget.functions[rev.funcIndex || 0]) || (widget.functions ? widget.functions[0] : null);
-    const vol = fObj ? calculateRevolutionVolume(fObj.expr, rev.axis || 'Ox', a, b) : null;
-    const volStr = vol !== null ? (Math.round(vol * 1000) / 1000).toString() : '---';
+    const funcs = widget.functions || [];
+    const fObj = funcs[rev.funcIndex || 0] || funcs[0] || null;
+    const f2Idx = rev.func2Index !== undefined ? rev.func2Index : -1;
+    const f2Obj = (f2Idx >= 0 && funcs[f2Idx]) ? funcs[f2Idx] : null;
+    const vol = fObj ? calculateRevolutionVolume(fObj.expr, rev.axis || 'Ox', a, b, f2Obj ? f2Obj.expr : null) : null;
+    const volDecStr = vol !== null ? Number(vol.toFixed(3)).toString() : '---';
+    const volPiCoeff = vol !== null ? Number((vol / Math.PI).toFixed(3)).toString() : '---';
 
     if (isOy) {
       ctx.fillStyle = '#b91c1c';
       ctx.fillText(`⟳ TRỤC QUAY: Oy (Tung)`, barX + 10, row2Y + 10);
       ctx.fillStyle = '#0369a1';
-      ctx.fillText(`Cận x: [${a}; ${b}]   |   V = 2π∫ x·|f(x)|dx ≈ ${volStr} π`, barX + 138, row2Y + 10);
+      ctx.fillText(`Cận [${Number(a.toFixed(2))}; ${Number(b.toFixed(2))}]  |  V ≈ ${volPiCoeff}π ≈ ${volDecStr} (đvtt)`, barX + 138, row2Y + 10);
     } else {
       ctx.fillStyle = '#6d28d9';
       ctx.fillText(`⟳ TRỤC QUAY: Ox (Hoành)`, barX + 10, row2Y + 10);
       ctx.fillStyle = '#475569';
-      ctx.fillText(`Cận x: [${a}; ${b}]   |   V = π∫ [f(x)]²dx ≈ ${volStr} π`, barX + 150, row2Y + 10);
+      ctx.fillText(`Cận [${Number(a.toFixed(2))}; ${Number(b.toFixed(2))}]  |  V ≈ ${volPiCoeff}π ≈ ${volDecStr} (đvtt)`, barX + 150, row2Y + 10);
     }
 
     ctx.restore();
@@ -1777,17 +2020,189 @@
   }
 
   // -------------------------------------------------------------
-  // BỘ ĐIỀU KHIỂN MODAL CÀI ĐẶT ĐỒ THỊ & THỂ TÍCH 3D
+  // BỘ ĐIỀU KHIỂN MODAL CÀI ĐẶT ĐỒ THỊ & THỂ TÍCH 3D (CÓ LIVE PREVIEW)
   // -------------------------------------------------------------
   let currentEditingWidget = null;
   let onApplyCallback = null;
   let spinAnimationId = null;
+  let modalPreviewMode = '2d'; // '2d' hoặc '3d'
+
+  function setModalPreviewMode(mode) {
+    modalPreviewMode = mode === '3d' ? '3d' : '2d';
+    const btn2D = document.getElementById('btn-preview-mode-2d');
+    const btn3D = document.getElementById('btn-preview-mode-3d');
+    const hint3D = document.getElementById('preview-3d-hint');
+    if (btn2D) btn2D.classList.toggle('active', modalPreviewMode === '2d');
+    if (btn3D) btn3D.classList.toggle('active', modalPreviewMode === '3d');
+    if (hint3D) hint3D.style.display = modalPreviewMode === '3d' ? 'block' : 'none';
+    renderModalLivePreview();
+  }
+
+  function syncDraftStateFromModalInputs() {
+    if (!currentEditingWidget) return;
+    const inputScale = document.getElementById('input-graph-scale');
+    const chkGrid = document.getElementById('chk-graph-grid');
+    const chkAxes = document.getElementById('chk-graph-axes');
+    if (inputScale) currentEditingWidget.scale = parseInt(inputScale.value, 10) || 36;
+    if (chkGrid) currentEditingWidget.showGrid = chkGrid.checked;
+    if (chkAxes) currentEditingWidget.showAxes = chkAxes.checked;
+
+    // Đồng bộ cấu hình Diện tích (S) & Thể tích (V)
+    const chkAreaEnable = document.getElementById('chk-area-enable');
+    const activePill = document.querySelector('#group-area-func-count .btn-pill-choice.active');
+    const funcCount = activePill ? parseInt(activePill.getAttribute('data-count'), 10) || 1 : 1;
+    const activeCalcAxisBtn = document.querySelector('.btn-calc-axis.active');
+    const chkFill = document.getElementById('chk-area-draw-fill');
+    const chkLines = document.getElementById('chk-area-draw-lines');
+    const chkBadge = document.getElementById('chk-area-draw-badge');
+
+    let boundMode = 'auto';
+    let customA = 0, customB = 2;
+    let f1Expr = '', f2Expr = '', f3Expr = '';
+    const funcs = currentEditingWidget.functions || [];
+
+    if (funcCount === 1) {
+      const sel1f = document.getElementById('select-area-1f');
+      const idx = sel1f ? parseInt(sel1f.value, 10) || 0 : 0;
+      f1Expr = funcs[idx] ? funcs[idx].expr : 'x^2';
+      const inA = document.getElementById('input-area-1f-a');
+      const inB = document.getElementById('input-area-1f-b');
+      customA = inA ? parseFloat(inA.value) || 0 : 0;
+      customB = inB ? parseFloat(inB.value) || 2 : 2;
+      boundMode = 'manual';
+    } else if (funcCount === 2) {
+      const sel2f1 = document.getElementById('select-area-2f-1');
+      const sel2f2 = document.getElementById('select-area-2f-2');
+      const idx1 = sel2f1 ? parseInt(sel2f1.value, 10) || 0 : 0;
+      const idx2 = sel2f2 ? parseInt(sel2f2.value, 10) || 0 : 0;
+      f1Expr = funcs[idx1] ? funcs[idx1].expr : 'x^2';
+      f2Expr = funcs[idx2] ? funcs[idx2].expr : 'x';
+      const rAuto = document.querySelector('input[name="radio-area-2f-bound"][value="auto"]');
+      boundMode = rAuto && rAuto.checked ? 'auto' : 'manual';
+      const inA = document.getElementById('input-area-2f-a');
+      const inB = document.getElementById('input-area-2f-b');
+      customA = inA ? parseFloat(inA.value) || 0 : 0;
+      customB = inB ? parseFloat(inB.value) || 2 : 2;
+    } else if (funcCount === 3) {
+      const sel3f1 = document.getElementById('select-area-3f-1');
+      const sel3f2 = document.getElementById('select-area-3f-2');
+      const sel3f3 = document.getElementById('select-area-3f-3');
+      const idx1 = sel3f1 ? parseInt(sel3f1.value, 10) || 0 : 0;
+      const idx2 = sel3f2 ? parseInt(sel3f2.value, 10) || 0 : 0;
+      const idx3 = sel3f3 ? parseInt(sel3f3.value, 10) || 0 : 0;
+      f1Expr = funcs[idx1] ? funcs[idx1].expr : 'x^2';
+      f2Expr = funcs[idx2] ? funcs[idx2].expr : '2-x';
+      f3Expr = funcs[idx3] ? funcs[idx3].expr : '-x';
+      const rAuto = document.querySelector('input[name="radio-area-3f-bound"][value="auto"]');
+      boundMode = rAuto && rAuto.checked ? 'auto' : 'manual';
+      const inA = document.getElementById('input-area-3f-a');
+      const inB = document.getElementById('input-area-3f-b');
+      customA = inA ? parseFloat(inA.value) || 0 : 0;
+      customB = inB ? parseFloat(inB.value) || 3 : 3;
+    }
+
+    currentEditingWidget.areaCalc = {
+      enabled: chkAreaEnable ? chkAreaEnable.checked : true,
+      funcCount: funcCount,
+      func1: f1Expr,
+      func2: f2Expr,
+      func3: f3Expr,
+      boundMode: boundMode,
+      a: customA,
+      b: customB,
+      axis: activeCalcAxisBtn ? activeCalcAxisBtn.getAttribute('data-axis') : 'Ox',
+      drawFill: chkFill ? chkFill.checked : true,
+      drawLines: chkLines ? chkLines.checked : true,
+      showBadge: chkBadge ? chkBadge.checked : true
+    };
+
+    // Đồng bộ cấu hình Mô phỏng 3D
+    const chkRev = document.getElementById('chk-rev-enable');
+    const selRevFunc = document.getElementById('select-rev-func');
+    const selRevFunc2 = document.getElementById('select-rev-func2');
+    const activeAxisBtn = document.querySelector('.btn-rev-axis.active');
+    const inputOxMin = document.getElementById('input-rev-ox-min');
+    const inputOxMax = document.getElementById('input-rev-ox-max');
+    const inputOyMin = document.getElementById('input-rev-oy-min');
+    const inputOyMax = document.getElementById('input-rev-oy-max');
+    const inputAngle = document.getElementById('input-rev-angle');
+    const inputTilt = document.getElementById('input-rev-tilt');
+    const chkSlice = document.getElementById('chk-rev-show-slice');
+    const activeSpeedBtn = document.querySelector('.btn-rev-speed.active');
+    const chkLoop = document.getElementById('chk-rev-loop');
+
+    if (!currentEditingWidget.revolution3D) {
+      currentEditingWidget.revolution3D = {};
+    }
+    currentEditingWidget.revolution3D.enabled = chkRev ? chkRev.checked : false;
+    currentEditingWidget.revolution3D.funcIndex = selRevFunc ? parseInt(selRevFunc.value, 10) || 0 : 0;
+    currentEditingWidget.revolution3D.func2Index = selRevFunc2 ? parseInt(selRevFunc2.value, 10) : -1;
+    currentEditingWidget.revolution3D.axis = activeAxisBtn ? activeAxisBtn.getAttribute('data-axis') : 'Ox';
+
+    const oxMin = inputOxMin && inputOxMin.value !== '' ? parseFloat(inputOxMin.value) : 0;
+    const oxMax = inputOxMax && inputOxMax.value !== '' ? parseFloat(inputOxMax.value) : 2.5;
+    const oyMin = inputOyMin && inputOyMin.value !== '' ? parseFloat(inputOyMin.value) : -2;
+    const oyMax = inputOyMax && inputOyMax.value !== '' ? parseFloat(inputOyMax.value) : 3;
+
+    currentEditingWidget.revolution3D.rangeX = [isNaN(oxMin) ? 0 : oxMin, isNaN(oxMax) ? 2.5 : oxMax];
+    currentEditingWidget.revolution3D.rangeY = [isNaN(oyMin) ? -2 : oyMin, isNaN(oyMax) ? 3 : oyMax];
+    currentEditingWidget.revolution3D.range = currentEditingWidget.revolution3D.axis === 'Ox'
+      ? [currentEditingWidget.revolution3D.rangeX[0], currentEditingWidget.revolution3D.rangeX[1]]
+      : [Math.max(0, currentEditingWidget.revolution3D.rangeX[0]), Math.max(currentEditingWidget.revolution3D.rangeX[0] + 0.1, currentEditingWidget.revolution3D.rangeX[1])];
+    currentEditingWidget.revolution3D.angleDeg = inputAngle ? parseFloat(inputAngle.value) || 0 : 0;
+    currentEditingWidget.revolution3D.tiltDeg = inputTilt ? parseFloat(inputTilt.value) || 28 : 28;
+    currentEditingWidget.revolution3D.showSlice = chkSlice ? chkSlice.checked : true;
+    currentEditingWidget.revolution3D.speed = activeSpeedBtn ? parseFloat(activeSpeedBtn.getAttribute('data-speed')) || 1.0 : 1.0;
+    currentEditingWidget.revolution3D.isLoop = chkLoop ? chkLoop.checked : true;
+  }
+
+  function renderModalLivePreview() {
+    if (!currentEditingWidget) return;
+    const previewCanvas = document.getElementById('graph-modal-preview-canvas');
+    if (!previewCanvas || typeof previewCanvas.getContext !== 'function') return;
+    const pCtx = previewCanvas.getContext('2d');
+    if (!pCtx) return;
+
+    syncDraftStateFromModalInputs();
+
+    const pw = previewCanvas.width || 360;
+    const ph = previewCanvas.height || 320;
+    pCtx.clearRect(0, 0, pw, ph);
+
+    const previewScale = Math.max(16, Math.min(54, Math.round((currentEditingWidget.scale || 36) * 0.78)));
+    const tempWidget = {
+      ...currentEditingWidget,
+      x: 0,
+      y: 0,
+      width: pw,
+      height: ph,
+      origin: { x: Math.round(pw * 0.45), y: Math.round(ph * 0.54) },
+      scale: previewScale
+    };
+
+    const summaryEl = document.getElementById('preview-live-summary');
+    if (modalPreviewMode === '3d') {
+      drawSolidOfRevolution3D(pCtx, tempWidget, true);
+      if (summaryEl) {
+        const rev = tempWidget.revolution3D || {};
+        const ax = rev.axis || 'Ox';
+        const ang = Math.round(rev.angleDeg || 0);
+        summaryEl.textContent = `🔄 Mô phỏng 3D quanh trục ${ax} — Góc quét: ${ang}° / 360° (Nghiêng ${Math.round(rev.tiltDeg || 28)}°)`;
+      }
+    } else {
+      drawGraph2D(pCtx, tempWidget);
+      if (summaryEl) {
+        const fCount = (tempWidget.functions || []).filter(f => f && f.visible !== false).length;
+        summaryEl.textContent = `📊 Đang hiển thị ${fCount} đồ thị hàm số trên hệ trục Oxy`;
+      }
+    }
+  }
 
   function initGraphSettingsUI() {
     const modalEl = document.getElementById('modal-graph-settings');
     if (!modalEl) return;
 
-    // Chuyển Tab
+    // Chuyển Tab (tự động chuyển khung Xem trước sang 3D khi bấm vào Tab 4)
     const tabBtns = modalEl.querySelectorAll('.graph-tab-btn');
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1797,14 +2212,96 @@
         modalEl.querySelectorAll('.graph-tab-content').forEach(c => c.classList.remove('active'));
         const targetContent = document.getElementById(targetTabId);
         if (targetContent) targetContent.classList.add('active');
+        if (targetTabId === 'tab-graph-revolution') {
+          setModalPreviewMode('3d');
+        } else {
+          setModalPreviewMode('2d');
+        }
       });
     });
+
+    // Nút chuyển chế độ xem trước 2D / 3D ở cột phải
+    const btnPrev2D = document.getElementById('btn-preview-mode-2d');
+    const btnPrev3D = document.getElementById('btn-preview-mode-3d');
+    if (btnPrev2D) btnPrev2D.addEventListener('click', () => setModalPreviewMode('2d'));
+    if (btnPrev3D) btnPrev3D.addEventListener('click', () => setModalPreviewMode('3d'));
+
+    // Kéo chuột trực tiếp trên Canvas Preview 3D để đổi góc nghiêng 3D & góc quét
+    const previewCanvas = document.getElementById('graph-modal-preview-canvas');
+    if (previewCanvas) {
+      let isDraggingPreview = false;
+      let lastPreviewPt = null;
+      previewCanvas.addEventListener('pointerdown', (ev) => {
+        isDraggingPreview = true;
+        lastPreviewPt = { x: ev.clientX, y: ev.clientY };
+      });
+      previewCanvas.addEventListener('pointermove', (ev) => {
+        if (!isDraggingPreview || !lastPreviewPt || !currentEditingWidget) return;
+        const dx = ev.clientX - lastPreviewPt.x;
+        const dy = ev.clientY - lastPreviewPt.y;
+        lastPreviewPt = { x: ev.clientX, y: ev.clientY };
+        if (modalPreviewMode === '3d') {
+          const inputTilt = document.getElementById('input-rev-tilt');
+          const labelTilt = document.getElementById('label-rev-tilt');
+          const curTilt = inputTilt ? (parseFloat(inputTilt.value) || 28) : 28;
+          const nextTilt = Math.max(12, Math.min(55, Math.round(curTilt + dy * 0.35)));
+          if (inputTilt) inputTilt.value = nextTilt;
+          if (labelTilt) labelTilt.textContent = nextTilt + '°';
+
+          const inputAngle = document.getElementById('input-rev-angle');
+          const labelAngle = document.getElementById('label-rev-angle');
+          if (inputAngle && Math.abs(dx) > 1) {
+            const curAng = parseFloat(inputAngle.value) || 0;
+            const nextAng = Math.max(0, Math.min(360, Math.round(curAng + dx * 0.8)));
+            inputAngle.value = nextAng;
+            if (labelAngle) labelAngle.textContent = nextAng + '° / 360°';
+          }
+          renderModalLivePreview();
+        }
+      });
+      previewCanvas.addEventListener('pointerup', () => { isDraggingPreview = false; });
+      previewCanvas.addEventListener('pointerleave', () => { isDraggingPreview = false; });
+    }
 
     // Đóng Modal
     const btnClose = document.getElementById('btn-close-graph-modal');
     const btnCancel = document.getElementById('btn-cancel-graph-modal');
     if (btnClose) btnClose.addEventListener('click', closeGraphModal);
     if (btnCancel) btnCancel.addEventListener('click', closeGraphModal);
+
+    // Dải nút Mẫu hàm số nhanh 1 chạm
+    modalEl.querySelectorAll('.btn-func-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!currentEditingWidget) return;
+        const expr = btn.getAttribute('data-expr') || 'x^2';
+        const rMin = parseFloat(btn.getAttribute('data-min'));
+        const rMax = parseFloat(btn.getAttribute('data-max'));
+        if (!currentEditingWidget.functions || currentEditingWidget.functions.length === 0) {
+          currentEditingWidget.functions = [{
+            id: 'fn_' + Date.now(),
+            expr: expr,
+            color: '#28634e',
+            width: 2.5,
+            dash: 'solid',
+            range: [!isNaN(rMin) ? rMin : -3, !isNaN(rMax) ? rMax : 3],
+            visible: true
+          }];
+        } else {
+          currentEditingWidget.functions[0].expr = expr;
+          if (!isNaN(rMin) && !isNaN(rMax)) {
+            currentEditingWidget.functions[0].range = [rMin, rMax];
+          }
+        }
+        const inOxMin = document.getElementById('input-rev-ox-min');
+        const inOxMax = document.getElementById('input-rev-ox-max');
+        if (inOxMin && !isNaN(rMin)) inOxMin.value = Math.max(0, rMin);
+        if (inOxMax && !isNaN(rMax)) inOxMax.value = rMax;
+        renderFuncsList();
+        updateRevolutionFuncSelect();
+        updateAreaVolumeTabUI();
+        renderModalLivePreview();
+      });
+    });
 
     // Nút Thêm hàm số
     const btnAddFunc = document.getElementById('btn-add-graph-func');
@@ -1827,6 +2324,8 @@
         currentEditingWidget.functions.push(newFn);
         renderFuncsList();
         updateRevolutionFuncSelect();
+        updateAreaVolumeTabUI();
+        renderModalLivePreview();
       });
     }
 
@@ -1839,13 +2338,13 @@
         const found = autoFindSpecialPoints(f0.expr, f0.range);
         const axesOnly = found.filter(p => p.x === 0 || p.y === 0);
         if (!currentEditingWidget.specialPoints) currentEditingWidget.specialPoints = [];
-        // Gộp điểm chưa có
         for (const pt of axesOnly) {
           if (!currentEditingWidget.specialPoints.some(ep => Math.abs(ep.x - pt.x) < 0.05 && Math.abs(ep.y - pt.y) < 0.05)) {
             currentEditingWidget.specialPoints.push(pt);
           }
         }
         renderSpecialPointsList();
+        renderModalLivePreview();
       });
     }
 
@@ -1864,6 +2363,34 @@
           }
         }
         renderSpecialPointsList();
+        renderModalLivePreview();
+      });
+    }
+
+    // Nút Tìm giao điểm giữa 2 đồ thị
+    const btnFindInters = document.getElementById('btn-find-intersections-pts');
+    if (btnFindInters) {
+      btnFindInters.addEventListener('click', () => {
+        if (!currentEditingWidget || !currentEditingWidget.functions || currentEditingWidget.functions.length < 2) return;
+        const f0 = currentEditingWidget.functions[0];
+        const f1 = currentEditingWidget.functions[1];
+        const inters = findTwoFunctionsIntersections(f0.expr, f1.expr);
+        if (!currentEditingWidget.specialPoints) currentEditingWidget.specialPoints = [];
+        inters.forEach((pt, idx) => {
+          const rx = Math.round(pt.x * 100) / 100;
+          const ry = Math.round(pt.y * 100) / 100;
+          if (!currentEditingWidget.specialPoints.some(ep => Math.abs(ep.x - rx) < 0.05 && Math.abs(ep.y - ry) < 0.05)) {
+            currentEditingWidget.specialPoints.push({
+              x: rx,
+              y: ry,
+              label: `M${idx + 1}(${rx}; ${ry})`,
+              showProjection: true,
+              color: '#dc2626'
+            });
+          }
+        });
+        renderSpecialPointsList();
+        renderModalLivePreview();
       });
     }
 
@@ -1874,6 +2401,7 @@
         if (!currentEditingWidget) return;
         currentEditingWidget.specialPoints = [];
         renderSpecialPointsList();
+        renderModalLivePreview();
       });
     }
 
@@ -1891,19 +2419,27 @@
           color: '#cf7969'
         });
         renderSpecialPointsList();
+        renderModalLivePreview();
       });
     }
 
-    // Điều khiển Tab 3: Thể tích 3D
+    // Điều khiển Tab 4: Thể tích 3D
     const chkRevEnable = document.getElementById('chk-rev-enable');
     const revControls = document.getElementById('graph-rev-controls');
     if (chkRevEnable && revControls) {
       chkRevEnable.addEventListener('change', () => {
-        revControls.style.opacity = chkRevEnable.checked ? '1' : '0.5';
-        revControls.style.pointerEvents = chkRevEnable.checked ? 'auto' : 'none';
+        revControls.style.opacity = chkRevEnable.checked ? '1' : '0.6';
+        revControls.style.pointerEvents = 'auto';
+        if (chkRevEnable.checked) setModalPreviewMode('3d');
         updateVolumeFormula();
+        renderModalLivePreview();
       });
     }
+
+    const selRevFunc = document.getElementById('select-rev-func');
+    const selRevFunc2 = document.getElementById('select-rev-func2');
+    if (selRevFunc) selRevFunc.addEventListener('change', () => { updateVolumeFormula(); renderModalLivePreview(); });
+    if (selRevFunc2) selRevFunc2.addEventListener('change', () => { updateVolumeFormula(); renderModalLivePreview(); });
 
     // Nút chọn trục Ox / Oy
     const axisBtns = modalEl.querySelectorAll('.btn-rev-axis');
@@ -1911,19 +2447,70 @@
       b.addEventListener('click', () => {
         axisBtns.forEach(btn => btn.classList.remove('active'));
         b.classList.add('active');
+        setModalPreviewMode('3d');
         updateVolumeFormula();
+        renderModalLivePreview();
       });
     });
 
-    // Thay đổi cận 1. Trục Ox và 2. Trục Oy
+    // Thay đổi cận quay [a, b]
     const inputRevOxMin = document.getElementById('input-rev-ox-min');
     const inputRevOxMax = document.getElementById('input-rev-ox-max');
     const inputRevOyMin = document.getElementById('input-rev-oy-min');
     const inputRevOyMax = document.getElementById('input-rev-oy-max');
-    if (inputRevOxMin) inputRevOxMin.addEventListener('input', updateVolumeFormula);
-    if (inputRevOxMax) inputRevOxMax.addEventListener('input', updateVolumeFormula);
-    if (inputRevOyMin) inputRevOyMin.addEventListener('input', updateVolumeFormula);
-    if (inputRevOyMax) inputRevOyMax.addEventListener('input', updateVolumeFormula);
+    if (inputRevOxMin) inputRevOxMin.addEventListener('input', () => { updateVolumeFormula(); renderModalLivePreview(); });
+    if (inputRevOxMax) inputRevOxMax.addEventListener('input', () => { updateVolumeFormula(); renderModalLivePreview(); });
+    if (inputRevOyMin) inputRevOyMin.addEventListener('input', () => { updateVolumeFormula(); renderModalLivePreview(); });
+    if (inputRevOyMax) inputRevOyMax.addEventListener('input', () => { updateVolumeFormula(); renderModalLivePreview(); });
+
+    // Nút đồng bộ cận tự động cho Khối tròn xoay 3D
+    const btnRevAutoBounds = document.getElementById('btn-rev-auto-bounds');
+    if (btnRevAutoBounds) {
+      btnRevAutoBounds.addEventListener('click', () => {
+        if (!currentEditingWidget || !currentEditingWidget.functions) return;
+        const f1Idx = selRevFunc ? parseInt(selRevFunc.value, 10) || 0 : 0;
+        const f2Idx = selRevFunc2 ? parseInt(selRevFunc2.value, 10) : -1;
+        const f1 = currentEditingWidget.functions[f1Idx];
+        const f2 = f2Idx >= 0 ? currentEditingWidget.functions[f2Idx] : null;
+        if (!f1 || !f1.expr) return;
+        if (f2 && f2.expr) {
+          const inters = findTwoFunctionsIntersections(f1.expr, f2.expr);
+          if (inters.length >= 2) {
+            if (inputRevOxMin) inputRevOxMin.value = inters[0].x;
+            if (inputRevOxMax) inputRevOxMax.value = inters[1].x;
+          }
+        } else {
+          const roots = findFunctionRoots(f1.expr);
+          if (roots.length >= 2) {
+            if (inputRevOxMin) inputRevOxMin.value = roots[0];
+            if (inputRevOxMax) inputRevOxMax.value = roots[roots.length - 1];
+          } else if (roots.length === 1) {
+            if (inputRevOxMin) inputRevOxMin.value = Math.max(0, roots[0]);
+            if (inputRevOxMax) inputRevOxMax.value = Number((roots[0] + 2).toFixed(2));
+          }
+        }
+        updateVolumeFormula();
+        renderModalLivePreview();
+      });
+    }
+
+    // Góc nghiêng 3D & Lát cắt vi phân mẫu
+    const inputRevTilt = document.getElementById('input-rev-tilt');
+    const labelRevTilt = document.getElementById('label-rev-tilt');
+    const chkRevSlice = document.getElementById('chk-rev-show-slice');
+    if (inputRevTilt) {
+      inputRevTilt.addEventListener('input', () => {
+        if (labelRevTilt) labelRevTilt.textContent = inputRevTilt.value + '°';
+        setModalPreviewMode('3d');
+        renderModalLivePreview();
+      });
+    }
+    if (chkRevSlice) {
+      chkRevSlice.addEventListener('change', () => {
+        setModalPreviewMode('3d');
+        renderModalLivePreview();
+      });
+    }
 
     // Nút tốc độ xoay từ từ (0.5x, 1.0x, 2.0x)
     let currentAnimSpeed = 1.0;
@@ -1945,13 +2532,20 @@
     if (inputRevAngle && labelRevAngle) {
       inputRevAngle.addEventListener('input', () => {
         labelRevAngle.textContent = inputRevAngle.value + '° / 360°';
+        if (chkRevEnable && !chkRevEnable.checked) {
+          chkRevEnable.checked = true;
+          if (revControls) revControls.style.opacity = '1';
+        }
+        setModalPreviewMode('3d');
+        renderModalLivePreview();
       });
     }
 
-    // Nút điều khiển chuyển động xoay: Bắt đầu, Tạm dừng, Về 0°
+    // Nút điều khiển chuyển động xoay: Bắt đầu, Tạm dừng, Về 0°, Trọn 360°
     const btnRevPlay = document.getElementById('btn-rev-play');
     const btnRevPause = document.getElementById('btn-rev-pause');
     const btnRevReset = document.getElementById('btn-rev-reset');
+    const btnRevFull360 = document.getElementById('btn-rev-full360');
     const chkRevLoop = document.getElementById('chk-rev-loop');
 
     function stopModalSpin() {
@@ -1966,6 +2560,11 @@
     if (btnRevPlay) {
       btnRevPlay.addEventListener('click', () => {
         if (!inputRevAngle) return;
+        if (chkRevEnable && !chkRevEnable.checked) {
+          chkRevEnable.checked = true;
+          if (revControls) revControls.style.opacity = '1';
+        }
+        setModalPreviewMode('3d');
         btnRevPlay.style.display = 'none';
         if (btnRevPause) btnRevPause.style.display = 'inline-flex';
 
@@ -1973,8 +2572,7 @@
         if (currentAngle >= 360) currentAngle = 0;
 
         const loopSpin = () => {
-          // Bước xoay từ từ: 0.8 độ mỗi khung hình nhân với hệ số tốc độ
-          const step = 0.8 * currentAnimSpeed;
+          const step = 1.2 * currentAnimSpeed;
           currentAngle += step;
 
           if (currentAngle >= 360) {
@@ -1984,6 +2582,7 @@
               currentAngle = 360;
               inputRevAngle.value = 360;
               if (labelRevAngle) labelRevAngle.textContent = '360° / 360°';
+              renderModalLivePreview();
               stopModalSpin();
               return;
             }
@@ -1991,6 +2590,7 @@
 
           inputRevAngle.value = Math.round(currentAngle);
           if (labelRevAngle) labelRevAngle.textContent = Math.round(currentAngle) + '° / 360°';
+          renderModalLivePreview();
           spinAnimationId = requestAnimationFrame(loopSpin);
         };
 
@@ -2008,17 +2608,38 @@
         stopModalSpin();
         if (inputRevAngle) inputRevAngle.value = 0;
         if (labelRevAngle) labelRevAngle.textContent = '0° / 360°';
+        setModalPreviewMode('3d');
+        renderModalLivePreview();
       });
     }
 
-    // Scale slider
+    if (btnRevFull360) {
+      btnRevFull360.addEventListener('click', () => {
+        stopModalSpin();
+        if (chkRevEnable && !chkRevEnable.checked) {
+          chkRevEnable.checked = true;
+          if (revControls) revControls.style.opacity = '1';
+        }
+        if (inputRevAngle) inputRevAngle.value = 360;
+        if (labelRevAngle) labelRevAngle.textContent = '360° / 360°';
+        setModalPreviewMode('3d');
+        renderModalLivePreview();
+      });
+    }
+
+    // Scale slider & Grid/Axes checkboxes
     const inputScale = document.getElementById('input-graph-scale');
     const labelScale = document.getElementById('label-graph-scale');
+    const chkGrid = document.getElementById('chk-graph-grid');
+    const chkAxes = document.getElementById('chk-graph-axes');
     if (inputScale && labelScale) {
       inputScale.addEventListener('input', () => {
         labelScale.textContent = inputScale.value + 'px / đv';
+        renderModalLivePreview();
       });
     }
+    if (chkGrid) chkGrid.addEventListener('change', renderModalLivePreview);
+    if (chkAxes) chkAxes.addEventListener('change', renderModalLivePreview);
 
     // ---------------------------------------------------------
     // SỰ KIỆN TAB DIỆN TÍCH (S) VÀ THỂ TÍCH (V)
@@ -2030,6 +2651,7 @@
         areaControls.style.opacity = chkAreaEnable.checked ? '1' : '0.5';
         areaControls.style.pointerEvents = chkAreaEnable.checked ? 'auto' : 'none';
         updateAreaVolumeTabUI();
+        renderModalLivePreview();
       });
     }
 
@@ -2040,24 +2662,30 @@
         pillBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         updateAreaVolumeTabUI();
+        renderModalLivePreview();
       });
     });
 
     // Lắng nghe thay đổi select các hàm số
     ['select-area-1f', 'select-area-2f-1', 'select-area-2f-2', 'select-area-3f-1', 'select-area-3f-2', 'select-area-3f-3'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener('change', updateAreaVolumeTabUI);
+      if (el) el.addEventListener('change', () => { updateAreaVolumeTabUI(); renderModalLivePreview(); });
     });
 
     // Lắng nghe thay đổi các ô nhập cận
     ['input-area-1f-a', 'input-area-1f-b', 'input-area-2f-a', 'input-area-2f-b', 'input-area-3f-a', 'input-area-3f-b'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener('input', updateAreaVolumeTabUI);
+      if (el) el.addEventListener('input', () => { updateAreaVolumeTabUI(); renderModalLivePreview(); });
     });
 
     // Lắng nghe radio cận tự động / cận thủ công
     modalEl.querySelectorAll('input[name="radio-area-2f-bound"], input[name="radio-area-3f-bound"]').forEach(r => {
-      r.addEventListener('change', updateAreaVolumeTabUI);
+      r.addEventListener('change', () => { updateAreaVolumeTabUI(); renderModalLivePreview(); });
+    });
+
+    ['chk-area-draw-fill', 'chk-area-draw-lines', 'chk-area-draw-badge'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', renderModalLivePreview);
     });
 
     // Nút [🎯 Giao trục Ox] tự động tìm nghiệm của f(x)=0 làm cận
@@ -2076,14 +2704,14 @@
           if (inA) inA.value = roots[0];
           if (inB) inB.value = roots[roots.length - 1];
           updateAreaVolumeTabUI();
+          renderModalLivePreview();
         } else if (roots.length === 1) {
           const inA = document.getElementById('input-area-1f-a');
           const inB = document.getElementById('input-area-1f-b');
           if (inA) inA.value = roots[0];
           if (inB) inB.value = Number((roots[0] + 2).toFixed(2));
           updateAreaVolumeTabUI();
-        } else {
-          alert(`Hàm số y = ${fn.expr} không cắt trục Ox trên miền khảo sát [-12; 12].`);
+          renderModalLivePreview();
         }
       });
     }
@@ -2095,6 +2723,7 @@
         calcAxisBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         updateAreaVolumeTabUI();
+        renderModalLivePreview();
       });
     });
 
@@ -2141,35 +2770,42 @@
       chkVis.addEventListener('change', () => {
         fn.visible = chkVis.checked;
         row.classList.toggle('disabled', !fn.visible);
+        renderModalLivePreview();
       });
 
       inputExpr.addEventListener('input', () => {
         fn.expr = inputExpr.value;
-        updateVolumeFormula();
+        updateRevolutionFuncSelect();
+        updateAreaVolumeTabUI();
+        renderModalLivePreview();
       });
 
       inputColor.addEventListener('input', () => {
         fn.color = inputColor.value;
+        renderModalLivePreview();
       });
 
       rangeMin.addEventListener('input', () => {
         if (!fn.range) fn.range = [-5, 5];
         fn.range[0] = rangeMin.value !== '' ? parseFloat(rangeMin.value) : undefined;
+        renderModalLivePreview();
       });
 
       rangeMax.addEventListener('input', () => {
         if (!fn.range) fn.range = [-5, 5];
         fn.range[1] = rangeMax.value !== '' ? parseFloat(rangeMax.value) : undefined;
+        renderModalLivePreview();
       });
 
       btnDel.addEventListener('click', () => {
         if (currentEditingWidget.functions.length <= 1) {
-          alert('Cần giữ ít nhất 1 hàm số');
           return;
         }
         currentEditingWidget.functions.splice(idx, 1);
         renderFuncsList();
         updateRevolutionFuncSelect();
+        updateAreaVolumeTabUI();
+        renderModalLivePreview();
       });
 
       listEl.appendChild(row);
@@ -2208,14 +2844,15 @@
       const inputCol = row.querySelector('.pt-color');
       const btnDel = row.querySelector('.pt-del');
 
-      chkProj.addEventListener('change', () => pt.showProjection = chkProj.checked);
-      inputX.addEventListener('input', () => pt.x = parseFloat(inputX.value) || 0);
-      inputY.addEventListener('input', () => pt.y = parseFloat(inputY.value) || 0);
-      inputLbl.addEventListener('input', () => pt.label = inputLbl.value);
-      inputCol.addEventListener('input', () => pt.color = inputCol.value);
+      chkProj.addEventListener('change', () => { pt.showProjection = chkProj.checked; renderModalLivePreview(); });
+      inputX.addEventListener('input', () => { pt.x = parseFloat(inputX.value) || 0; renderModalLivePreview(); });
+      inputY.addEventListener('input', () => { pt.y = parseFloat(inputY.value) || 0; renderModalLivePreview(); });
+      inputLbl.addEventListener('input', () => { pt.label = inputLbl.value; renderModalLivePreview(); });
+      inputCol.addEventListener('input', () => { pt.color = inputCol.value; renderModalLivePreview(); });
       btnDel.addEventListener('click', () => {
         currentEditingWidget.specialPoints.splice(idx, 1);
         renderSpecialPointsList();
+        renderModalLivePreview();
       });
 
       listEl.appendChild(row);
@@ -2224,46 +2861,68 @@
 
   function updateRevolutionFuncSelect() {
     const sel = document.getElementById('select-rev-func');
+    const sel2 = document.getElementById('select-rev-func2');
     if (!sel || !currentEditingWidget) return;
+    const prev1 = sel.value;
+    const prev2 = sel2 ? sel2.value : '-1';
     sel.innerHTML = '';
+    if (sel2) {
+      sel2.innerHTML = '<option value="-1">Trục tọa độ (y = 0)</option>';
+    }
     const funcs = currentEditingWidget.functions || [];
     funcs.forEach((fn, idx) => {
       const opt = document.createElement('option');
       opt.value = idx;
       opt.textContent = `y${idx + 1} = ${fn.expr}`;
       sel.appendChild(opt);
+      if (sel2) {
+        const opt2 = document.createElement('option');
+        opt2.value = idx;
+        opt2.textContent = `y${idx + 1} = ${fn.expr}`;
+        sel2.appendChild(opt2);
+      }
     });
-    if (currentEditingWidget.revolution3D && currentEditingWidget.revolution3D.funcIndex !== undefined) {
+    if (prev1 !== '' && parseInt(prev1, 10) < funcs.length) {
+      sel.value = prev1;
+    } else if (currentEditingWidget.revolution3D && currentEditingWidget.revolution3D.funcIndex !== undefined) {
       sel.value = currentEditingWidget.revolution3D.funcIndex;
+    }
+    if (sel2) {
+      if (prev2 !== '' && parseInt(prev2, 10) < funcs.length) {
+        sel2.value = prev2;
+      } else if (currentEditingWidget.revolution3D && currentEditingWidget.revolution3D.func2Index !== undefined) {
+        sel2.value = currentEditingWidget.revolution3D.func2Index;
+      }
     }
     updateVolumeFormula();
   }
 
   function updateVolumeFormula() {
     const sel = document.getElementById('select-rev-func');
+    const sel2 = document.getElementById('select-rev-func2');
     const inputOxMin = document.getElementById('input-rev-ox-min');
     const inputOxMax = document.getElementById('input-rev-ox-max');
-    const inputOyMin = document.getElementById('input-rev-oy-min');
-    const inputOyMax = document.getElementById('input-rev-oy-max');
     const formulaText = document.getElementById('rev-formula-text');
     const volumeVal = document.getElementById('rev-volume-val');
     const axisBtn = document.querySelector('.btn-rev-axis.active');
 
     if (!formulaText || !volumeVal || !currentEditingWidget) return;
 
+    const funcs = currentEditingWidget.functions || [];
     const fIdx = sel ? parseInt(sel.value, 10) || 0 : 0;
-    const fObj = currentEditingWidget.functions && currentEditingWidget.functions[fIdx];
+    const f2Idx = sel2 ? parseInt(sel2.value, 10) : -1;
+    const fObj = funcs[fIdx];
+    const f2Obj = (f2Idx >= 0 && funcs[f2Idx]) ? funcs[f2Idx] : null;
     const axis = axisBtn ? axisBtn.getAttribute('data-axis') : 'Ox';
     const isOy = (axis === 'Oy' || axis === 'oy');
 
-    const oxMin = inputOxMin ? parseFloat(inputOxMin.value) || 0 : 0;
-    const oxMax = inputOxMax ? parseFloat(inputOxMax.value) || 2.5 : 2.5;
-    const oyMin = inputOyMin ? parseFloat(inputOyMin.value) || -2 : -2;
-    const oyMax = inputOyMax ? parseFloat(inputOyMax.value) || 3 : 3;
+    const oxMin = inputOxMin && inputOxMin.value !== '' ? parseFloat(inputOxMin.value) : 0;
+    const oxMax = inputOxMax && inputOxMax.value !== '' ? parseFloat(inputOxMax.value) : 2.5;
+    const rawMin = Math.min(isNaN(oxMin) ? 0 : oxMin, isNaN(oxMax) ? 2.5 : oxMax);
+    const rawMax = Math.max(isNaN(oxMin) ? 0 : oxMin, isNaN(oxMax) ? 2.5 : oxMax);
 
-    // Cận tích phân chính theo biến x:
-    const a = isOy ? Math.max(0, oxMin) : oxMin;
-    const b = isOy ? Math.max(a + 0.1, oxMax) : oxMax;
+    const a = isOy ? Math.max(0, rawMin) : rawMin;
+    const b = isOy ? Math.max(a + 0.1, rawMax) : rawMax;
 
     if (!fObj || !fObj.expr) {
       formulaText.innerHTML = '---';
@@ -2272,15 +2931,24 @@
     }
 
     if (!isOy) {
-      formulaText.innerHTML = `V = &pi; &int;<sub>${a}</sub><sup>${b}</sup> [${fObj.expr}]<sup>2</sup> dx <span style="font-size: 11px; color: #4a6358; font-weight: normal;">(Quay quanh trục hoành Ox)</span>`;
+      if (f2Obj && f2Obj.expr) {
+        formulaText.innerHTML = `V<sub>Ox</sub> = &pi; &int;<sub>${a}</sub><sup>${b}</sup> |(${fObj.expr})<sup>2</sup> &minus; (${f2Obj.expr})<sup>2</sup>| dx`;
+      } else {
+        formulaText.innerHTML = `V<sub>Ox</sub> = &pi; &int;<sub>${a}</sub><sup>${b}</sup> [${fObj.expr}]<sup>2</sup> dx <span style="font-size: 11px; color: #5b21b6; font-weight: 600;">(Phương pháp Đĩa tròn quanh Ox)</span>`;
+      }
     } else {
-      formulaText.innerHTML = `V = 2&pi; &int;<sub>${a}</sub><sup>${b}</sup> x &middot; |${fObj.expr}| dx <span style="font-size: 11px; color: #1e5e45; font-weight: bold;">(Quay quanh trục tung Oy - Phương pháp Vỏ trụ)</span>`;
+      if (f2Obj && f2Obj.expr) {
+        formulaText.innerHTML = `V<sub>Oy</sub> = 2&pi; &int;<sub>${a}</sub><sup>${b}</sup> x &middot; |(${fObj.expr}) &minus; (${f2Obj.expr})| dx`;
+      } else {
+        formulaText.innerHTML = `V<sub>Oy</sub> = 2&pi; &int;<sub>${a}</sub><sup>${b}</sup> x &middot; |${fObj.expr}| dx <span style="font-size: 11px; color: #0284c7; font-weight: 600;">(Phương pháp Vỏ trụ quanh Oy)</span>`;
+      }
     }
 
-    const vol = calculateRevolutionVolume(fObj.expr, axis, a, b);
+    const vol = calculateRevolutionVolume(fObj.expr, axis, a, b, f2Obj ? f2Obj.expr : null);
     if (vol !== null) {
-      const rounded = Math.round(vol * 1000) / 1000;
-      volumeVal.textContent = `Thể tích tính toán: V ≈ ${rounded} π (đơn vị thể tích)`;
+      const piCoeff = Number((vol / Math.PI).toFixed(4));
+      const decVal = Number(vol.toFixed(4));
+      volumeVal.textContent = `Thể tích: V ≈ ${piCoeff}π ≈ ${decVal} (đơn vị thể tích)`;
     } else {
       volumeVal.textContent = 'Thể tích tính toán: Không thể tính trên khoảng này';
     }
@@ -2293,7 +2961,6 @@
     if (!currentEditingWidget) return;
     const funcs = currentEditingWidget.functions || [];
 
-    // 1. Đổ danh sách hàm số vào các select
     const sel1f = document.getElementById('select-area-1f');
     const sel2f1 = document.getElementById('select-area-2f-1');
     const sel2f2 = document.getElementById('select-area-2f-2');
@@ -2325,11 +2992,9 @@
     fillSelect(sel3f2, Math.min(1, funcs.length - 1));
     fillSelect(sel3f3, Math.min(2, funcs.length - 1));
 
-    // 2. Xác định số hàm số đang chọn (1, 2, hoặc 3)
     const activePill = document.querySelector('#group-area-func-count .btn-pill-choice.active');
     const funcCount = activePill ? parseInt(activePill.getAttribute('data-count'), 10) || 1 : 1;
 
-    // Ẩn hiện các section
     const sec1 = document.getElementById('area-sec-1func');
     const sec2 = document.getElementById('area-sec-2funcs');
     const sec3 = document.getElementById('area-sec-3funcs');
@@ -2337,7 +3002,6 @@
     if (sec2) sec2.style.display = funcCount === 2 ? 'block' : 'none';
     if (sec3) sec3.style.display = funcCount === 3 ? 'block' : 'none';
 
-    // 3. Xử lý cận theo từng trường hợp
     let boundMode = 'auto';
     let aVal = 0, bVal = 2;
     let expr1 = '', expr2 = '', expr3 = '';
@@ -2373,17 +3037,17 @@
           aVal = inters[0].x;
           bVal = inters[1].x;
           if (lblInfo) {
-            lblInfo.innerHTML = `Đã tìm thấy ${inters.length} giao điểm: <b>${inters.map(p => `(${p.x}; ${p.y})`).join(', ')}</b>. Đã lấy cận [x₁ = ${aVal}; x₂ = ${bVal}].`;
+            lblInfo.innerHTML = `Đã tìm thấy ${inters.length} giao điểm: <b>${inters.map(p => `(${p.x}; ${p.y})`).join(', ')}</b>. Cận [x₁ = ${aVal}; x₂ = ${bVal}].`;
           }
         } else if (inters.length === 1) {
           aVal = inters[0].x;
           bVal = inters[0].x + 2;
           if (lblInfo) {
-            lblInfo.innerHTML = `⚠️ Chỉ có 1 giao điểm tại (${inters[0].x}; ${inters[0].y}). Không đủ 2 cận khép kín, hãy chọn "Người dùng tự thêm 2 cận" để tính 4 đường.`;
+            lblInfo.innerHTML = `⚠️ Chỉ có 1 giao điểm tại (${inters[0].x}; ${inters[0].y}). Hãy chọn "Tự nhập 2 cận x = a và x = b".`;
           }
         } else {
           if (lblInfo) {
-            lblInfo.innerHTML = `⚠️ Hai đồ thị không cắt nhau trên miền khảo sát. Hãy chọn "Người dùng tự thêm 2 cận" để tính diện tích hình phẳng giới hạn bởi 4 đường.`;
+            lblInfo.innerHTML = `⚠️ Hai đồ thị không cắt nhau trên miền khảo sát. Hãy chọn "Tự nhập 2 cận x = a và x = b".`;
           }
         }
       } else {
@@ -2422,11 +3086,11 @@
           aVal = tri[0].x;
           bVal = tri[2].x;
           if (lblInfo) {
-            lblInfo.innerHTML = `Đã tìm thấy 3 đỉnh miền kín: <b>${tri.map(p => `(${p.x}; ${p.y})`).join(', ')}</b> (chia 2 khoảng [${tri[0].x}; ${tri[1].x}] và [${tri[1].x}; ${tri[2].x}]).`;
+            lblInfo.innerHTML = `Đã tìm thấy 3 đỉnh miền kín: <b>${tri.map(p => `(${p.x}; ${p.y})`).join(', ')}</b>.`;
           }
         } else {
           if (lblInfo) {
-            lblInfo.innerHTML = `⚠️ Không tìm đủ 3 giao điểm tạo thành miền kín tam giác cong. Bạn có thể chọn "Người dùng tự thêm 2 cận".`;
+            lblInfo.innerHTML = `⚠️ Không tìm đủ 3 giao điểm tạo thành miền kín tam giác cong. Hãy chọn "Tự nhập 2 cận".`;
           }
         }
       } else {
@@ -2439,11 +3103,9 @@
       }
     }
 
-    // 4. Trục quay tính thể tích
     const activeAxisBtn = document.querySelector('.btn-calc-axis.active');
     const axis = activeAxisBtn ? activeAxisBtn.getAttribute('data-axis') : 'Ox';
 
-    // 5. Tính toán kết quả & Cập nhật thẻ hiển thị
     const formulaArea = document.getElementById('area-formula-display');
     const valArea = document.getElementById('area-value-display');
     const formulaVol = document.getElementById('volume-formula-display');
@@ -2463,12 +3125,17 @@
     if (res && res.success) {
       if (formulaArea) formulaArea.innerHTML = res.areaFormula;
       if (valArea) {
-        valArea.textContent = `S ≈ ${Number(res.area.toFixed(4))} (đơn vị diện tích)`;
+        valArea.textContent = `S ≈ ${Number(res.area.toFixed(4))} (đvdt)`;
         valArea.style.color = '#047857';
       }
       if (formulaVol) formulaVol.innerHTML = res.volumeFormula;
       if (valVol) {
-        valVol.textContent = res.volume !== null ? `V ≈ ${Number(res.volume.toFixed(4))} (đơn vị thể tích)` : 'Không thể tính trên khoảng này';
+        if (res.volume !== null) {
+          const piC = Number((res.volume / Math.PI).toFixed(4));
+          valVol.textContent = `V ≈ ${piC}π ≈ ${Number(res.volume.toFixed(4))} (đvtt)`;
+        } else {
+          valVol.textContent = 'Không thể tính trên khoảng này';
+        }
         valVol.style.color = '#047857';
       }
     } else {
@@ -2491,8 +3158,7 @@
     const modalEl = document.getElementById('modal-graph-settings');
     if (!modalEl) return;
 
-    // Reset Tabs hoặc chọn initialTab nếu có
-    const targetTab = initialTab || 'tab-graph-funcs';
+    const targetTab = initialTab || (currentEditingWidget.revolution3D && currentEditingWidget.revolution3D.enabled ? 'tab-graph-revolution' : 'tab-graph-funcs');
     modalEl.querySelectorAll('.graph-tab-btn').forEach(b => {
       b.classList.toggle('active', b.getAttribute('data-tab') === targetTab);
     });
@@ -2581,12 +3247,15 @@
     const inputOyMax = document.getElementById('input-rev-oy-max');
     const inputAngle = document.getElementById('input-rev-angle');
     const labelAngle = document.getElementById('label-rev-angle');
+    const inputTilt = document.getElementById('input-rev-tilt');
+    const labelTilt = document.getElementById('label-rev-tilt');
+    const chkSlice = document.getElementById('chk-rev-show-slice');
     const chkLoop = document.getElementById('chk-rev-loop');
 
     if (chkRev) chkRev.checked = !!rev.enabled;
     if (revControls) {
-      revControls.style.opacity = rev.enabled ? '1' : '0.5';
-      revControls.style.pointerEvents = rev.enabled ? 'auto' : 'none';
+      revControls.style.opacity = rev.enabled ? '1' : '0.85';
+      revControls.style.pointerEvents = 'auto';
     }
 
     const oxRange = rev.rangeX || rev.range || [0, 2.5];
@@ -2598,9 +3267,11 @@
 
     if (inputAngle) inputAngle.value = (rev.angleDeg !== undefined) ? rev.angleDeg : 0;
     if (labelAngle) labelAngle.textContent = (rev.angleDeg !== undefined ? rev.angleDeg : 0) + '° / 360°';
+    if (inputTilt) inputTilt.value = (rev.tiltDeg !== undefined) ? rev.tiltDeg : 28;
+    if (labelTilt) labelTilt.textContent = ((rev.tiltDeg !== undefined) ? rev.tiltDeg : 28) + '°';
+    if (chkSlice) chkSlice.checked = rev.showSlice !== false;
     if (chkLoop) chkLoop.checked = rev.isLoop !== false;
 
-    // Chọn tốc độ (0.5x, 1.0x, 2.0x)
     const currentSpeed = rev.speed || 1.0;
     const speedBtns = modalEl.querySelectorAll('.btn-rev-speed');
     speedBtns.forEach(b => {
@@ -2621,6 +3292,7 @@
     updateVolumeFormula();
 
     modalEl.style.display = 'flex';
+    setModalPreviewMode(targetTab === 'tab-graph-revolution' || rev.enabled ? '3d' : '2d');
   }
 
   function closeGraphModal() {
@@ -2638,116 +3310,8 @@
 
   function applyGraphModalChanges() {
     if (!currentEditingWidget) return;
-
-    // 1. Thu thập Tab 1: Cài đặt tỷ lệ & hiển thị trục
-    const inputScale = document.getElementById('input-graph-scale');
-    const chkGrid = document.getElementById('chk-graph-grid');
-    const chkAxes = document.getElementById('chk-graph-axes');
-    if (inputScale) currentEditingWidget.scale = parseInt(inputScale.value, 10) || 36;
-    if (chkGrid) currentEditingWidget.showGrid = chkGrid.checked;
-    if (chkAxes) currentEditingWidget.showAxes = chkAxes.checked;
-
-    // 2. Thu thập Tab 3: Cài đặt Diện tích (S) & Thể tích (V)
-    const chkAreaEnable = document.getElementById('chk-area-enable');
-    const activePill = document.querySelector('#group-area-func-count .btn-pill-choice.active');
-    const funcCount = activePill ? parseInt(activePill.getAttribute('data-count'), 10) || 1 : 1;
-    const activeCalcAxisBtn = document.querySelector('.btn-calc-axis.active');
-    const chkFill = document.getElementById('chk-area-draw-fill');
-    const chkLines = document.getElementById('chk-area-draw-lines');
-    const chkBadge = document.getElementById('chk-area-draw-badge');
-
-    let boundMode = 'auto';
-    let customA = 0, customB = 2;
-    let f1Expr = '', f2Expr = '', f3Expr = '';
-
-    if (funcCount === 1) {
-      const sel1f = document.getElementById('select-area-1f');
-      const idx = sel1f ? parseInt(sel1f.value, 10) || 0 : 0;
-      f1Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx] ? currentEditingWidget.functions[idx].expr : 'x^2';
-      const inA = document.getElementById('input-area-1f-a');
-      const inB = document.getElementById('input-area-1f-b');
-      customA = inA ? parseFloat(inA.value) || 0 : 0;
-      customB = inB ? parseFloat(inB.value) || 2 : 2;
-      boundMode = 'manual';
-    } else if (funcCount === 2) {
-      const sel2f1 = document.getElementById('select-area-2f-1');
-      const sel2f2 = document.getElementById('select-area-2f-2');
-      const idx1 = sel2f1 ? parseInt(sel2f1.value, 10) || 0 : 0;
-      const idx2 = sel2f2 ? parseInt(sel2f2.value, 10) || 0 : 0;
-      f1Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx1] ? currentEditingWidget.functions[idx1].expr : 'x^2';
-      f2Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx2] ? currentEditingWidget.functions[idx2].expr : 'x';
-      const rAuto = document.querySelector('input[name="radio-area-2f-bound"][value="auto"]');
-      boundMode = rAuto && rAuto.checked ? 'auto' : 'manual';
-      const inA = document.getElementById('input-area-2f-a');
-      const inB = document.getElementById('input-area-2f-b');
-      customA = inA ? parseFloat(inA.value) || 0 : 0;
-      customB = inB ? parseFloat(inB.value) || 2 : 2;
-    } else if (funcCount === 3) {
-      const sel3f1 = document.getElementById('select-area-3f-1');
-      const sel3f2 = document.getElementById('select-area-3f-2');
-      const sel3f3 = document.getElementById('select-area-3f-3');
-      const idx1 = sel3f1 ? parseInt(sel3f1.value, 10) || 0 : 0;
-      const idx2 = sel3f2 ? parseInt(sel3f2.value, 10) || 0 : 0;
-      const idx3 = sel3f3 ? parseInt(sel3f3.value, 10) || 0 : 0;
-      f1Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx1] ? currentEditingWidget.functions[idx1].expr : 'x^2';
-      f2Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx2] ? currentEditingWidget.functions[idx2].expr : '2-x';
-      f3Expr = currentEditingWidget.functions && currentEditingWidget.functions[idx3] ? currentEditingWidget.functions[idx3].expr : '-x';
-      const rAuto = document.querySelector('input[name="radio-area-3f-bound"][value="auto"]');
-      boundMode = rAuto && rAuto.checked ? 'auto' : 'manual';
-      const inA = document.getElementById('input-area-3f-a');
-      const inB = document.getElementById('input-area-3f-b');
-      customA = inA ? parseFloat(inA.value) || 0 : 0;
-      customB = inB ? parseFloat(inB.value) || 3 : 3;
-    }
-
-    currentEditingWidget.areaCalc = {
-      enabled: chkAreaEnable ? chkAreaEnable.checked : true,
-      funcCount: funcCount,
-      func1: f1Expr,
-      func2: f2Expr,
-      func3: f3Expr,
-      boundMode: boundMode,
-      a: customA,
-      b: customB,
-      axis: activeCalcAxisBtn ? activeCalcAxisBtn.getAttribute('data-axis') : 'Ox',
-      drawFill: chkFill ? chkFill.checked : true,
-      drawLines: chkLines ? chkLines.checked : true,
-      showBadge: chkBadge ? chkBadge.checked : true
-    };
-
-    // 3. Thu thập Tab 4: Thể tích 3D
-    const chkRev = document.getElementById('chk-rev-enable');
-    const selRevFunc = document.getElementById('select-rev-func');
-    const activeAxisBtn = document.querySelector('.btn-rev-axis.active');
-    const inputOxMin = document.getElementById('input-rev-ox-min');
-    const inputOxMax = document.getElementById('input-rev-ox-max');
-    const inputOyMin = document.getElementById('input-rev-oy-min');
-    const inputOyMax = document.getElementById('input-rev-oy-max');
-    const inputAngle = document.getElementById('input-rev-angle');
-    const activeSpeedBtn = document.querySelector('.btn-rev-speed.active');
-    const chkLoop = document.getElementById('chk-rev-loop');
-
-    if (!currentEditingWidget.revolution3D) {
-      currentEditingWidget.revolution3D = {};
-    }
-    currentEditingWidget.revolution3D.enabled = chkRev ? chkRev.checked : false;
-    currentEditingWidget.revolution3D.funcIndex = selRevFunc ? parseInt(selRevFunc.value, 10) || 0 : 0;
-    currentEditingWidget.revolution3D.axis = activeAxisBtn ? activeAxisBtn.getAttribute('data-axis') : 'Ox';
-
-    const oxMin = inputOxMin ? parseFloat(inputOxMin.value) || 0 : 0;
-    const oxMax = inputOxMax ? parseFloat(inputOxMax.value) || 2.5 : 2.5;
-    const oyMin = inputOyMin ? parseFloat(inputOyMin.value) || -2 : -2;
-    const oyMax = inputOyMax ? parseFloat(inputOyMax.value) || 3 : 3;
-
-    currentEditingWidget.revolution3D.rangeX = [oxMin, oxMax];
-    currentEditingWidget.revolution3D.rangeY = [oyMin, oyMax];
-    currentEditingWidget.revolution3D.range = currentEditingWidget.revolution3D.axis === 'Ox' ? [oxMin, oxMax] : [Math.max(0, oxMin), Math.max(oxMin + 0.1, oxMax)];
-    currentEditingWidget.revolution3D.angleDeg = inputAngle ? parseFloat(inputAngle.value) || 0 : 0;
-    currentEditingWidget.revolution3D.speed = activeSpeedBtn ? parseFloat(activeSpeedBtn.getAttribute('data-speed')) || 1.0 : 1.0;
-    currentEditingWidget.revolution3D.isLoop = chkLoop ? chkLoop.checked : true;
-
+    syncDraftStateFromModalInputs();
     closeGraphModal();
-
     if (typeof onApplyCallback === 'function') {
       onApplyCallback(currentEditingWidget);
     }
@@ -2771,7 +3335,10 @@
     calculateAreaAndVolumeDetailed,
     findTwoFunctionsIntersections,
     findFunctionRoots,
+    project3DSolidPoint,
     drawGraphWidget,
+    drawSolidOfRevolution3D,
+    renderModalLivePreview,
     hitTestGraphWidget,
     hitTestWidgetHeaderButtons,
     hitTestWidgetResizeHandle,

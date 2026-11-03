@@ -1,12 +1,85 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 02/11/2026
+**Cập nhật lần cuối:** 03/11/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Đồng Bộ 100% Thao Tác Phím Bấm Theo Sách Hướng Dẫn Sử Dụng `fx-580VNX_VI.pdf` (Trang 117–154: Tính Toán Thống Kê - v56):**
+    + *Thực đơn `OPTN` ngữ cảnh kép (Context-Sensitive `OPTN`) đúng y hệt sách HDSD trang 122–126:*
+      * **Khi bấm `OPTN` ngay tại Bộ soạn thảo thống kê (`STAT_INPUT` — HDSD trang 122):**
+        - *1-Biến (`1-Variable`):* `1: Chọn kiểu (Select Type)`, `2: Bộ soạn thảo (Editor)`, `3: Tính 1-biến (1-Variable Calc)`, `4: Tính thống kê (Statistics Calc)`.
+        - *2-Biến (`2-Variable`):* Trang 1 (`▼`): `1: Chọn kiểu`, `2: Bộ soạn thảo`, `3: Tính 2-biến`, `4: Tính hồi quy`; Trang 2 (`▲`): `1: Tính thống kê`.
+        - *Menu phụ `2: Bộ soạn thảo (Editor)` (`STAT_EDITOR` — HDSD trang 120, 122):* `1: Chèn dòng (Insert Row)` chèn dòng mới ngay tại vị trí con trỏ; `2: Xóa tất cả (Delete All)` xóa sạch bảng thống kê.
+      * **Khi bấm `AC` sang Màn hình tính toán thống kê (`STAT_CALC`) rồi bấm `OPTN` (HDSD trang 123–126):**
+        - *1-Biến:*
+          + Trang 1 (`▼`): `1: Chọn kiểu`, `2: Tính 1-biến`, `3: Dữ liệu (Data)`.
+          + Trang 2 (`▲` — bấm `▼` để xuống): `1: Tính tổng (Summation)`, `2: Biến số (Variable)`, `3: Cực tiểu/Cực đại (Min/Max)`, `4: Phân phối chuẩn (Norm Dist)`.
+        - *2-Biến:*
+          + Trang 1 (`▼`): `1: Chọn kiểu`, `2: Tính 2-biến`, `3: Tính hồi quy`, `4: Dữ liệu (Data)`.
+          + Trang 2 (`▲` — bấm `▼` để xuống): `1: Tính tổng (Summation)`, `2: Biến số (Variable)`, `3: Cực tiểu/Cực đại (Min/Max)`, `4: Hồi quy (Regression)`.
+    + *Đầy đủ các Menu phụ lệnh thống kê (`STAT_SUBMENU`) và Tính biểu thức trực tiếp trên màn hình `STAT_CALC` (HDSD trang 127–154):*
+      * **`1: Tính tổng (Summation)`:** 1-Biến gồm `1: Σx`, `2: Σx²`; 2-Biến gồm Trang 1 (`1: Σx`, `2: Σx²`, `3: Σy`, `4: Σy²`) và Trang 2 (`1: Σxy`, `2: Σx³`, `3: Σx²y`, `4: Σx⁴`).
+      * **`2: Biến số (Variable)`:** 1-Biến gồm Trang 1 (`1: x̄`, `2: σ²x`, `3: σx`, `4: s²x`) và Trang 2 (`1: sx`, `2: n`); 2-Biến thêm Trang 2 (`3: ȳ`, `4: σ²y`) và Trang 3 (`1: σy`, `2: s²y`, `3: sy`).
+      * **`3: Cực tiểu/Cực đại (Min/Max)`:** 1-Biến gồm Trang 1 (`1: min(x)`, `2: Q₁`, `3: Med`, `4: Q₃`) và Trang 2 (`1: max(x)`); 2-Biến gồm `1: min(x)`, `2: max(x)`, `3: min(y)`, `4: max(y)`.
+      * **`4: Phân phối chuẩn (Norm Dist — 1-Biến, HDSD trang 129–132)`:** `1: P(`, `2: Q(`, `3: R(`, `4: ▶t` (chuẩn hóa $X\blacktriangleright t = \frac{X - \bar{x}}{\sigma_x}$ và tính xác suất tích lũy chuẩn $P(t), Q(t), R(t)$, hỗ trợ gõ trực tiếp `P(3▶t)` hoặc `R(7▶t)`).
+      * **`4: Hồi quy (Regression — 2-Biến, HDSD trang 134–154)`:** Hỗ trợ cả 7 mô hình hồi quy (`y=a+bx`, `y=a+bx+cx²`, `y=a+b·ln(x)`, `y=a·e^(bx)`, `y=a·b^x`, `y=a·x^b`, `y=a+b/x`) cùng các biến `a`, `b`, `c`, `r` và toán tử ước lượng hậu tố `x̂`, `x̂₁`, `x̂₂`, `ŷ` (ví dụ `-3x̂`, `2ŷ`, `20x̂₁`, `20x̂₂`).
+    + *Nâng cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v56` và query string `?v=20261103_1045` trong `web/index.html`.
+  - **Chuẩn Hóa Logic & Giao Diện Bấm Thống Kê (Mode 6: STAT) Trên Máy Tính Casio fx-580VN X (Authentic Statistics Workflow - v55):**
+    + *Bước 1 — Vào Chế độ Thống kê & Chọn dạng (`MENU` $\rightarrow$ `6` $\rightarrow$ `Chọn dạng`):*
+      * Khi bấm `MENU` $\rightarrow$ `6`, màn hình LCD mở ngay thực đơn **`Chọn dạng` (`Select Type` - `STAT_TYPE`)** 2 trang chuẩn Casio fx-580VN X:
+        - Trang 1 (`▼`): `1: 1-Biến`, `2: y=a+bx`, `3: y=a+bx+cx²`, `4: y=a+b·ln(x)`.
+        - Trang 2 (`▲` - bấm `▼`/`▲` để chuyển): `1: y=a·e^(bx)`, `2: y=a·b^x`, `3: y=a·x^b`, `4: y=a+b/x`.
+    + *Bước 2 — Bật / Tắt Cột Tần Số `Freq` (`SHIFT` + `MENU` [SETUP] $\rightarrow$ `▼` $\rightarrow$ `3: Thống kê` $\rightarrow$ `1: Bật` / `2: Tắt`):*
+      * Hỗ trợ bấm `SHIFT` + `MENU` ngay từ trong bảng nhập liệu `STAT_INPUT` (hoặc bất kỳ màn hình nào), xuống Trang 2 chọn `3: Thống kê` $\rightarrow$ hiện **`Tần số? (Frequency?)`** (`1: Bật` / `2: Tắt`).
+      * Sau khi chọn `1: Bật`, máy tự động quay trở về ngay bảng dữ liệu `STAT_INPUT` đang mở và hiển thị thêm cột **`Freq`** bên cạnh cột **`x`** mà không làm mất dữ liệu đang nhập.
+    + *Bước 3 — Giao diện Bảng Lưới Nhập Số Liệu (`STAT_INPUT`) & Tính Giá Trị Đại Diện Mẫu Ghép Nhóm:*
+      * Hiển thị bảng lưới 3 dòng dữ liệu liên tiếp + thanh nhập liệu dưới đáy, ô đang chọn có nền đen chữ trắng (`inverted highlight`) đúng chuẩn LCD ClassWiz.
+      * Khi nhập giá trị vào cột `x` rồi bấm `=`, máy tự động điền mặc định `Freq = 1` cho dòng đó và nhảy xuống dòng `x` kế tiếp; dùng phím mũi tên `▶` (`RIGHT`) / `◀` (`LEFT`) / `▲` / `▼` để chuyển qua cột `Freq` (hoặc cột `y` với thống kê 2 biến) và nhập tần số $n_i$.
+      * Hỗ trợ gõ trực tiếp phép tính giá trị đại diện $x_i = (a+b)\div 2$ ngay tại ô cột `x` cho các bài toán **Mẫu số liệu ghép nhóm** $[a; b)$.
+    + *Bước 4 — Thực đơn `OPTN` & Màn hình Kết quả 3 Trang Đầy Đủ 13 Đại Lượng (`STAT_RESULT`):*
+      * Sau khi nhập xong (hoặc bấm `AC` ra màn hình `[STAT]`), bấm **`OPTN` $\rightarrow$ `2` (`2: Tính 1-Biến`)** để xem bảng kết quả chia thành 3 trang chuẩn Casio fx-580VN X (cuộn bằng `▼` / `▲`):
+        - **Trang 1:** Số trung bình $\bar{x}$, Tổng $\sum x$, Tổng bình phương $\sum x^2$, Phương sai tổng thể $\sigma^2_x$.
+        - **Trang 2:** Độ lệch chuẩn tổng thể $\sigma_x$, Phương sai mẫu $s^2_x$, Độ lệch chuẩn mẫu $s_x$, Cỡ mẫu / Tổng tần số $n = \sum \text{Freq}$.
+        - **Trang 3:** Giá trị nhỏ nhất $\min(x)$, Tứ phân vị thứ nhất $Q_1$, Trung vị $\text{Med}$ ($Q_2$), Tứ phân vị thứ ba $Q_3$, Giá trị lớn nhất $\max(x)$.
+      * Hỗ trợ thêm Thống kê 2 biến (`2: Tính 2-Biến`) và Hồi quy (`3: Tính hồi quy` tìm hệ số $a, b, r$ hoặc $a, b, c$).
+    + *Nâng cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v55` và query string `?v=20261103_1025` trong `web/index.html`.
+  - **Giao Diện Studio Đồ Thị 2 Cột & Thuật Toán Tối Ưu Mô Phỏng Khối Tròn Xoay 3D Quanh Trục $Ox$ và $Oy$ (Graph Studio UI & Optimal 3D Solid of Revolution - v54):**
+    + *Giao diện Bảng Cài Đặt Đồ Thị & Khối Xoay 3D dạng Studio 2 Cột (`Split-View Live Preview`):*
+      * Mở rộng hộp thoại cài đặt (`890px`) thành 2 cột trực quan: **Cột trái** là các thẻ điều khiển gọn gàng, thanh 4 Tab hiển thị 1 dòng không bị rớt chữ (`📈 1. Hàm số & Hệ trục`, `🎯 2. Điểm đặc biệt`, `📐 3. Diện tích (S) & Thể tích (V)`, `🔄 4. Mô phỏng Khối xoay 3D`), kèm dải nút **Chèn nhanh hàm mẫu** (`Parabol`, `Bậc 3`, `Bậc 4 trùng phương`, `Căn thức`, `Lượng giác`, `Hàm mũ`).
+      * **Cột phải (`#graph-modal-preview-canvas`)** là **Khung Xem Trước Trực Tiếp 2D / 3D (Live Preview)** cập nhật tức thì mỗi khi người dùng gõ hàm số, đổi cận $[a; b]$, chọn trục quay $Ox$ / $Oy$, kéo thanh góc quét $0^\circ \to 360^\circ$ hoặc bấm chạy mô phỏng ngay trong hộp thoại; hỗ trợ kéo chuột trực tiếp trên khung xem trước để nghiêng góc nhìn 3D.
+    + *Thuật toán tối ưu mô tả Khối Tròn Xoay 3D quanh trục $Ox$ và trục $Oy$ (`drawSolidOfRevolution3D` & `calculateRevolutionVolume`):*
+      * **Lưới mặt cong tham số 3D + Sắp xếp độ sâu Painter's Algorithm ($Z$-sort từ xa tới gần) + Đổ bóng pháp tuyến Lambert (`project3DSolidPoint`, `computeQuadNormalShade`):**
+        - **Quay quanh trục hoành $Ox$ (Phương pháp Đĩa / Vành khăn — Disk / Washer):**
+          + Phương trình mặt xoay: $P_{Ox}(x, \alpha) = (x,\; R(x)\cos\alpha,\; R(x)\sin\alpha)$, hỗ trợ cả miền 1 hàm $y = f(x)$ lẫn miền giới hạn bởi 2 hàm $y = f(x)$ và $y = g(x)$ ($V = \pi \int_a^b |f^2(x) - g^2(x)|\,dx$).
+          + Vẽ đầy đủ các dải tứ giác mặt ngoài/mặt trong đã sắp xếp độ sâu $Z$, các vòng tròn vĩ tuyến (nửa khuất phía sau $Z < 0$ vẽ nét đứt, nửa phía trước $Z \ge 0$ vẽ nét liền), lá phẳng ban đầu ở $0^\circ$, lá mặt cắt đang quét ở góc $\theta$, và **Lát cắt Đĩa / Vành khăn vi phân đại diện ($\Delta V = \pi |f^2(x) - g^2(x)|\,dx$)** kèm bán kính $R = |f(x)|$.
+        - **Quay quanh trục tung $Oy$ (Phương pháp Vỏ trụ / Đĩa ngang — Cylindrical Shells / Horizontal Disks):**
+          + Phương trình mặt xoay quanh trục đứng $Oy$: $P_{Oy}(x, \alpha) = (x\cos\alpha,\; y,\; x\sin\alpha)$ với bán kính quay $r = |x|$ tính từ trục $Oy$, tạo thành mặt nóc $y = f(x)$, mặt đáy $y = g(x)$ và thành trụ ngoài/trong tại $x = b, x = a$ ($V = 2\pi \int_a^b |x \cdot [f(x) - g(x)]|\,dx$).
+          + Vẽ trực quan **Lát cắt Vỏ trụ vi phân đại diện ($\Delta V = 2\pi x |f(x) - g(x)|\,dx$)** với bán kính $r = x$ nối từ trục $Oy$, giúp học sinh và giáo viên nhìn thấy ngay bản chất hình học của cả hai phương pháp xoay quanh $Ox$ và $Oy$.
+      * Khắc phục lỗi hiển thị nhân đôi hằng số $\pi$: nay hiển thị đồng thời cả hệ số $\pi$ chuẩn xác lẫn giá trị thập phân (`V ≈ k·π ≈ giá_trị (đvtt)`).
+    + *Nâng cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v54` và query string `?v=20261102_1955` trong `web/index.html`.
+  - **Thuật Toán 3 Tầng Nhận Diện Đỉnh — Cạnh — Quét Chọn Cả Hình Trên Các Hình Phức Tạp (3-Tier Surgical Selection Algorithm - v53):**
+    + *Tầng 1 — Ưu tiên Vùng Lõi Điểm / Đỉnh ($R_{\text{đỉnh}} \le 18\text{px}$):*
+      * Khi con trỏ nằm trong bán kính lõi $18\text{px}$ quanh một Điểm rời hoặc một Đỉnh của hình 2D/3D (nơi nhiều cạnh cùng hội tụ), thuật toán ưu tiên chọn **riêng Điểm / Đỉnh đó** (`state.selectedVertex`).
+      * Giao diện **chỉ phát sáng đúng 1 Đỉnh được chọn** (kèm vòng hào quang xanh ngọc và mũi tên chỉ báo), **không** làm sáng tất cả các cạnh còn lại và **không** vẽ khung chữ nhật nét đứt bao quanh cả hình.
+    + *Tầng 2 — Hình Chiếu Vuông Góc Lên Cạnh / Đoạn Thẳng (Ngoài Vùng Đỉnh, $d_{\text{cạnh}} \le 22\text{px}$):*
+      * Khi con trỏ nằm ngoài vùng lõi đỉnh ($> 18\text{px}$), thuật toán hạ đường vuông góc từ con trỏ xuống từng đoạn thẳng $P_1P_2$ với hệ số nội suy $t \in [0, 1]$ (`findEdgeAt`) để tìm cạnh có khoảng cách vuông góc nhỏ nhất.
+      * Giao diện **chỉ phát sáng duy nhất 1 Cạnh được chọn** (`state.selectedEdge`) cùng 2 chấm tròn ở hai đầu mút của cạnh đó, giúp người dùng biết chính xác mình đang tác động vào cạnh nào trên các hình chóp/lăng trụ phức tạp.
+    + *Tầng 3 — Quét Chọn Vùng Để Chọn Cả Hình (`Marquee Sweep` — `state.isFromAreaSelect === true`):*
+      * Chỉ khi người dùng nhấn giữ và **kéo quét vùng chọn (quét chuột)** bao qua hình, hệ thống mới kích hoạt chế độ chọn **Cả Hình** (phát sáng toàn bộ các cạnh + hiện khung chữ nhật nét đứt bao ngoài + toàn bộ chốt điều khiển và thanh công cụ nổi).
+    + *Nâng cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v53` và query string `?v=20261102_1935` trong `web/index.html`.
+  - **Chuột Phải Vào Đoạn Thẳng / Cạnh: Đổi Nét Đứt ⇋ Nét Liền, Đổi Màu, Đặt Tên & Đổi Tên (Right-Click Segment Style, Color & Naming - v52):**
+    + *Đổi Nét liền ⇋ Nét đứt tức thì cho từng đoạn thẳng / cạnh:*
+      * Khi bấm chuột phải vào bất kỳ Đoạn thẳng / Đường thẳng (`line`, `perpendicular`, `parallel`, `bisector`, `tangent`, `perpendicular-bisector`), Cạnh đa giác 2D (`triangle`, `rectangle`, `square`, `parallelogram`, `rhombus`, `inscribed-triangle`) hoặc Cạnh khối 3D HHKG (`solid-edge`), menu nổi hiển thị cặp nút trực quan **`━━ Nét liền`** và **`╌╌ Nét đứt`** (`applyDashToTarget`).
+      * Hỗ trợ đổi kiểu nét cho riêng từng cạnh lẻ của tam giác/tứ giác/khối 3D mà không ảnh hưởng đến các cạnh còn lại, và bảo toàn kiểu nét ngay cả khi xoay khối 3D.
+    + *Đổi màu sắc riêng cho từng đoạn thẳng / cạnh:*
+      * Tích hợp dải 8 chấm màu nhanh chuẩn SGK (`#30493c` Xanh rừng, `#111827` Đen, `#dc2626` Đỏ, `#2563eb` Xanh dương, `#d97706` Cam đậm, `#7c3aed` Tím, `#0891b2` Xanh ngọc, `#db2777` Hồng đậm) kèm nút chọn bảng màu tùy chỉnh `🎨` (`applyColorToTarget`).
+      * Cho phép tô màu nổi bật riêng từng cạnh của hình 2D hoặc khối 3D HHKG (nhãn tên cạnh cũng tự động đồng bộ theo màu cạnh).
+    + *Kết hợp mượt mà với Đặt tên / Đổi tên và Hoàn tác (`⌘Z` / `⌘⇧Z`):*
+      * Người dùng có thể vừa bấm đổi Nét đứt/liền, vừa bấm chọn Màu sắc, vừa nhập/chọn tên đoạn thẳng ngay trong cùng một lần mở menu chuột phải.
+    + *Nâng cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v52` và query string `?v=20261102_1915` trong `web/index.html`.
   - **Đặt Tên / Đổi Tên Điểm & Đường Thẳng Bằng Chuột Phải + Sinh Hình 2D & HHKG Không Có Tên Sẵn (Right-Click Naming & Clean Blank Shapes - v51):**
     + *Sinh hình "Hình" (2D) & "HHKG" (3D) hoàn toàn không có tên sẵn:*
       * Toàn bộ 16 khối Hình học không gian (`tetrahedron`, `pyramid-quad`, `pyramid-trapezoid`, `pyramid-parallelogram`, `pyramid-pentagon`, `pyramid-regular`, `pyramid-sa-triangle`, `pyramid-sa-parallelogram`, `pyramid-sa-trapezoid`, `pyramid-sa-quad`, `prism-stand`, `prism-oblique`, `box-rect`, `cone`, `cylinder`, `sphere`) và toàn bộ các hình phẳng 2D khi tạo mới đều có `name: ''` (không tự động điền sẵn chữ `S, A, B, C, D, O...`), giúp hình vẽ luôn sạch sẽ, thoáng mắt.

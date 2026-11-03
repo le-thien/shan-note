@@ -2,6 +2,69 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Đồng Bộ 100% Thao Tác Phím Bấm Theo Sách HDSD Casio fx-580VN X `fx-580VNX_VI.pdf` (v56)] - 03/11/2026
+
+- **1. Thực Đơn `OPTN` Ngữ Cảnh Kép & Bộ Soạn Thảo Thống Kê Chuẩn Sách HDSD (`fx-580VNX_VI.pdf` Trang 117–154):**
+  - **Từ Bộ soạn thảo thống kê (`STAT_INPUT`):** Bấm `OPTN` hiển thị đúng thực đơn của sách HDSD trang 122–123 (`1: Chọn kiểu`, `2: Bộ soạn thảo`, `3: Tính 1-biến / 2-biến`, `4: Tính thống kê / Tính hồi quy`).
+  - **Menu phụ `2: Bộ soạn thảo (Editor)` (`STAT_EDITOR`):** Hỗ trợ `1: Chèn dòng (Insert Row)` để chèn một dòng mới tại vị trí con trỏ và `2: Xóa tất cả (Delete All)` để xóa toàn bộ dữ liệu bảng thống kê.
+  - **Từ Màn hình tính toán thống kê (`STAT_CALC` — sau khi bấm `AC`):** Bấm `OPTN` có 2 trang:
+    - Trang 1 (`▼`): `1: Chọn kiểu`, `2: Tính 1-biến` (hoặc `2: Tính 2-biến`, `3: Tính hồi quy`), `3/4: Dữ liệu (Data)`.
+    - Trang 2 (`▲` — bấm `▼` để mở): `1: Tính tổng (Summation)`, `2: Biến số (Variable)`, `3: Cực tiểu/Cực đại (Min/Max)`, `4: Phân phối chuẩn (Norm Dist)` (với 1-Biến) hoặc `4: Hồi quy (Regression)` (với 2-Biến).
+- **2. Tính Toán Biểu Thức Thống Kê, Phân Phối Chuẩn `P(`, `Q(`, `R(`, `▶t` & 7 Mô Hình Hồi Quy (`web/fx580.js`):**
+  - Bổ sung `evaluateStatCalcExpression`, `statNormPhi`, `statNormP`, `statNormQ`, `statNormR` và `getStatSubmenuPages`: cho phép chèn từng biến thống kê (`Σx`, `Σx²`, `x̄`, `σ²x`, `σx`, `s²x`, `sx`, `n`, `min(x)`, `Q₁`, `Med`, `Q₃`, `max(x)`, `Σxy`, `Σx³`, `Σx²y`, `Σx⁴`, `a`, `b`, `c`, `r`), toán tử chuẩn hóa `X▶t`, hàm xác suất phân phối chuẩn `P(t)`, `Q(t)`, `R(t)` và toán tử ước lượng hồi quy `x̂`, `x̂₁`, `x̂₂`, `ŷ` ngay trên màn hình `STAT_CALC`.
+  - Hoàn thiện `calc2VarStat` hỗ trợ đầy đủ 7 phương trình hồi quy trang 118–154 của sách HDSD (`y=a+bx`, `y=a+bx+cx²`, `y=a+b·ln(x)`, `y=a·e^(bx)`, `y=a·b^x`, `y=a·x^b`, `y=a+b/x`).
+- **3. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v56` và query string `?v=20261103_1045` trong `web/index.html`.
+
+## [Chuẩn Hóa Logic & Giao Diện Bấm Thống Kê (Mode 6: STAT) Trên Máy Tính Casio fx-580VN X (v55)] - 03/11/2026
+
+- **1. Đồng Bộ 100% Quy Trình Bấm Thống Kê Trên Máy Tính Casio fx-580VN X (`web/fx580.js`):**
+  - **Thực đơn Chọn dạng thống kê (`MENU` $\rightarrow$ `6` $\rightarrow$ `STAT_TYPE`):** Hiển thị đầy đủ 2 trang gồm `1: 1-Biến`, `2: y=a+bx`, `3: y=a+bx+cx²`, `4: y=a+b·ln(x)` (Trang 1) và `1: y=a·e^(bx)`, `2: y=a·b^x`, `3: y=a·x^b`, `4: y=a+b/x` (Trang 2).
+  - **Bật / Tắt cột Tần số (`Freq`) từ mọi màn hình (`SHIFT` + `MENU` $\rightarrow$ `▼` $\rightarrow$ `3: Thống kê` $\rightarrow$ `1: Bật` / `2: Tắt`):** Sửa lỗi phím `SHIFT` trong chế độ `STAT` và cập nhật `exitSetup()` để sau khi bật cột tần số `Freq`, máy quay trở lại ngay bảng dữ liệu `STAT_INPUT` đang mở và hiện thêm cột `Freq`.
+  - **Giao diện Bảng Lưới Nhập Liệu (`STAT_INPUT`):** Hiển thị bảng lưới 3 dòng dữ liệu (`#`, `x`, tùy chọn `y`, tùy chọn `Freq`) với ô chọn tương phản đảo ngược nền đen chữ trắng chuẩn LCD ClassWiz; tự động gán `Freq = 1` khi nhập giá trị `x` mới; hỗ trợ phím `◀` / `▶` chuyển cột và hỗ trợ gõ biểu thức `(a+b)÷2` tính trực tiếp giá trị đại diện cho mẫu số liệu ghép nhóm.
+  - **Thực đơn `OPTN` & Màn hình Kết quả 3 Trang (`STAT_RESULT`):** Cập nhật `calc1VarStat` và `calc2VarStat` tính chính xác theo tần số `Freq`, bổ sung Phương sai tổng thể $\sigma^2_x$ và Phương sai mẫu $s^2_x$, chuẩn hóa thuật toán tính tứ phân vị $Q_1, \text{Med}, Q_3$ theo chuẩn Casio fx-580VN X và chia kết quả thành 3 trang (`1/3`, `2/3`, `3/3`).
+- **2. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v55` và query string `?v=20261103_1025` trong `web/index.html`.
+
+## [Giao Diện Studio Đồ Thị 2 Cột & Thuật Toán Tối Ưu Mô Phỏng Khối Tròn Xoay 3D Quanh Ox và Oy (v54)] - 02/11/2026
+
+- **1. Thiết Kế Lại Giao Diện Cài Đặt Đồ Thị & Khối Tròn Xoay 3D Dạng Studio 2 Cột (`Split-View Live Preview`):**
+  - Nâng cấp hộp thoại `#modal-graph-settings` trong `web/index.html` và `web/style.css`:
+    - **Cột trái:** Bố cục thẻ điều khiển (`.graph-section-card`) rõ ràng, thanh 4 Tab nằm gọn trên 1 hàng ngang không bị gãy dòng, bổ sung thanh **Chèn nhanh hàm mẫu** (`.btn-func-preset`), bộ chọn 2 thẻ trực quan cho trục quay **`Ox (Đĩa / Vành khăn)`** và **`Oy (Vỏ trụ / Đĩa ngang)`**, chọn hàm biên thứ hai `y = g(x)` (`#select-rev-func2`), thanh trượt độ nghiêng phối cảnh 3D (`#input-rev-tilt`), nút bật/tắt **Lát cắt vi phân đại diện (`#chk-rev-show-slice`)** và nút **`🌕 Trọn 360°`** (`#btn-rev-full360`).
+    - **Cột phải (`#graph-modal-preview-canvas`):** Khung **Xem trước trực tiếp 2D / 3D (Live Preview)** cho phép quan sát tức thì đồ thị 2D, miền gạch chéo tích phân và quá trình xoay khối 3D quanh $Ox$ / $Oy$ ngay khi đang chỉnh thông số, hỗ trợ kéo chuột trực tiếp trên hình xem trước để nghiêng góc nhìn 3D.
+- **2. Thuật Toán Tối Ưu Mô Phỏng Khối Tròn Xoay 3D Quanh Trục $Ox$ và $Oy$ (`web/graph_widget.js`):**
+  - Xây dựng phép chiếu phối cảnh `project3DSolidPoint` và bộ tính ánh sáng pháp tuyến Lambert `computeQuadNormalShade` kết hợp thuật toán **Painter's Depth Sorting** (sắp xếp các mảnh tứ giác 3D từ xa tới gần theo tọa độ $Z$).
+  - **Quay quanh trục $Ox$:** Tham số hóa $P_{Ox}(x, \alpha) = (x,\; R(x)\cos\alpha,\; R(x)\sin\alpha)$ cho cả mặt ngoài $y = f(x)$ và mặt lỗ rỗng $y = g(x)$, vẽ các vòng tròn vĩ tuyến phân biệt nét đứt (phía sau $Z < 0$) / nét liền (phía trước $Z \ge 0$), mặt cắt phẳng tại $0^\circ$ và $\theta$, cùng **Đĩa / Vành khăn vi phân đại diện ($\Delta V = \pi |f^2(x) - g^2(x)|\,dx$)**.
+  - **Quay quanh trục $Oy$:** Tham số hóa $P_{Oy}(x, \alpha) = (x\cos\alpha,\; y,\; x\sin\alpha)$ với bán kính $r = |x|$ quanh trục tung $Oy$, kết xuất mặt nóc $f(x)$, mặt đáy $g(x)$, thành trụ trong/ngoài tại $x=a, x=b$ và **Lát cắt Vỏ trụ vi phân đại diện ($\Delta V = 2\pi x |f(x) - g(x)|\,dx$)**.
+  - Chuẩn hóa hiển thị kết quả thể tích theo cả dạng hệ số $\pi$ và số thập phân: `V ≈ k·π ≈ số_thập_phân (đvtt)`.
+- **3. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v54` và query string `?v=20261102_1955` trong `web/index.html`.
+
+## [Thuật Toán 3 Tầng Phân Biệt Chọn Đỉnh — Chọn Cạnh — Quét Chọn Cả Hình (v53)] - 02/11/2026
+
+- **1. Thuật Toán 3 Tầng Nhận Diện Hình Học Chính Xác Trên Hình 2D & 3D Phức Tạp:**
+  - **Tầng 1 (Vùng lõi Điểm / Đỉnh — Bán kính ưu tiên $18\text{px}$):** Kiểm tra khoảng cách Euclid từ mũi trỏ tới các Điểm / Đỉnh trước tiên (`findHandleAt(x, y, 18)`). Vì tại một đỉnh của hình chóp/lăng trụ có từ 3–4 cạnh cùng đi qua (khoảng cách tới các cạnh đó cũng bằng $0$), việc ưu tiên bán kính lõi $18\text{px}$ giúp bắt trúng Đỉnh tuyệt đối mà không bị cạnh tranh chấp.
+  - **Tầng 2 (Hình chiếu vuông góc lên Cạnh — Khoảng cách $\le 22\text{px}$ ngoài vùng đỉnh):** Khi mũi trỏ nằm ngoài vùng đỉnh ($> 18\text{px}$), thuật toán tính hình chiếu vuông góc tham số $t \in [0, 1]$ lên từng đoạn thẳng (`findEdgeAt`) và chọn riêng cạnh gần nhất (`state.selectedEdge`).
+  - **Tầng 3 (Quét chọn vùng — Marquee Sweep):** Khi người dùng kéo khung quét chọn qua hình (`state.isFromAreaSelect === true`), hệ thống chọn toàn bộ hình.
+- **2. Hiển Thị Trực Quan Tách Biệt Rõ Ràng (Không Làm Sáng Cả Hình Khi Chỉ Bấm Vào 1 Đỉnh Hoặc 1 Cạnh):**
+  - Cập nhật `renderPage`, `handlePointerDown`, `handlePointerMove`, `finishDrawing` và `handleCanvasContextMenu` trong `web/app.js`:
+    - Khi rê chuột hoặc bấm vào **1 Đỉnh / Điểm**: chỉ phát sáng **đúng 1 Đỉnh / Điểm đó** (`state.selectedVertex`).
+    - Khi rê chuột hoặc bấm vào **1 Cạnh / Đoạn thẳng**: chỉ phát sáng **đúng 1 Cạnh đó** kèm 2 đầu mút của cạnh (`state.selectedEdge`).
+    - Chỉ khi **Quét chọn vùng** mới phát sáng toàn bộ các cạnh và vẽ khung chữ nhật nét đứt bao quanh cả hình.
+- **3. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v53` và query string `?v=20261102_1935` trong `web/index.html`.
+
+## [Chuột Phải Vào Đoạn Thẳng / Cạnh: Đổi Nét Đứt - Liền, Đổi Màu, Đặt Tên & Đổi Tên (v52)] - 02/11/2026
+
+- **1. Đổi Nét Liền (`━━`) ⇋ Nét Đứt (`╌╌`) Trực Tiếp Khi Bấm Chuột Phải Vào Đoạn Thẳng / Cạnh:**
+  - Bổ sung `getTargetCurrentDash` và `applyDashToTarget` trong `web/app.js`: hỗ trợ chuyển đổi qua lại giữa **Nét liền** và **Nét đứt** cho cả đoạn thẳng rời (`line`, `perpendicular`, `parallel`, `bisector`, `tangent`, `perpendicular-bisector`), cạnh riêng lẻ của đa giác 2D (`triangle`, `right-triangle`, `isosceles-triangle`, `rectangle`, `square`, `parallelogram`, `rhombus`, `inscribed-triangle`) và cạnh riêng lẻ của khối 3D HHKG (`solid-edge`).
+  - Lưu trữ `edgeDashes` bền vững trên đối tượng giúp giữ nguyên kiểu nét đứt/liền tùy chỉnh của cạnh ngay cả sau khi xoay 3D.
+- **2. Đổi Màu Sắc Trực Tiếp Cho Từng Đoạn Thẳng / Cạnh Bằng Chuột Phải:**
+  - Bổ sung `getTargetCurrentColor` và `applyColorToTarget` cùng dải 8 chấm màu nhanh + bộ chọn màu tùy chỉnh `🎨` ngay trong menu chuột phải `.net-rename-popover`.
+  - Hỗ trợ tô màu riêng cho từng cạnh đa giác 2D và từng cạnh khối 3D (`edgeColors`), đồng bộ màu nhãn tên cạnh với màu của cạnh đó.
+- **3. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v52` và query string `?v=20261102_1915` trong `web/index.html`.
+
 ## [Đặt Tên / Đổi Tên Điểm & Đường Thẳng Bằng Chuột Phải + Sinh Hình 2D & HHKG Không Có Tên Sẵn (v51)] - 02/11/2026
 
 - **1. Sinh Hình Phẳng ("Hình") và Hình Học Không Gian ("HHKG") Không Có Tên Đỉnh Sẵn:**

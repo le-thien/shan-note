@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Nét">
-  <link rel="stylesheet" href="style.css?v=20261102_1850">
+  <link rel="stylesheet" href="style.css?v=20261102_1955">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&family=Caveat:wght@600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -1294,330 +1294,389 @@
   <!-- BẢNG CÀI ĐẶT ĐỒ THỊ & KHỐI TRÒN XOAY 3D     -->
   <!-- ========================================== -->
   <div id="modal-graph-settings" class="graph-modal-backdrop" style="display: none;">
-    <div class="graph-modal-dialog">
+    <div class="graph-modal-dialog graph-modal-studio">
       <div class="graph-modal-header">
         <div class="graph-modal-title-group">
           <span class="graph-modal-icon">📈</span>
-          <span class="graph-modal-title">CÀI ĐẶT ĐỒ THỊ & MÔ PHỎNG THỂ TÍCH 3D</span>
+          <div>
+            <div class="graph-modal-title">BẢNG ĐIỀU KHIỂN ĐỒ THỊ &amp; KHỐI TRÒN XOAY 3D</div>
+            <div class="graph-modal-subtitle">Khảo sát hàm số, tính tích phân diện tích (S) và mô phỏng thể tích tròn xoay quanh trục Ox, Oy</div>
+          </div>
         </div>
         <button id="btn-close-graph-modal" class="graph-modal-close" title="Đóng">&times;</button>
       </div>
 
-      <!-- Thanh Tab chuyển đổi -->
+      <!-- Thanh Tab chuyển đổi 1 dòng gọn gàng, không gãy chữ -->
       <div class="graph-modal-tabs">
-        <button class="graph-tab-btn active" data-tab="tab-graph-funcs">📐 Hàm số & Miền vẽ</button>
-        <button class="graph-tab-btn" data-tab="tab-graph-points">🎯 Tọa độ đặc biệt</button>
-        <button class="graph-tab-btn" data-tab="tab-graph-area-volume">📐 Tính Diện tích (S) & Thể tích (V)</button>
-        <button class="graph-tab-btn" data-tab="tab-graph-revolution">🔄 Mô phỏng Thể tích 3D</button>
+        <button class="graph-tab-btn active" data-tab="tab-graph-funcs">📈 1. Hàm số &amp; Hệ trục</button>
+        <button class="graph-tab-btn" data-tab="tab-graph-points">🎯 2. Điểm đặc biệt</button>
+        <button class="graph-tab-btn" data-tab="tab-graph-area-volume">📐 3. Diện tích (S) &amp; Thể tích (V)</button>
+        <button class="graph-tab-btn" data-tab="tab-graph-revolution">🔄 4. Mô phỏng Khối xoay 3D</button>
       </div>
 
-      <div class="graph-modal-body">
-        <!-- TAB 1: Danh sách hàm số & Miền vẽ -->
-        <div id="tab-graph-funcs" class="graph-tab-content active">
-          <div class="graph-funcs-header">
-            <span class="graph-sec-title">Danh sách hàm số hiển thị:</span>
-            <button id="btn-add-graph-func" class="btn-graph-add" title="Thêm một hàm số mới">+ Thêm hàm số</button>
-          </div>
-          <div id="graph-funcs-list" class="graph-funcs-list">
-            <!-- Danh sách các hàng hàm số sẽ sinh động tại đây -->
-          </div>
+      <!-- Bố cục 2 cột: Cột trái Cài đặt chi tiết — Cột phải Xem trước 2D / 3D trực tiếp -->
+      <div class="graph-modal-studio-layout">
+        <div class="graph-modal-body">
+          <!-- TAB 1: Danh sách hàm số & Miền vẽ -->
+          <div id="tab-graph-funcs" class="graph-tab-content active">
+            <div class="graph-section-card">
+              <div class="graph-funcs-header">
+                <span class="graph-sec-title">Danh sách hàm số hiển thị:</span>
+                <button id="btn-add-graph-func" class="btn-graph-add" title="Thêm một hàm số mới">+ Thêm hàm số</button>
+              </div>
+              <div id="graph-funcs-list" class="graph-funcs-list">
+                <!-- Danh sách các hàng hàm số sẽ sinh động tại đây -->
+              </div>
 
-          <div class="graph-settings-row">
-            <div class="graph-setting-item">
-              <label>Độ thu phóng trục (scale):</label>
-              <input type="range" id="input-graph-scale" min="15" max="80" value="36">
-              <span id="label-graph-scale">36px / đv</span>
-            </div>
-            <div class="graph-setting-item">
-              <label><input type="checkbox" id="chk-graph-grid" checked> Hiện lưới ô vuông</label>
-            </div>
-            <div class="graph-setting-item">
-              <label><input type="checkbox" id="chk-graph-axes" checked> Hiện trục Oxy</label>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 2: Tọa độ đặc biệt & Điểm dóng -->
-        <div id="tab-graph-points" class="graph-tab-content">
-          <div class="graph-points-quick-actions">
-            <span class="graph-sec-title">Gợi ý tự động tìm điểm:</span>
-            <div class="graph-quick-btns">
-              <button id="btn-find-axes-points" class="btn-graph-quick" title="Tìm giao điểm của hàm số với trục Ox và Oy">🎯 Giao Ox, Oy</button>
-              <button id="btn-find-extrema" class="btn-graph-quick" title="Tìm các điểm cực đại, cực tiểu">🎯 Cực trị (CĐ, CT)</button>
-              <button id="btn-clear-all-points" class="btn-graph-quick btn-danger" title="Xóa toàn bộ điểm đặc biệt">🗑️ Xóa hết điểm</button>
-            </div>
-          </div>
-
-          <div class="graph-funcs-header" style="margin-top: 14px;">
-            <span class="graph-sec-title">Danh sách điểm tọa độ hiển thị:</span>
-            <button id="btn-add-custom-point" class="btn-graph-add">+ Thêm điểm</button>
-          </div>
-          <div id="graph-points-list" class="graph-points-list">
-            <!-- Danh sách các điểm đặc biệt -->
-          </div>
-        </div>
-
-        <!-- TAB 3: Tính Diện tích hình phẳng (S) & Thể tích tròn xoay (V) -->
-        <div id="tab-graph-area-volume" class="graph-tab-content">
-          <div class="graph-rev-toggle-card">
-            <label class="graph-toggle-label">
-              <input type="checkbox" id="chk-area-enable" checked>
-              <span class="toggle-slider"></span>
-              <span class="toggle-text">Kích hoạt Tính & Tô màu Diện tích hình phẳng (S) / Thể tích (V)</span>
-            </label>
-          </div>
-
-          <div id="graph-area-controls" class="graph-rev-panel">
-            <!-- Chọn số hàm số -->
-            <div class="graph-setting-group">
-              <label class="graph-group-title">1. Chọn số lượng hàm số tham gia tính toán:</label>
-              <div class="graph-btn-group-pill" id="group-area-func-count">
-                <button type="button" class="btn-pill-choice active" data-count="1">1 hàm số</button>
-                <button type="button" class="btn-pill-choice" data-count="2">2 hàm số</button>
-                <button type="button" class="btn-pill-choice" data-count="3">3 hàm số</button>
+              <!-- Dải mẫu hàm số phổ biến 1 chạm -->
+              <div class="graph-preset-bar">
+                <span class="preset-bar-label">💡 Mẫu nhanh:</span>
+                <button type="button" class="btn-func-preset" data-expr="x^2 - 2*x - 1" data-min="-2" data-max="4">Parabol x²−2x−1</button>
+                <button type="button" class="btn-func-preset" data-expr="x^3 - 3*x" data-min="-2.5" data-max="2.5">Bậc ba x³−3x</button>
+                <button type="button" class="btn-func-preset" data-expr="sqrt(x)" data-min="0" data-max="4">Căn √x</button>
+                <button type="button" class="btn-func-preset" data-expr="2 - x^2/2" data-min="0" data-max="2">Vòm 2−x²/2</button>
+                <button type="button" class="btn-func-preset" data-expr="sin(x) + 1.2" data-min="0" data-max="3.14">Lượng giác sin(x)+1.2</button>
               </div>
             </div>
 
-            <!-- Cấu hình cho 1 hàm số -->
-            <div id="area-sec-1func" class="area-func-sec">
-              <div class="graph-rev-row">
-                <div class="rev-col">
-                  <label>Hàm số y = f(x):</label>
-                  <select id="select-area-1f" class="graph-select"></select>
+            <div class="graph-section-card" style="margin-top: 12px;">
+              <div class="graph-sec-title" style="margin-bottom: 10px;">Cấu hình hệ trục tọa độ Oxy:</div>
+              <div class="graph-settings-grid">
+                <div class="graph-setting-scale-box">
+                  <div class="scale-box-top">
+                    <label>Độ thu phóng trục (Tỉ lệ):</label>
+                    <span id="label-graph-scale" class="scale-badge">36px / đv</span>
+                  </div>
+                  <input type="range" id="input-graph-scale" min="15" max="80" value="36">
                 </div>
-                <div class="rev-col">
-                  <label>Giới hạn với:</label>
-                  <input type="text" class="graph-input-readonly" value="Trục hoành Ox (y = 0)" readonly>
+                <div class="graph-setting-toggles">
+                  <label class="graph-clean-chk"><input type="checkbox" id="chk-graph-grid" checked> <span>Hiện lưới ô vuông</span></label>
+                  <label class="graph-clean-chk"><input type="checkbox" id="chk-graph-axes" checked> <span>Hiện trục tọa độ Oxy</span></label>
                 </div>
               </div>
-              <div class="graph-rev-row" style="margin-top: 10px;">
-                <div class="rev-col full-width">
-                  <label>2 cận của x: (từ x = a đến x = b)</label>
-                  <div class="rev-range-inputs">
-                    <span>x = a =</span>
-                    <input type="number" id="input-area-1f-a" step="0.5" value="0">
-                    <span>đến x = b =</span>
-                    <input type="number" id="input-area-1f-b" step="0.5" value="2">
-                    <button type="button" id="btn-area-1f-roots" class="btn-quick-tag" title="Tự động lấy nghiệm f(x)=0 làm 2 cận">🎯 Giao trục Ox</button>
+            </div>
+          </div>
+
+          <!-- TAB 2: Tọa độ đặc biệt & Điểm dóng -->
+          <div id="tab-graph-points" class="graph-tab-content">
+            <div class="graph-section-card">
+              <div class="graph-sec-title">Tự động dò tìm điểm đặc biệt của đồ thị:</div>
+              <div class="graph-quick-btns" style="margin-top: 8px;">
+                <button id="btn-find-axes-points" class="btn-graph-quick" title="Tìm giao điểm của hàm số với trục Ox và Oy">🎯 Giao trục Ox, Oy</button>
+                <button id="btn-find-extrema" class="btn-graph-quick" title="Tìm các điểm cực đại, cực tiểu">🎯 Cực trị (CĐ, CT)</button>
+                <button id="btn-find-intersections-pts" class="btn-graph-quick" title="Tìm giao điểm giữa các hàm số">🎯 Giao 2 đồ thị</button>
+                <button id="btn-clear-all-points" class="btn-graph-quick btn-danger" title="Xóa toàn bộ điểm đặc biệt">🗑️ Xóa hết</button>
+              </div>
+            </div>
+
+            <div class="graph-section-card" style="margin-top: 12px;">
+              <div class="graph-funcs-header">
+                <span class="graph-sec-title">Danh sách điểm tọa độ &amp; đường dóng:</span>
+                <button id="btn-add-custom-point" class="btn-graph-add">+ Thêm điểm</button>
+              </div>
+              <div id="graph-points-list" class="graph-points-list">
+                <!-- Danh sách các điểm đặc biệt -->
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: Tính Diện tích hình phẳng (S) & Thể tích tròn xoay (V) -->
+          <div id="tab-graph-area-volume" class="graph-tab-content">
+            <div class="graph-rev-toggle-card">
+              <label class="graph-toggle-label">
+                <input type="checkbox" id="chk-area-enable" checked>
+                <span class="toggle-slider"></span>
+                <span class="toggle-text">Tô màu miền phẳng &amp; Tính tích phân Diện tích (S) / Thể tích (V)</span>
+              </label>
+            </div>
+
+            <div id="graph-area-controls" class="graph-rev-panel">
+              <div class="graph-Setting-row-inline">
+                <div class="rev-col">
+                  <label class="graph-group-title">1. Số đường giới hạn miền phẳng:</label>
+                  <div class="graph-btn-group-pill" id="group-area-func-count">
+                    <button type="button" class="btn-pill-choice active" data-count="1">1 hàm số &amp; trục</button>
+                    <button type="button" class="btn-pill-choice" data-count="2">Giữa 2 hàm số</button>
+                    <button type="button" class="btn-pill-choice" data-count="3">Miền 3 hàm số</button>
+                  </div>
+                </div>
+                <div class="rev-col">
+                  <label class="graph-group-title">2. Trục quay tính Thể tích (V):</label>
+                  <div class="rev-axis-group">
+                    <button type="button" class="btn-calc-axis active" data-axis="Ox">⟳ Quanh Ox</button>
+                    <button type="button" class="btn-calc-axis" data-axis="Oy">⟳ Quanh Oy</button>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Cấu hình cho 2 hàm số -->
-            <div id="area-sec-2funcs" class="area-func-sec" style="display: none;">
-              <div class="graph-rev-row">
-                <div class="rev-col">
-                  <label>Hàm thứ nhất y = f(x):</label>
-                  <select id="select-area-2f-1" class="graph-select"></select>
+              <!-- Cấu hình cho 1 hàm số -->
+              <div id="area-sec-1func" class="area-func-sec">
+                <div class="graph-rev-row">
+                  <div class="rev-col">
+                    <label>Hàm số y = f(x):</label>
+                    <select id="select-area-1f" class="graph-select"></select>
+                  </div>
+                  <div class="rev-col">
+                    <label>Giới hạn với:</label>
+                    <input type="text" class="graph-input-readonly" value="Trục hoành Ox (y = 0)" readonly>
+                  </div>
                 </div>
-                <div class="rev-col">
-                  <label>Hàm thứ hai y = g(x):</label>
-                  <select id="select-area-2f-2" class="graph-select"></select>
-                </div>
-              </div>
-              <div class="graph-bound-options" style="margin-top: 10px;">
-                <label class="graph-group-title">Xác định cận tích phân:</label>
-                <div class="graph-radio-group">
-                  <label class="graph-radio-label">
-                    <input type="radio" name="radio-area-2f-bound" value="auto" checked>
-                    <span>🎯 Tự động lấy phần giới hạn tạo bởi 2 hàm số (tự giải giao điểm f(x) = g(x))</span>
-                  </label>
-                  <label class="graph-radio-label">
-                    <input type="radio" name="radio-area-2f-bound" value="manual">
-                    <span>✍️ Người dùng tự thêm 2 cận x = a và x = b (giới hạn bởi 4 đường)</span>
-                  </label>
-                </div>
-              </div>
-              <div id="area-2f-auto-info" class="area-info-box" style="margin-top: 8px;">
-                <span class="info-icon">🔍</span>
-                <span id="label-area-2f-intersections">Đang tìm các giao điểm giữa 2 đồ thị...</span>
-              </div>
-              <div id="area-2f-manual-inputs" class="graph-rev-row" style="margin-top: 10px; display: none;">
-                <div class="rev-col full-width">
-                  <label>2 cận x = a và x = b:</label>
-                  <div class="rev-range-inputs">
-                    <span>x = a =</span>
-                    <input type="number" id="input-area-2f-a" step="0.5" value="0">
-                    <span>đến x = b =</span>
-                    <input type="number" id="input-area-2f-b" step="0.5" value="2">
+                <div class="graph-rev-row" style="margin-top: 10px;">
+                  <div class="rev-col full-width">
+                    <label>Cận tích phân [a; b]:</label>
+                    <div class="rev-range-inputs">
+                      <span>x = a =</span>
+                      <input type="number" id="input-area-1f-a" step="0.5" value="0">
+                      <span>đến x = b =</span>
+                      <input type="number" id="input-area-1f-b" step="0.5" value="2">
+                      <button type="button" id="btn-area-1f-roots" class="btn-quick-tag" title="Tự động lấy nghiệm f(x)=0 làm 2 cận">🎯 Tự lấy nghiệm Ox</button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Cấu hình cho 3 hàm số -->
-            <div id="area-sec-3funcs" class="area-func-sec" style="display: none;">
-              <div class="graph-rev-row">
-                <div class="rev-col">
-                  <label>Hàm thứ nhất y = f₁(x):</label>
-                  <select id="select-area-3f-1" class="graph-select"></select>
+              <!-- Cấu hình cho 2 hàm số -->
+              <div id="area-sec-2funcs" class="area-func-sec" style="display: none;">
+                <div class="graph-rev-row">
+                  <div class="rev-col">
+                    <label>Hàm thứ nhất y = f(x):</label>
+                    <select id="select-area-2f-1" class="graph-select"></select>
+                  </div>
+                  <div class="rev-col">
+                    <label>Hàm thứ hai y = g(x):</label>
+                    <select id="select-area-2f-2" class="graph-select"></select>
+                  </div>
                 </div>
-                <div class="rev-col">
-                  <label>Hàm thứ hai y = f₂(x):</label>
-                  <select id="select-area-3f-2" class="graph-select"></select>
+                <div class="graph-bound-options" style="margin-top: 10px;">
+                  <div class="graph-radio-group">
+                    <label class="graph-radio-label">
+                      <input type="radio" name="radio-area-2f-bound" value="auto" checked>
+                      <span>🎯 Tự động lấy cận theo giao điểm f(x) = g(x)</span>
+                    </label>
+                    <label class="graph-radio-label">
+                      <input type="radio" name="radio-area-2f-bound" value="manual">
+                      <span>✍️ Tự nhập 2 cận x = a và x = b</span>
+                    </label>
+                  </div>
                 </div>
-                <div class="rev-col">
-                  <label>Hàm thứ ba y = f₃(x):</label>
-                  <select id="select-area-3f-3" class="graph-select"></select>
+                <div id="area-2f-auto-info" class="area-info-box" style="margin-top: 8px;">
+                  <span class="info-icon">🔍</span>
+                  <span id="label-area-2f-intersections">Đang tìm các giao điểm giữa 2 đồ thị...</span>
                 </div>
-              </div>
-              <div class="graph-bound-options" style="margin-top: 10px;">
-                <label class="graph-group-title">Xác định cận tích phân:</label>
-                <div class="graph-radio-group">
-                  <label class="graph-radio-label">
-                    <input type="radio" name="radio-area-3f-bound" value="auto" checked>
-                    <span>🎯 Tự động tìm miền kín (tam giác cong giữa 3 cặp giao điểm)</span>
-                  </label>
-                  <label class="graph-radio-label">
-                    <input type="radio" name="radio-area-3f-bound" value="manual">
-                    <span>✍️ Người dùng tự thêm 2 cận x = a và x = b</span>
-                  </label>
-                </div>
-              </div>
-              <div id="area-3f-auto-info" class="area-info-box" style="margin-top: 8px;">
-                <span class="info-icon">🔍</span>
-                <span id="label-area-3f-intersections">Đang tìm 3 giao điểm...</span>
-              </div>
-              <div id="area-3f-manual-inputs" class="graph-rev-row" style="margin-top: 10px; display: none;">
-                <div class="rev-col full-width">
-                  <label>2 cận x = a và x = b:</label>
-                  <div class="rev-range-inputs">
-                    <span>x = a =</span>
-                    <input type="number" id="input-area-3f-a" step="0.5" value="0">
-                    <span>đến x = b =</span>
-                    <input type="number" id="input-area-3f-b" step="0.5" value="3">
+                <div id="area-2f-manual-inputs" class="graph-rev-row" style="margin-top: 10px; display: none;">
+                  <div class="rev-col full-width">
+                    <div class="rev-range-inputs">
+                      <span>x = a =</span>
+                      <input type="number" id="input-area-2f-a" step="0.5" value="0">
+                      <span>đến x = b =</span>
+                      <input type="number" id="input-area-2f-b" step="0.5" value="2">
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Trục quay tính thể tích V -->
-            <div class="graph-rev-row" style="margin-top: 12px;">
-              <div class="rev-col">
-                <label>Trục quay tính Thể tích (V):</label>
-                <div class="rev-axis-group">
-                  <button type="button" class="btn-calc-axis active" data-axis="Ox">Quanh trục Ox (Hoành)</button>
-                  <button type="button" class="btn-calc-axis" data-axis="Oy">Quanh trục Oy (Tung)</button>
+              <!-- Cấu hình cho 3 hàm số -->
+              <div id="area-sec-3funcs" class="area-func-sec" style="display: none;">
+                <div class="graph-rev-row">
+                  <div class="rev-col">
+                    <label>Hàm y = f₁(x):</label>
+                    <select id="select-area-3f-1" class="graph-select"></select>
+                  </div>
+                  <div class="rev-col">
+                    <label>Hàm y = f₂(x):</label>
+                    <select id="select-area-3f-2" class="graph-select"></select>
+                  </div>
+                  <div class="rev-col">
+                    <label>Hàm y = f₃(x):</label>
+                    <select id="select-area-3f-3" class="graph-select"></select>
+                  </div>
+                </div>
+                <div class="graph-bound-options" style="margin-top: 10px;">
+                  <div class="graph-radio-group">
+                    <label class="graph-radio-label">
+                      <input type="radio" name="radio-area-3f-bound" value="auto" checked>
+                      <span>🎯 Tự động tìm miền kín tam giác cong giữa 3 đồ thị</span>
+                    </label>
+                    <label class="graph-radio-label">
+                      <input type="radio" name="radio-area-3f-bound" value="manual">
+                      <span>✍️ Tự nhập 2 cận x = a và x = b</span>
+                    </label>
+                  </div>
+                </div>
+                <div id="area-3f-auto-info" class="area-info-box" style="margin-top: 8px;">
+                  <span class="info-icon">🔍</span>
+                  <span id="label-area-3f-intersections">Đang tìm 3 giao điểm...</span>
+                </div>
+                <div id="area-3f-manual-inputs" class="graph-rev-row" style="margin-top: 10px; display: none;">
+                  <div class="rev-col full-width">
+                    <div class="rev-range-inputs">
+                      <span>x = a =</span>
+                      <input type="number" id="input-area-3f-a" step="0.5" value="0">
+                      <span>đến x = b =</span>
+                      <input type="number" id="input-area-3f-b" step="0.5" value="3">
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Thẻ hiển thị Kết quả & Công thức tức thời -->
-            <div class="graph-calc-results-card">
-              <div class="calc-result-item">
-                <div class="calc-result-badge">📐 DIỆN TÍCH HÌNH PHẲNG (S)</div>
-                <div id="area-formula-display" class="calc-formula">S = &int;<sub>a</sub><sup>b</sup> |f(x)| dx</div>
-                <div id="area-value-display" class="calc-value">S &asymp; 0 (đvdt)</div>
+              <!-- Thẻ hiển thị Kết quả & Công thức tức thời -->
+              <div class="graph-calc-results-card">
+                <div class="calc-result-item">
+                  <div class="calc-result-badge">📐 DIỆN TÍCH HÌNH PHẲNG (S)</div>
+                  <div id="area-formula-display" class="calc-formula">S = &int;<sub>a</sub><sup>b</sup> |f(x)| dx</div>
+                  <div id="area-value-display" class="calc-value">S &asymp; 0 (đvdt)</div>
+                </div>
+                <div class="calc-result-divider"></div>
+                <div class="calc-result-item">
+                  <div class="calc-result-badge">🔄 THỂ TÍCH KHỐI TRÒN XOAY (V)</div>
+                  <div id="volume-formula-display" class="calc-formula">V = &pi; &int;<sub>a</sub><sup>b</sup> [f(x)]<sup>2</sup> dx</div>
+                  <div id="volume-value-display" class="calc-value">V &asymp; 0 (đvtt)</div>
+                </div>
               </div>
-              <div class="calc-result-divider"></div>
-              <div class="calc-result-item">
-                <div class="calc-result-badge">🔄 THỂ TÍCH KHỐI TRÒN XOAY (V)</div>
-                <div id="volume-formula-display" class="calc-formula">V = &pi; &int;<sub>a</sub><sup>b</sup> [f(x)]<sup>2</sup> dx</div>
-                <div id="volume-value-display" class="calc-value">V &asymp; 0 (đvtt)</div>
-              </div>
-            </div>
 
-            <!-- Tùy chọn vẽ lên đồ thị -->
-            <div class="graph-options-row" style="margin-top: 8px;">
-              <label class="graph-chk-label"><input type="checkbox" id="chk-area-draw-fill" checked> Tô màu miền diện tích (S) trên đồ thị 2D</label>
-              <label class="graph-chk-label"><input type="checkbox" id="chk-area-draw-lines" checked> Kẻ đường dóng các cận nét đứt</label>
-              <label class="graph-chk-label"><input type="checkbox" id="chk-area-draw-badge" checked> Hiện thẻ kết quả S & V trên góc đồ thị</label>
+              <!-- Tùy chọn vẽ lên đồ thị -->
+              <div class="graph-options-row" style="margin-top: 6px;">
+                <label class="graph-chk-label"><input type="checkbox" id="chk-area-draw-fill" checked> Tô miền diện tích (S)</label>
+                <label class="graph-chk-label"><input type="checkbox" id="chk-area-draw-lines" checked> Kẻ đường dóng cận</label>
+                <label class="graph-chk-label"><input type="checkbox" id="chk-area-draw-badge" checked> Hiện nhãn kết quả S &amp; V</label>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- TAB 4: Mô phỏng Thể tích Khối tròn xoay 3D -->
-        <div id="tab-graph-revolution" class="graph-tab-content">
-          <div class="graph-rev-toggle-card">
-            <label class="graph-toggle-label">
-              <input type="checkbox" id="chk-rev-enable">
-              <span class="toggle-slider"></span>
-              <span class="toggle-text">Kích hoạt Chế độ Mô phỏng Khối tròn xoay 3D</span>
-            </label>
-          </div>
-
-          <div id="graph-rev-controls" class="graph-rev-panel">
-            <div class="graph-rev-row">
-              <div class="rev-col">
-                <label>Hàm số cần quay:</label>
-                <select id="select-rev-func" class="graph-select"></select>
-              </div>
-              <div class="rev-col">
-                <label>Trục quay:</label>
-                <div class="rev-axis-group">
-                  <button type="button" class="btn-rev-axis active" data-axis="Ox">Trục Ox (Hoành)</button>
-                  <button type="button" class="btn-rev-axis" data-axis="Oy">Trục Oy (Tung)</button>
-                </div>
-              </div>
+          <!-- TAB 4: Mô phỏng Thể tích Khối tròn xoay 3D -->
+          <div id="tab-graph-revolution" class="graph-tab-content">
+            <div class="graph-rev-toggle-card">
+              <label class="graph-toggle-label">
+                <input type="checkbox" id="chk-rev-enable">
+                <span class="toggle-slider"></span>
+                <span class="toggle-text">Bật Mô phỏng 3D Khối tròn xoay trực tiếp trên Đồ thị</span>
+              </label>
             </div>
 
-            <!-- 1. Trục Ox và Trục Oy -->
-            <div class="graph-rev-row">
-              <div class="rev-col">
-                <label>1. Trục Ox hiển thị từ x = đến x =</label>
-                <div class="rev-range-inputs">
-                  <span>x =</span>
-                  <input type="number" id="input-rev-ox-min" step="0.5" value="0">
-                  <span>đến x =</span>
-                  <input type="number" id="input-rev-ox-max" step="0.5" value="2.5">
+            <div id="graph-rev-controls" class="graph-rev-panel">
+              <!-- Chọn Trục quay Ox / Oy nổi bật -->
+              <div class="graph-section-card">
+                <label class="graph-group-title">1. Chọn Trục quay tạo Thể tích 3D:</label>
+                <div class="rev-axis-cards">
+                  <button type="button" class="btn-rev-axis active" data-axis="Ox">
+                    <span class="axis-card-title">⟳ Quay quanh Trục Ox (Hoành)</span>
+                    <span class="axis-card-desc">Phương pháp Đĩa / Vành khăn: V = π ∫ |f²(x) − g²(x)| dx</span>
+                  </button>
+                  <button type="button" class="btn-rev-axis" data-axis="Oy">
+                    <span class="axis-card-title">⟳ Quay quanh Trục Oy (Tung)</span>
+                    <span class="axis-card-desc">Phương pháp Vỏ trụ / Đĩa ngang: V = 2π ∫ |x · (f(x) − g(x))| dx</span>
+                  </button>
                 </div>
               </div>
-              <div class="rev-col">
-                <label>2. Trục Oy hiển thị từ y = đến y =</label>
-                <div class="rev-range-inputs">
-                  <span>y =</span>
-                  <input type="number" id="input-rev-oy-min" step="0.5" value="-2">
-                  <span>đến y =</span>
-                  <input type="number" id="input-rev-oy-max" step="0.5" value="3">
-                </div>
-              </div>
-            </div>
 
-            <!-- Tốc độ xoay và điều khiển chuyển động để học sinh thấy -->
-            <div class="graph-rev-row">
-              <div class="rev-col full-width">
+              <!-- Chọn hàm quay và cận tích phân -->
+              <div class="graph-section-card">
+                <div class="graph-rev-row">
+                  <div class="rev-col">
+                    <label>Đường cong chính y = f(x):</label>
+                    <select id="select-rev-func" class="graph-select"></select>
+                  </div>
+                  <div class="rev-col">
+                    <label>Giới hạn dưới y = g(x):</label>
+                    <select id="select-rev-func2" class="graph-select">
+                      <option value="-1">Trục hoành Ox (y = 0)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="graph-rev-row" style="margin-top: 10px;">
+                  <div class="rev-col full-width">
+                    <label>2. Khoảng cận quay trên trục hoành [a; b]:</label>
+                    <div class="rev-range-inputs">
+                      <span>Từ x = a =</span>
+                      <input type="number" id="input-rev-ox-min" step="0.5" value="0">
+                      <span>đến x = b =</span>
+                      <input type="number" id="input-rev-ox-max" step="0.5" value="2.5">
+                      <button type="button" id="btn-rev-auto-bounds" class="btn-quick-tag" title="Tự động lấy cận từ nghiệm hoặc tab Diện tích">🎯 Đồng bộ cận</button>
+                    </div>
+                  </div>
+                  <!-- Giữ input ẩn tương thích ngược cho rangeY -->
+                  <div style="display: none;">
+                    <input type="number" id="input-rev-oy-min" step="0.5" value="-2">
+                    <input type="number" id="input-rev-oy-max" step="0.5" value="3">
+                  </div>
+                </div>
+
+                <div class="graph-rev-row" style="margin-top: 10px; align-items: center;">
+                  <div class="rev-col">
+                    <label>Góc nghiêng phối cảnh 3D: <b id="label-rev-tilt">28°</b></label>
+                    <input type="range" id="input-rev-tilt" min="12" max="55" value="28">
+                  </div>
+                  <div class="rev-col" style="padding-top: 14px;">
+                    <label class="graph-clean-chk" title="Hiển thị lát cắt đĩa tròn (Ox) hoặc vỏ trụ (Oy) mẫu để giải thích công thức tích phân">
+                      <input type="checkbox" id="chk-rev-show-slice" checked>
+                      <span>💿 Hiện lát cắt vi phân mẫu (ΔV)</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Điều khiển góc quay & chuyển động -->
+              <div class="graph-section-card">
                 <div class="rev-slider-header">
-                  <label>Mô tả cách xoay từ từ để học sinh quan sát chuyển động:</label>
+                  <label>3. Góc quét tạo khối tròn xoay (0° → 360°):</label>
                   <span id="label-rev-angle" class="rev-angle-val">0° / 360°</span>
                 </div>
-                
-                <div class="rev-anim-controls">
-                  <!-- Các nút tốc độ -->
-                  <div class="rev-speed-group" title="Chọn tốc độ xoay mô phỏng">
-                    <span class="speed-label">Tốc độ:</span>
-                    <button type="button" class="btn-rev-speed" data-speed="0.5">🐢 0.5x (Chậm)</button>
-                    <button type="button" class="btn-rev-speed active" data-speed="1.0">🚶 1.0x (Chuẩn)</button>
-                    <button type="button" class="btn-rev-speed" data-speed="2.0">🚀 2.0x (Nhanh)</button>
-                  </div>
 
-                  <!-- Nút hành động chuyển động -->
+                <div class="rev-slider-group" style="margin: 6px 0 10px 0;">
+                  <input type="range" id="input-rev-angle" min="0" max="360" value="0" style="width: 100%;">
+                </div>
+
+                <div class="rev-anim-controls">
                   <div class="rev-playback-group">
                     <button type="button" id="btn-rev-play" class="btn-rev-action btn-play" title="Bắt đầu quay từ từ sinh ra khối thể tích">▶ Bắt đầu quay</button>
                     <button type="button" id="btn-rev-pause" class="btn-rev-action btn-pause" style="display: none;" title="Tạm dừng chuyển động">⏸ Tạm dừng</button>
                     <button type="button" id="btn-rev-reset" class="btn-rev-action btn-reset" title="Quay lại trạng thái hình phẳng ban đầu 0°">↺ Về 0°</button>
-                    <label class="rev-loop-label"><input type="checkbox" id="chk-rev-loop" checked> Lặp lại liên tục</label>
+                    <button type="button" id="btn-rev-full360" class="btn-rev-action btn-reset" title="Xem ngay khối tròn xoay hoàn chỉnh 360°">🌕 Trọn 360°</button>
+                    <label class="rev-loop-label"><input type="checkbox" id="chk-rev-loop" checked> Lặp lại</label>
+                  </div>
+                  <div class="rev-speed-group" title="Chọn tốc độ xoay mô phỏng">
+                    <span class="speed-label">Tốc độ:</span>
+                    <button type="button" class="btn-rev-speed" data-speed="0.5">0.5x</button>
+                    <button type="button" class="btn-rev-speed active" data-speed="1.0">1.0x</button>
+                    <button type="button" class="btn-rev-speed" data-speed="2.0">2.0x</button>
                   </div>
                 </div>
+              </div>
 
-                <div class="rev-slider-group" style="margin-top: 8px;">
-                  <input type="range" id="input-rev-angle" min="0" max="360" value="0">
-                </div>
+              <div class="graph-rev-formula-box">
+                <div class="formula-title">📐 Công thức &amp; Kết quả Thể tích Khối tròn xoay:</div>
+                <div id="rev-formula-text" class="formula-math">V = &pi; &int;<sub>a</sub><sup>b</sup> [f(x)]<sup>2</sup> dx</div>
+                <div id="rev-volume-val" class="formula-calc">Thể tích tính toán: V &asymp; ---</div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div class="graph-rev-formula-box">
-              <div class="formula-title">📐 Công thức tính thể tích tương ứng:</div>
-              <div id="rev-formula-text" class="formula-math">V = &pi; &int;<sub>a</sub><sup>b</sup> [f(x)]<sup>2</sup> dx</div>
-              <div id="rev-volume-val" class="formula-calc">Thể tích tính toán: V &asymp; ---</div>
+        <!-- CỘT PHẢI: KHUNG XEM TRƯỚC TRỰC TIẾP 2D / 3D (LIVE PREVIEW STUDIO) -->
+        <div class="graph-modal-preview-pane">
+          <div class="preview-pane-header">
+            <span class="preview-pane-title">👁️ Xem trước trực tiếp</span>
+            <div class="preview-mode-switch">
+              <button type="button" id="btn-preview-mode-2d" class="btn-preview-mode active">📊 Đồ thị 2D</button>
+              <button type="button" id="btn-preview-mode-3d" class="btn-preview-mode">🔄 Khối 3D</button>
             </div>
+          </div>
+          <div class="preview-canvas-wrap">
+            <canvas id="graph-modal-preview-canvas" width="360" height="320"></canvas>
+            <div id="preview-3d-hint" class="preview-3d-hint" style="display: none;">
+              💡 Kéo chuột lên/xuống trên hình để đổi góc nghiêng 3D
+            </div>
+          </div>
+          <div id="preview-live-summary" class="preview-live-summary">
+            Đang hiển thị đồ thị hàm số trên hệ trục Oxy
           </div>
         </div>
       </div>
 
       <div class="graph-modal-footer">
         <button id="btn-cancel-graph-modal" class="btn-graph-secondary">Hủy</button>
-        <button id="btn-apply-graph-modal" class="btn-graph-primary">✍️ Áp dụng vào Đồ thị</button>
+        <button id="btn-apply-graph-modal" class="btn-graph-primary">✍️ Áp dụng vào Đồ thị trên trang</button>
       </div>
     </div>
   </div>
@@ -1627,16 +1686,16 @@
   <!-- Thư viện nhận dạng ký tự cục bộ -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <!-- Module Xoay Hình học Không gian 3D 360° -->
-  <script src="hhkg3d.js?v=20261102_1850"></script>
+  <script src="hhkg3d.js?v=20261102_1955"></script>
   <!-- Module Máy tính Casio fx-580VN X -->
-  <script src="fx580.js?v=20261027_1105"></script>
+  <script src="fx580.js?v=20261103_1045"></script>
   <!-- Module Đồ thị hàm số & 3D Solid of Revolution -->
-  <script src="graph_widget.js?v=20261026_1830"></script>
-  <script src="app.js?v=20261102_1850"></script>
+  <script src="graph_widget.js?v=20261102_1955"></script>
+  <script src="app.js?v=20261102_1955"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261102_1850').catch(function() {});
+        navigator.serviceWorker.register('./sw.js?v=20261103_1045').catch(function() {});
       });
     }
   </script>

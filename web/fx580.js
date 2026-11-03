@@ -998,34 +998,295 @@ class MathEngine {
     return Math.sqrt(u.reduce((sum, x) => sum + x * x, 0));
   }
 
-  // Statistics 1-Var
-  calc1VarStat(values) {
+  // Statistics 1-Var (Hỗ trợ cả mẫu số liệu đơn và bảng tần số / mẫu số liệu ghép nhóm chuẩn Casio fx-580VN X)
+  calc1VarStat(values, freqs) {
     if (!values || values.length === 0) return null;
-    const n = values.length;
-    const sum = values.reduce((a, b) => a + b, 0);
+
+    // Chuẩn hóa dữ liệu đầu vào thành mảng [{ x, freq }]
+    const items = [];
+    for (let i = 0; i < values.length; i++) {
+      const item = values[i];
+      let xVal = 0;
+      let fVal = 1;
+      if (item !== null && typeof item === 'object') {
+        xVal = Number(item.x);
+        fVal = item.freq !== undefined ? Number(item.freq) : 1;
+      } else {
+        xVal = Number(item);
+        fVal = (Array.isArray(freqs) && freqs[i] !== undefined) ? Number(freqs[i]) : 1;
+      }
+      if (!isNaN(xVal) && !isNaN(fVal) && fVal > 0) {
+        items.push({ x: xVal, freq: fVal });
+      }
+    }
+    if (items.length === 0) return null;
+
+    let n = 0;
+    let sum = 0;
+    let sumSq = 0;
+    for (const it of items) {
+      n += it.freq;
+      sum += it.x * it.freq;
+      sumSq += (it.x * it.x) * it.freq;
+    }
+    if (n <= 0) return null;
+
     const mean = sum / n;
-    const sumSq = values.reduce((a, b) => a + b * b, 0);
-    const variancePop = values.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
-    const varianceSample = n > 1 ? values.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1) : 0;
-    const sorted = [...values].sort((a, b) => a - b);
-    const min = sorted[0];
-    const max = sorted[n - 1];
-    const q1 = sorted[Math.floor(n * 0.25)];
-    const median = n % 2 === 1 ? sorted[Math.floor(n / 2)] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
-    const q3 = sorted[Math.floor(n * 0.75)];
+    let sumDiffSq = 0;
+    for (const it of items) {
+      const d = it.x - mean;
+      sumDiffSq += (d * d) * it.freq;
+    }
+
+    const variancePop = sumDiffSq / n;
+    const varianceSample = n > 1 ? (sumDiffSq / (n - 1)) : 0;
+
+    // Sắp xếp theo x tăng dần để tìm min, Q1, Med, Q3, max theo chuẩn Casio fx-580VN X
+    const sortedItems = [...items].sort((a, b) => a.x - b.x);
+    const min = sortedItems[0].x;
+    const max = sortedItems[sortedItems.length - 1].x;
+
+    // Mở rộng theo tần số nguyên (nếu tổng tần số nguyên <= 20000) để tính đúng chuẩn trung vị nửa dưới/nửa trên của Casio
+    const isAllIntFreq = sortedItems.every(it => Math.abs(it.freq - Math.round(it.freq)) < 1e-9);
+    let q1 = min, median = min, q3 = max;
+
+    const getSliceMedian = (arr) => {
+      const len = arr.length;
+      if (len === 0) return 0;
+      const mid = Math.floor(len / 2);
+      return (len % 2 === 1) ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+    };
+
+    if (isAllIntFreq && n <= 20000) {
+      const expanded = [];
+      for (const it of sortedItems) {
+        const count = Math.round(it.freq);
+        for (let k = 0; k < count; k++) expanded.push(it.x);
+      }
+      const len = expanded.length;
+      if (len === 1) {
+        q1 = expanded[0];
+        median = expanded[0];
+        q3 = expanded[0];
+      } else {
+        median = getSliceMedian(expanded);
+        const lowerHalf = expanded.slice(0, Math.floor(len / 2));
+        const upperHalf = expanded.slice(Math.ceil(len / 2));
+        q1 = getSliceMedian(lowerHalf);
+        q3 = getSliceMedian(upperHalf);
+      }
+    } else {
+      // Nội suy theo tần số tích lũy cho trường hợp tần số thập phân hoặc mẫu cực lớn
+      const getQuantile = (p) => {
+        const target = p * n;
+        let cum = 0;
+        for (let i = 0; i < sortedItems.length; i++) {
+          const nextCum = cum + sortedItems[i].freq;
+          if (target < nextCum - 1e-9) return sortedItems[i].x;
+          if (Math.abs(target - nextCum) <= 1e-9 && i + 1 < sortedItems.length) {
+            return (sortedItems[i].x + sortedItems[i + 1].x) / 2;
+          }
+          cum = nextCum;
+        }
+        return sortedItems[sortedItems.length - 1].x;
+      };
+      q1 = getQuantile(0.25);
+      median = getQuantile(0.5);
+      q3 = getQuantile(0.75);
+    }
 
     return {
-      n: n,
-      mean: Number(mean.toFixed(5)),
-      sum: Number(sum.toFixed(5)),
-      sumSq: Number(sumSq.toFixed(5)),
-      sigma: Number(Math.sqrt(variancePop).toFixed(5)),
-      s: Number(Math.sqrt(varianceSample).toFixed(5)),
-      min: min,
-      q1: q1,
-      median: median,
-      q3: q3,
-      max: max
+      n: Number(n.toFixed(6)),
+      mean: Number(mean.toFixed(6)),
+      sum: Number(sum.toFixed(6)),
+      sumSq: Number(sumSq.toFixed(6)),
+      sigmaSq: Number(variancePop.toFixed(6)),
+      sigma: Number(Math.sqrt(variancePop).toFixed(6)),
+      sSq: Number(varianceSample.toFixed(6)),
+      s: Number(Math.sqrt(varianceSample).toFixed(6)),
+      min: Number(min.toFixed(6)),
+      q1: Number(q1.toFixed(6)),
+      median: Number(median.toFixed(6)),
+      q3: Number(q3.toFixed(6)),
+      max: Number(max.toFixed(6))
+    };
+  }
+
+  // Statistics 2-Var & Regression (Đầy đủ 7 mô hình Hồi quy trang 118–154 sách HDSD fx-580VNX_VI.pdf)
+  calc2VarStat(rows, regType = 2) {
+    if (!rows || rows.length === 0) return null;
+    const valid = [];
+    for (const r of rows) {
+      const x = Number(r.x !== undefined ? r.x : 0);
+      const y = Number(r.y !== undefined ? r.y : 0);
+      const f = Number(r.freq !== undefined ? r.freq : 1);
+      if (!isNaN(x) && !isNaN(y) && !isNaN(f) && f > 0) {
+        valid.push({ x, y, freq: f });
+      }
+    }
+    if (valid.length === 0) return null;
+
+    const statX = this.calc1VarStat(valid.map(it => ({ x: it.x, freq: it.freq })));
+    const statY = this.calc1VarStat(valid.map(it => ({ x: it.y, freq: it.freq })));
+    if (!statX || !statY) return null;
+
+    let sumXY = 0, sumX3 = 0, sumX4 = 0, sumX2Y = 0;
+    for (const it of valid) {
+      sumXY += it.x * it.y * it.freq;
+      sumX3 += Math.pow(it.x, 3) * it.freq;
+      sumX4 += Math.pow(it.x, 4) * it.freq;
+      sumX2Y += (it.x * it.x * it.y) * it.freq;
+    }
+
+    const n = statX.n;
+    const computeLinearTrans = (txFn, tyFn) => {
+      let N = 0, sU = 0, sV = 0, sUU = 0, sVV = 0, sUV = 0;
+      for (const it of valid) {
+        const u = txFn(it.x);
+        const v = tyFn(it.y);
+        if (isNaN(u) || !isFinite(u) || isNaN(v) || !isFinite(v)) continue;
+        N += it.freq;
+        sU += u * it.freq;
+        sV += v * it.freq;
+        sUU += u * u * it.freq;
+        sVV += v * v * it.freq;
+        sUV += u * v * it.freq;
+      }
+      if (N <= 0) return { A: 0, B: 0, r: 0 };
+      const suu = sUU - (sU * sU) / N;
+      const svv = sVV - (sV * sV) / N;
+      const suv = sUV - (sU * sV) / N;
+      if (Math.abs(suu) <= 1e-12) return { A: 0, B: 0, r: 0 };
+      const B = suv / suu;
+      const A = (sV / N) - B * (sU / N);
+      const r = (suu > 0 && svv > 0) ? (suv / Math.sqrt(suu * svv)) : 0;
+      return { A, B, r };
+    };
+
+    let reg = {
+      a: 0, b: 0, r: 0, c: null,
+      formula: 'y=a+bx',
+      estimateY: (xVal) => 0,
+      estimateX: (yVal) => 0,
+      estimateX1: (yVal) => 0,
+      estimateX2: (yVal) => 0
+    };
+
+    if (regType === 3) {
+      // 3: Hồi quy bậc hai y = a + bx + cx^2 (Trang 137–140 HDSD)
+      reg.formula = 'y=a+bx+cx²';
+      const sys = this.solveLinearSystem(
+        [
+          [n, statX.sum, statX.sumSq],
+          [statX.sum, statX.sumSq, sumX3],
+          [statX.sumSq, sumX3, sumX4]
+        ],
+        [statY.sum, sumXY, sumX2Y]
+      );
+      if (sys && sys.success && sys.solutions) {
+        reg.a = Number((sys.solutions.x ? sys.solutions.x.val : 0).toFixed(6));
+        reg.b = Number((sys.solutions.y ? sys.solutions.y.val : 0).toFixed(6));
+        reg.c = Number((sys.solutions.z ? sys.solutions.z.val : 0).toFixed(6));
+      }
+      reg.estimateY = (xVal) => Number((reg.a + reg.b * xVal + reg.c * xVal * xVal).toFixed(6));
+      reg.estimateX1 = (yVal) => {
+        if (Math.abs(reg.c) < 1e-12) return Math.abs(reg.b) > 1e-12 ? Number(((yVal - reg.a) / reg.b).toFixed(6)) : NaN;
+        const disc = reg.b * reg.b - 4 * reg.c * (reg.a - yVal);
+        if (disc < 0) return NaN;
+        return Number(((-reg.b + Math.sqrt(disc)) / (2 * reg.c)).toFixed(6));
+      };
+      reg.estimateX2 = (yVal) => {
+        if (Math.abs(reg.c) < 1e-12) return reg.estimateX1(yVal);
+        const disc = reg.b * reg.b - 4 * reg.c * (reg.a - yVal);
+        if (disc < 0) return NaN;
+        return Number(((-reg.b - Math.sqrt(disc)) / (2 * reg.c)).toFixed(6));
+      };
+      reg.estimateX = reg.estimateX1;
+    } else if (regType === 4) {
+      // 4: Hồi quy lôgarit y = a + b*ln(x) (Trang 140–143 HDSD)
+      reg.formula = 'y=a+b·ln(x)';
+      const { A, B, r } = computeLinearTrans(x => Math.log(x), y => y);
+      reg.a = Number(A.toFixed(6));
+      reg.b = Number(B.toFixed(6));
+      reg.r = Number(r.toFixed(6));
+      reg.estimateY = (xVal) => Number((A + B * Math.log(xVal)).toFixed(6));
+      reg.estimateX = (yVal) => Number(Math.exp((yVal - A) / B).toFixed(6));
+    } else if (regType === 5) {
+      // P2-1 (5): Hồi quy hàm mũ e: y = a * e^(bx) (Trang 143–146 HDSD)
+      reg.formula = 'y=a·e^(bx)';
+      const { A, B, r } = computeLinearTrans(x => x, y => Math.log(y));
+      const aReal = Math.exp(A);
+      reg.a = Number(aReal.toFixed(6));
+      reg.b = Number(B.toFixed(6));
+      reg.r = Number(r.toFixed(6));
+      reg.estimateY = (xVal) => Number((aReal * Math.exp(B * xVal)).toFixed(6));
+      reg.estimateX = (yVal) => Number(((Math.log(yVal) - A) / B).toFixed(6));
+    } else if (regType === 6) {
+      // P2-2 (6): Hồi quy hàm mũ ab: y = a * b^x (Trang 146–149 HDSD)
+      reg.formula = 'y=a·b^x';
+      const { A, B, r } = computeLinearTrans(x => x, y => Math.log(y));
+      const aReal = Math.exp(A);
+      const bReal = Math.exp(B);
+      reg.a = Number(aReal.toFixed(6));
+      reg.b = Number(bReal.toFixed(6));
+      reg.r = Number(r.toFixed(6));
+      reg.estimateY = (xVal) => Number((aReal * Math.pow(bReal, xVal)).toFixed(6));
+      reg.estimateX = (yVal) => Number(((Math.log(yVal) - A) / B).toFixed(6));
+    } else if (regType === 7) {
+      // P2-3 (7): Hồi quy lũy thừa: y = a * x^b (Trang 149–151 HDSD)
+      reg.formula = 'y=a·x^b';
+      const { A, B, r } = computeLinearTrans(x => Math.log(x), y => Math.log(y));
+      const aReal = Math.exp(A);
+      reg.a = Number(aReal.toFixed(6));
+      reg.b = Number(B.toFixed(6));
+      reg.r = Number(r.toFixed(6));
+      reg.estimateY = (xVal) => Number((aReal * Math.pow(xVal, B)).toFixed(6));
+      reg.estimateX = (yVal) => Number(Math.exp((Math.log(yVal) - A) / B).toFixed(6));
+    } else if (regType === 8) {
+      // P2-4 (8): Hồi quy nghịch đảo: y = a + b/x (Trang 152–154 HDSD)
+      reg.formula = 'y=a+b/x';
+      const { A, B, r } = computeLinearTrans(x => 1 / x, y => y);
+      reg.a = Number(A.toFixed(6));
+      reg.b = Number(B.toFixed(6));
+      reg.r = Number(r.toFixed(6));
+      reg.estimateY = (xVal) => Number((A + B / xVal).toFixed(6));
+      reg.estimateX = (yVal) => Number((B / (yVal - A)).toFixed(6));
+    } else {
+      // 2: Hồi quy tuyến tính y = a + bx (Trang 131–136 HDSD)
+      reg.formula = 'y=a+bx';
+      const { A, B, r } = computeLinearTrans(x => x, y => y);
+      reg.a = Number(A.toFixed(6));
+      reg.b = Number(B.toFixed(6));
+      reg.r = Number(r.toFixed(6));
+      reg.estimateY = (xVal) => Number((A + B * xVal).toFixed(6));
+      reg.estimateX = (yVal) => Math.abs(B) > 1e-12 ? Number(((yVal - A) / B).toFixed(6)) : NaN;
+    }
+
+    return {
+      n: statX.n,
+      meanX: statX.mean,
+      sumX: statX.sum,
+      sumSqX: statX.sumSq,
+      sigmaSqX: statX.sigmaSq,
+      sigmaX: statX.sigma,
+      sSqX: statX.sSq,
+      sX: statX.s,
+      meanY: statY.mean,
+      sumY: statY.sum,
+      sumSqY: statY.sumSq,
+      sigmaSqY: statY.sigmaSq,
+      sigmaY: statY.sigma,
+      sSqY: statY.sSq,
+      sY: statY.s,
+      sumXY: Number(sumXY.toFixed(6)),
+      sumX3: Number(sumX3.toFixed(6)),
+      sumX2Y: Number(sumX2Y.toFixed(6)),
+      sumX4: Number(sumX4.toFixed(6)),
+      minX: statX.min,
+      maxX: statX.max,
+      minY: statY.min,
+      maxY: statY.max,
+      reg
     };
   }
 
@@ -2336,13 +2597,23 @@ class CasioApp {
       buffer: ''
     };
 
-    // Stat state
+    // Stat state (Chuẩn 100% Casio fx-580VN X: hỗ trợ 1-Biến, 2-Biến & Cột tần số Freq)
+    this.statFreq = false;
     this.stat = {
-      list: [5, 8, 12, 15, 20],
+      type: 1, // 1: 1-Variable, 2: y=a+bx, 3: y=a+bx+cx^2, 4: y=a+b*ln(x), 5: y=a*e^(bx), 6: y=a*b^x, 7: y=a*x^b, 8: y=a+b/x
+      typePage: 1, // 1 hoặc 2
+      rows: [], // [{ x: number, y: number, freq: number }]
+      list: [], // Tương thích ngược
+      selectedRow: 0,
+      selectedCol: 'x', // 'x', 'y', 'freq'
       scrollIdx: 0,
       buffer: '',
       results: null,
-      resScroll: 0
+      resultMode: '1VAR', // '1VAR', '2VAR', 'REG'
+      resScroll: 0,
+      optnPage: 1,
+      calcExpr: '',
+      calcResult: ''
     };
 
     // Audio & tactile
@@ -3113,6 +3384,9 @@ class CasioApp {
   // SETUP CONTROLLER (SHIFT + MENU)
   // -------------------------------------------------------------
   openSetup() {
+    if (this.osState !== 'SETUP') {
+      this.prevSetupOsState = this.osState;
+    }
     this.osState = 'SETUP';
     this.setupPage = 1;
     this.setupSubmenu = null;
@@ -3185,8 +3459,8 @@ class CasioApp {
     }
 
     if (this.setupSubmenu === 'STAT') {
-      const items = isVi ? ['1:Bật tần số', '2:Tắt tần số'] : ['1:On', '2:Off'];
-      this.display.renderList(isVi ? 'Thống kê' : 'Statistics', items, false, false);
+      const items = isVi ? ['1:Bật (On)', '2:Tắt (Off)'] : ['1:On', '2:Off'];
+      this.display.renderList(isVi ? 'Tần số? (Thống kê)' : 'Frequency?', items, false, false);
       return;
     }
 
@@ -3486,10 +3760,29 @@ class CasioApp {
   }
 
   exitSetup() {
-    this.osState = 'NORMAL';
     this.setupSubmenu = null;
-    this.display.showView('NORMAL');
     this.display.updateIndicators(this.state);
+
+    // Nếu trước khi bấm SHIFT + MENU (SETUP) đang ở trong chế độ Thống kê (STAT) hoặc Bảng giá trị (TABLE), quay lại đúng màn hình đó
+    if (this.state.currentMode === 6 && this.prevSetupOsState && this.prevSetupOsState.startsWith('STAT_')) {
+      this.osState = this.prevSetupOsState;
+      this.prevSetupOsState = null;
+      if (!this.statFreq && this.stat.selectedCol === 'freq') {
+        this.stat.selectedCol = 'x';
+      }
+      if (this.osState === 'STAT_TYPE') this.renderStatTypeMenu();
+      else if (this.osState === 'STAT_RESULT') this.renderStatResult();
+      else if (this.osState === 'STAT_CALC') this.renderStatCalc();
+      else {
+        this.osState = 'STAT_INPUT';
+        this.renderStatInput();
+      }
+      return;
+    }
+
+    this.prevSetupOsState = null;
+    this.osState = 'NORMAL';
+    this.display.showView('NORMAL');
     this.display.renderExpression(this.expression, this.cursorPos);
     this.display.setResult(this.displayResult);
   }
@@ -5115,20 +5408,350 @@ class CasioApp {
   }
 
   // -------------------------------------------------------------
-  // MODE 6: STAT 1-VAR (100% ON-SCREEN LCD)
+  // MODE 6: STAT 1-VAR & 2-VAR (100% AUTHENTIC CASIO fx-580VN X LCD)
   // -------------------------------------------------------------
   startStat() {
-    this.osState = 'STAT_INPUT';
+    this.osState = 'STAT_TYPE';
+    this.stat.typePage = 1;
     this.stat.buffer = '';
-    if (this.stat.selectedRow === undefined) {
-      this.stat.selectedRow = this.stat.list ? this.stat.list.length : 0;
+    this.renderStatTypeMenu();
+  }
+
+  syncStatRowsFromList() {
+    if (!Array.isArray(this.stat.rows)) this.stat.rows = [];
+    if (Array.isArray(this.stat.list) && this.stat.list.length > 0 && this.stat.rows.length === 0) {
+      this.stat.rows = this.stat.list.map(v => {
+        if (v !== null && typeof v === 'object') {
+          return {
+            x: Number(v.x !== undefined ? v.x : 0),
+            y: Number(v.y !== undefined ? v.y : 0),
+            freq: Number(v.freq !== undefined ? v.freq : 1)
+          };
+        }
+        return { x: Number(v), y: 0, freq: 1 };
+      });
     }
-    this.stat.scrollOffset = 2; // Dòng 3 (giá trị 12) hiển thị sẵn giống ảnh mẫu
-    this.renderStatInput();
+    this.stat.list = this.stat.rows.map(r => r.x);
+  }
+
+  getStatColumns() {
+    const cols = ['x'];
+    if ((this.stat.type || 1) >= 2) cols.push('y');
+    if (this.statFreq) cols.push('freq');
+    return cols;
+  }
+
+  evaluateStatBuffer(bufStr) {
+    if (!bufStr || !bufStr.trim()) return NaN;
+    const clean = bufStr.trim()
+      .replace(/×/g, '*')
+      .replace(/÷/g, '/')
+      .replace(/−/g, '-');
+    const direct = Number(clean);
+    if (!isNaN(direct) && isFinite(direct)) return direct;
+    try {
+      const val = this.engine.evaluate(clean, this.state.angleMode || 'DEG');
+      return (typeof val === 'number' && !isNaN(val) && isFinite(val)) ? Number(val.toFixed(6)) : NaN;
+    } catch (e) {
+      return NaN;
+    }
+  }
+
+  commitStatBuffer() {
+    if (this.stat.buffer === '') return false;
+    const val = this.evaluateStatBuffer(this.stat.buffer);
+    this.stat.buffer = '';
+    if (isNaN(val)) return false;
+
+    this.syncStatRowsFromList();
+    const rows = this.stat.rows;
+    const col = this.stat.selectedCol || 'x';
+    const rowIdx = Math.max(0, Math.min(rows.length, this.stat.selectedRow || 0));
+
+    if (rowIdx < rows.length) {
+      if (col === 'freq') {
+        rows[rowIdx].freq = Math.max(0, val);
+      } else if (col === 'y') {
+        rows[rowIdx].y = val;
+      } else {
+        rows[rowIdx].x = val;
+      }
+    } else {
+      const newRow = { x: 0, y: 0, freq: 1 };
+      if (col === 'freq') newRow.freq = Math.max(0, val);
+      else if (col === 'y') newRow.y = val;
+      else newRow.x = val;
+      rows.push(newRow);
+    }
+    this.stat.list = rows.map(r => r.x);
+    return true;
+  }
+
+  ensureStatRowVisible() {
+    const maxVisible = 3;
+    const row = this.stat.selectedRow || 0;
+    if (this.stat.scrollIdx === undefined) this.stat.scrollIdx = 0;
+    if (row < this.stat.scrollIdx) {
+      this.stat.scrollIdx = row;
+    } else if (row >= this.stat.scrollIdx + maxVisible) {
+      this.stat.scrollIdx = row - maxVisible + 1;
+    }
+    this.stat.scrollIdx = Math.max(0, this.stat.scrollIdx);
+  }
+
+  // Chuẩn xác suất phân phối chuẩn tích lũy P(t), Q(t), R(t) theo Casio fx-580VN X (HDSD tr. 129-131)
+  statNormPhi(t) {
+    const x = Number(t);
+    if (isNaN(x)) return NaN;
+    const sign = x < 0 ? -1 : 1;
+    const z = Math.abs(x) / Math.SQRT2;
+    const t1 = 1.0 / (1.0 + 0.3275911 * z);
+    const erf = 1.0 - (((((1.061405429 * t1 - 1.453152027) * t1) + 1.421413741) * t1 - 0.284496736) * t1 + 0.254829592) * t1 * Math.exp(-z * z);
+    return 0.5 * (1.0 + sign * erf);
+  }
+
+  statNormP(t) {
+    const p = this.statNormPhi(t);
+    return isNaN(p) ? NaN : Number(p.toFixed(5));
+  }
+
+  statNormQ(t) {
+    const x = Number(t);
+    if (isNaN(x)) return NaN;
+    const q = Math.abs(this.statNormPhi(x) - 0.5);
+    return Number(q.toFixed(5));
+  }
+
+  statNormR(t) {
+    const p = this.statNormPhi(t);
+    return isNaN(p) ? NaN : Number((1 - p).toFixed(5));
+  }
+
+  insertStatCalcToken(token, isPostfix = false) {
+    if (this.stat.calcExpr === undefined) this.stat.calcExpr = '';
+    if (this.stat.calcJustEvaluated) {
+      this.stat.calcJustEvaluated = false;
+      this.stat.calcResult = null;
+      if (isPostfix) {
+        this.stat.calcExpr = 'Ans' + token;
+      } else {
+        this.stat.calcExpr = token;
+      }
+    } else {
+      this.stat.calcExpr += token;
+    }
+    this.osState = 'STAT_CALC';
+    this.renderStatCalc();
+  }
+
+  evaluateStatCalcExpression(rawExpr) {
+    if (!rawExpr || !rawExpr.trim()) return null;
+    this.syncStatRowsFromList();
+    if (this.stat.rows.length === 0) return 'Math ERROR';
+
+    const is2Var = (this.stat.type || 1) >= 2;
+    const s1 = !is2Var ? (this.stat.results || this.engine.calc1VarStat(this.stat.rows)) : null;
+    const s2 = is2Var ? (this.stat.results || this.engine.calc2VarStat(this.stat.rows, this.stat.type)) : null;
+    if (!is2Var && !s1) return 'Math ERROR';
+    if (is2Var && !s2) return 'Math ERROR';
+
+    let expr = rawExpr.trim();
+    // Tự động đóng ngoặc còn thiếu ở cuối giống máy thật Casio fx-580VN X
+    const openCount = (expr.match(/\(/g) || []).length;
+    const closeCount = (expr.match(/\)/g) || []).length;
+    if (openCount > closeCount) {
+      expr += ')'.repeat(openCount - closeCount);
+    }
+
+    const ansVal = (typeof this.rawResult === 'number' && !isNaN(this.rawResult)) ? this.rawResult : 0;
+    expr = expr.replace(/Ans/g, `(${ansVal})`);
+
+    // Thay thế các biến thống kê (ưu tiên chuỗi dài trước để không đè chuỗi con)
+    if (!is2Var && s1) {
+      const tokenMap1 = [
+        ['min(x)', s1.min],
+        ['max(x)', s1.max],
+        ['Σx²', s1.sumSq],
+        ['σ²x', s1.sigmaSq],
+        ['s²x', s1.sSq],
+        ['Σx', s1.sum],
+        ['x̄', s1.mean],
+        ['σx', s1.sigma],
+        ['sx', s1.s],
+        ['Q₁', s1.q1],
+        ['Med', s1.median],
+        ['Q₃', s1.q3],
+        ['n', s1.n]
+      ];
+      for (const [k, v] of tokenMap1) {
+        expr = expr.split(k).join(`(${v})`);
+      }
+      // Toán tử hậu tố chuẩn hóa ▶t: X▶t = (X - x̄) / σx
+      const evalArg1 = (argStr) => {
+        const cleanArg = argStr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+        const direct = Number(cleanArg);
+        if (!isNaN(direct)) return direct;
+        return this.engine.evaluate(cleanArg, this.state.angleMode || 'DEG');
+      };
+      expr = expr.replace(/(\([^()]+\)|[+-]?[0-9.]+(?:e[+-]?[0-9]+)?)\s*▶t/g, (_, arg) => {
+        if (!s1.sigma || s1.sigma === 0) return 'NaN';
+        const xv = evalArg1(arg);
+        if (isNaN(xv)) return 'NaN';
+        return String(Number(((xv - s1.mean) / s1.sigma).toFixed(10)));
+      });
+      expr = expr.replace(/▶t/g, () => {
+        if (!s1.sigma || s1.sigma === 0) return 'NaN';
+        return String(Number(((0 - s1.mean) / s1.sigma).toFixed(10)));
+      });
+    } else if (is2Var && s2) {
+      const reg = s2.reg || {};
+      const tokenMap2 = [
+        ['min(x)', s2.minX],
+        ['max(x)', s2.maxX],
+        ['min(y)', s2.minY],
+        ['max(y)', s2.maxY],
+        ['Σx²y', s2.sumX2Y],
+        ['Σx⁴', s2.sumX4],
+        ['Σx³', s2.sumX3],
+        ['Σx²', s2.sumSqX],
+        ['Σy²', s2.sumSqY],
+        ['Σxy', s2.sumXY],
+        ['σ²x', s2.sigmaSqX],
+        ['s²x', s2.sSqX],
+        ['σ²y', s2.sigmaSqY],
+        ['s²y', s2.sSqY],
+        ['Σx', s2.sumX],
+        ['Σy', s2.sumY],
+        ['x̄', s2.meanX],
+        ['σx', s2.sigmaX],
+        ['sx', s2.sX],
+        ['ȳ', s2.meanY],
+        ['σy', s2.sigmaY],
+        ['sy', s2.sY],
+        ['n', s2.n]
+      ];
+      for (const [k, v] of tokenMap2) {
+        expr = expr.split(k).join(`(${v})`);
+      }
+
+      // Toán tử ước lượng hồi quy hậu tố: x̂₁, x̂₂, x̂, ŷ (ví dụ: -3x̂, 2ŷ, 20x̂₁, 20x̂₂)
+      const evalArg = (argStr) => {
+        const cleanArg = argStr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+        const direct = Number(cleanArg);
+        if (!isNaN(direct)) return direct;
+        return this.engine.evaluate(cleanArg, this.state.angleMode || 'DEG');
+      };
+      expr = expr.replace(/(\([^()]+\)|[+-]?[0-9.]+(?:e[+-]?[0-9]+)?)\s*x̂₁/g, (_, arg) => {
+        const v = evalArg(arg);
+        const res = reg.estimateX1 ? reg.estimateX1(v) : (reg.estimateX ? reg.estimateX(v) : NaN);
+        return isNaN(res) ? 'NaN' : `(${Number(res.toFixed(7))})`;
+      });
+      expr = expr.replace(/(\([^()]+\)|[+-]?[0-9.]+(?:e[+-]?[0-9]+)?)\s*x̂₂/g, (_, arg) => {
+        const v = evalArg(arg);
+        const res = reg.estimateX2 ? reg.estimateX2(v) : (reg.estimateX ? reg.estimateX(v) : NaN);
+        return isNaN(res) ? 'NaN' : `(${Number(res.toFixed(7))})`;
+      });
+      expr = expr.replace(/(\([^()]+\)|[+-]?[0-9.]+(?:e[+-]?[0-9]+)?)\s*x̂/g, (_, arg) => {
+        const v = evalArg(arg);
+        const res = reg.estimateX ? reg.estimateX(v) : NaN;
+        return isNaN(res) ? 'NaN' : `(${Number(res.toFixed(7))})`;
+      });
+      expr = expr.replace(/(\([^()]+\)|[+-]?[0-9.]+(?:e[+-]?[0-9]+)?)\s*ŷ/g, (_, arg) => {
+        const v = evalArg(arg);
+        const res = reg.estimateY ? reg.estimateY(v) : NaN;
+        return isNaN(res) ? 'NaN' : `(${Number(res.toFixed(7))})`;
+      });
+      // Trường hợp người dùng bấm trực tiếp x̂ hoặc ŷ một mình (mặc định tham số = 1 hoặc Ans)
+      expr = expr.replace(/x̂₁/g, () => {
+        const res = reg.estimateX1 ? reg.estimateX1(ansVal || 1) : NaN;
+        return isNaN(res) ? 'NaN' : `(${Number(res.toFixed(7))})`;
+      });
+      expr = expr.replace(/x̂₂/g, () => {
+        const res = reg.estimateX2 ? reg.estimateX2(ansVal || 1) : NaN;
+        return isNaN(res) ? 'NaN' : `(${Number(res.toFixed(7))})`;
+      });
+      expr = expr.replace(/x̂/g, () => {
+        const res = reg.estimateX ? reg.estimateX(ansVal || 1) : NaN;
+        return isNaN(res) ? 'NaN' : `(${Number(res.toFixed(7))})`;
+      });
+      expr = expr.replace(/ŷ/g, () => {
+        const res = reg.estimateY ? reg.estimateY(ansVal || 1) : NaN;
+        return isNaN(res) ? 'NaN' : `(${Number(res.toFixed(7))})`;
+      });
+
+      // Hệ số hồi quy a, b, c, r
+      const regTokens = [
+        ['a', reg.a !== undefined ? reg.a : 0],
+        ['b', reg.b !== undefined ? reg.b : 0],
+        ['c', reg.c !== undefined && reg.c !== null ? reg.c : 0],
+        ['r', reg.r !== undefined && reg.r !== null ? reg.r : 0]
+      ];
+      for (const [rk, rv] of regTokens) {
+        const regRegex = new RegExp(`\\b${rk}\\b`, 'g');
+        expr = expr.replace(regRegex, `(${rv})`);
+      }
+    }
+
+    // Xử lý hàm phân phối chuẩn P(...), Q(...), R(...)
+    let guard = 0;
+    while (/[PQR]\(/.test(expr) && guard++ < 10) {
+      expr = expr.replace(/([PQR])\(([^()]+)\)/g, (_, fn, inner) => {
+        const cleanInner = inner.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+        let tVal = Number(cleanInner);
+        if (isNaN(tVal)) {
+          tVal = this.engine.evaluate(cleanInner, this.state.angleMode || 'DEG');
+        }
+        if (isNaN(tVal)) return 'NaN';
+        const res = fn === 'P' ? this.statNormP(tVal) : (fn === 'Q' ? this.statNormQ(tVal) : this.statNormR(tVal));
+        return isNaN(res) ? 'NaN' : `(${res})`;
+      });
+    }
+
+    if (expr.includes('NaN')) return 'Math ERROR';
+
+    const cleanFinal = expr
+      .replace(/×/g, '*')
+      .replace(/÷/g, '/')
+      .replace(/−/g, '-');
+
+    const directNum = Number(cleanFinal);
+    if (!isNaN(directNum) && isFinite(directNum)) {
+      return Number(directNum.toFixed(10));
+    }
+
+    try {
+      const val = this.engine.evaluate(cleanFinal, this.state.angleMode || 'DEG');
+      if (typeof val === 'number' && !isNaN(val) && isFinite(val)) {
+        return Number(val.toFixed(10));
+      }
+      return 'Math ERROR';
+    } catch (e) {
+      return 'Math ERROR';
+    }
   }
 
   handleStatKey(key) {
-    // 0. Phím MENU và ON toàn cục
+    // 0. Hỗ trợ phím SHIFT (ví dụ SHIFT + MENU để mở SETUP bật/tắt cột Tần số Freq)
+    if (key === 'SHIFT') {
+      this.state.shift = !this.state.shift;
+      this.state.alpha = false;
+      this.display.updateIndicators(this.state);
+      return;
+    }
+    if (this.state.shift) {
+      this.state.shift = false;
+      this.display.updateIndicators(this.state);
+      if (key === 'MENU') {
+        this.openSetup();
+        return;
+      }
+      if (key === 'AC') {
+        this.powerOff();
+        return;
+      }
+    }
+
+    // Phím MENU và ON toàn cục
     if (key === 'MENU') {
       this.openMenu();
       return;
@@ -5145,66 +5768,309 @@ class CasioApp {
         this.renderStatInput();
         return;
       }
+      if (this.osState === 'STAT_TYPE') {
+        this.osState = 'STAT_INPUT';
+        this.renderStatInput();
+        return;
+      }
+      if (this.osState === 'STAT_EDITOR') {
+        this.osState = 'STAT_INPUT';
+        this.renderStatInput();
+        return;
+      }
+      if (this.osState === 'STAT_SUBMENU') {
+        this.osState = 'STAT_CALC';
+        this.renderStatCalc();
+        return;
+      }
+      if (this.osState === 'STAT_RESULT' || this.osState === 'STAT_OPTN') {
+        const prev = this.stat.prevOsState;
+        if (prev === 'STAT_INPUT') {
+          this.osState = 'STAT_INPUT';
+          this.renderStatInput();
+        } else {
+          this.osState = 'STAT_CALC';
+          this.renderStatCalc();
+        }
+        return;
+      }
+      // Ở STAT_INPUT (khi buffer rỗng) hoặc STAT_CALC: bấm AC chuyển ra/làm sạch màn hình tính toán thống kê STAT_CALC (HDSD tr. 122)
+      this.stat.calcExpr = '';
+      this.stat.calcResult = null;
+      this.stat.calcJustEvaluated = false;
       this.osState = 'STAT_CALC';
       this.renderStatCalc();
       return;
     }
 
     // 2. Phím OPTN
-    if (key === 'optn') {
-      if (this.osState === 'STAT_OPTN') {
+    if (key === 'optn' || key === 'OPTN') {
+      if (this.osState === 'STAT_OPTN' || this.osState === 'STAT_EDITOR' || this.osState === 'STAT_SUBMENU') {
         this.osState = this.stat.prevOsState || 'STAT_INPUT';
         if (this.osState === 'STAT_INPUT') this.renderStatInput();
         else if (this.osState === 'STAT_RESULT') this.renderStatResult();
         else this.renderStatCalc();
         return;
       }
+      if (this.osState === 'STAT_INPUT' && this.stat.buffer !== '') {
+        this.commitStatBuffer();
+      }
       this.stat.prevOsState = this.osState;
+      this.stat.optnContext = (this.osState === 'STAT_INPUT') ? 'EDITOR' : 'CALC';
+      this.stat.optnPage = 1;
       this.osState = 'STAT_OPTN';
       this.renderStatOptnMenu();
       return;
     }
 
-    // 3. Trạng thái MENU OPTN
+    // 3. Trạng thái MENU OPTN (STAT_OPTN — ngữ cảnh Bộ soạn thảo tr. 122 vs Màn hình tính toán thống kê tr. 123-125)
     if (this.osState === 'STAT_OPTN') {
-      if (key === '1') {
-        this.osState = 'STAT_TYPE';
-        this.renderStatTypeMenu();
+      const is2Var = (this.stat.type || 1) >= 2;
+      const isEditorCtx = this.stat.optnContext === 'EDITOR';
+      const page = this.stat.optnPage || 1;
+
+      if (key === 'DOWN' || key === 'UP') {
+        // Trong Editor 1-Var chỉ có 1 trang; trong Editor 2-Var và trong STAT_CALC (cả 1-Var & 2-Var) có 2 trang
+        if (!isEditorCtx || is2Var) {
+          this.stat.optnPage = (page === 2) ? 1 : 2;
+          this.renderStatOptnMenu();
+        }
         return;
-      } else if (key === '2') {
-        this.osState = 'STAT_INPUT';
+      }
+
+      if (isEditorCtx) {
+        // OPTN mở từ Bộ soạn thảo thống kê (STAT_INPUT — HDSD tr. 122-123)
+        if (!is2Var) {
+          // 1-Variable Editor OPTN: 1:Select Type, 2:Editor, 3:1-Variable Calc, 4:Statistics Calc
+          if (key === '1') {
+            this.osState = 'STAT_TYPE';
+            this.stat.typePage = 1;
+            this.renderStatTypeMenu();
+          } else if (key === '2') {
+            this.osState = 'STAT_EDITOR';
+            this.renderStatEditorMenu();
+          } else if (key === '3') {
+            this.syncStatRowsFromList();
+            this.stat.results = this.engine.calc1VarStat(this.stat.rows);
+            this.stat.resultMode = '1VAR';
+            this.stat.resScroll = 0;
+            this.osState = 'STAT_RESULT';
+            this.renderStatResult();
+          } else if (key === '4') {
+            this.stat.calcExpr = '';
+            this.stat.calcResult = null;
+            this.stat.calcJustEvaluated = false;
+            this.osState = 'STAT_CALC';
+            this.renderStatCalc();
+          }
+          return;
+        } else {
+          // 2-Variable Editor OPTN:
+          // Trang 1: 1:Select Type, 2:Editor, 3:2-Variable Calc, 4:Regression Calc
+          // Trang 2: 1:Statistics Calc
+          if (page === 1) {
+            if (key === '1') {
+              this.osState = 'STAT_TYPE';
+              this.stat.typePage = 1;
+              this.renderStatTypeMenu();
+            } else if (key === '2') {
+              this.osState = 'STAT_EDITOR';
+              this.renderStatEditorMenu();
+            } else if (key === '3') {
+              this.syncStatRowsFromList();
+              this.stat.results = this.engine.calc2VarStat(this.stat.rows, this.stat.type);
+              this.stat.resultMode = '2VAR';
+              this.stat.resScroll = 0;
+              this.osState = 'STAT_RESULT';
+              this.renderStatResult();
+            } else if (key === '4') {
+              this.syncStatRowsFromList();
+              this.stat.results = this.engine.calc2VarStat(this.stat.rows, this.stat.type);
+              this.stat.resultMode = 'REG';
+              this.stat.resScroll = 0;
+              this.osState = 'STAT_RESULT';
+              this.renderStatResult();
+            }
+          } else {
+            if (key === '1') {
+              this.stat.calcExpr = '';
+              this.stat.calcResult = null;
+              this.stat.calcJustEvaluated = false;
+              this.osState = 'STAT_CALC';
+              this.renderStatCalc();
+            }
+          }
+          return;
+        }
+      } else {
+        // OPTN mở từ Màn hình tính toán thống kê (STAT_CALC — HDSD tr. 123-125)
+        if (!is2Var) {
+          // 1-Variable STAT_CALC OPTN:
+          // Trang 1: 1:Select Type, 2:1-Variable Calc, 3:Data
+          // Trang 2: 1:Summation, 2:Variable, 3:Min/Max, 4:Norm Dist
+          if (page === 1) {
+            if (key === '1') {
+              this.osState = 'STAT_TYPE';
+              this.stat.typePage = 1;
+              this.renderStatTypeMenu();
+            } else if (key === '2') {
+              this.syncStatRowsFromList();
+              this.stat.results = this.engine.calc1VarStat(this.stat.rows);
+              this.stat.resultMode = '1VAR';
+              this.stat.resScroll = 0;
+              this.osState = 'STAT_RESULT';
+              this.renderStatResult();
+            } else if (key === '3') {
+              this.osState = 'STAT_INPUT';
+              this.stat.buffer = '';
+              this.renderStatInput();
+            }
+          } else {
+            const subMap = { '1': 'SUM', '2': 'VAR', '3': 'MINMAX', '4': 'NORM' };
+            if (subMap[key]) {
+              this.stat.submenuType = subMap[key];
+              this.stat.submenuPage = 1;
+              this.osState = 'STAT_SUBMENU';
+              this.renderStatSubmenu();
+            }
+          }
+          return;
+        } else {
+          // 2-Variable STAT_CALC OPTN:
+          // Trang 1: 1:Select Type, 2:2-Variable Calc, 3:Regression Calc, 4:Data
+          // Trang 2: 1:Summation, 2:Variable, 3:Min/Max, 4:Regression
+          if (page === 1) {
+            if (key === '1') {
+              this.osState = 'STAT_TYPE';
+              this.stat.typePage = 1;
+              this.renderStatTypeMenu();
+            } else if (key === '2') {
+              this.syncStatRowsFromList();
+              this.stat.results = this.engine.calc2VarStat(this.stat.rows, this.stat.type);
+              this.stat.resultMode = '2VAR';
+              this.stat.resScroll = 0;
+              this.osState = 'STAT_RESULT';
+              this.renderStatResult();
+            } else if (key === '3') {
+              this.syncStatRowsFromList();
+              this.stat.results = this.engine.calc2VarStat(this.stat.rows, this.stat.type);
+              this.stat.resultMode = 'REG';
+              this.stat.resScroll = 0;
+              this.osState = 'STAT_RESULT';
+              this.renderStatResult();
+            } else if (key === '4') {
+              this.osState = 'STAT_INPUT';
+              this.stat.buffer = '';
+              this.renderStatInput();
+            }
+          } else {
+            const subMap = { '1': 'SUM', '2': 'VAR', '3': 'MINMAX', '4': 'REG' };
+            if (subMap[key]) {
+              this.stat.submenuType = subMap[key];
+              this.stat.submenuPage = 1;
+              this.osState = 'STAT_SUBMENU';
+              this.renderStatSubmenu();
+            }
+          }
+          return;
+        }
+      }
+    }
+
+    // 3b. Trạng thái MENU BỘ SOẠN THẢO (STAT_EDITOR — 1:Insert Row, 2:Delete All, HDSD tr. 120, 122)
+    if (this.osState === 'STAT_EDITOR') {
+      if (key === 'LEFT') {
+        this.osState = 'STAT_OPTN';
+        this.renderStatOptnMenu();
+        return;
+      }
+      this.syncStatRowsFromList();
+      if (key === '1') {
+        // 1: Insert Row (Chèn dòng) tại dòng đang chọn
+        const rows = this.stat.rows;
+        const idx = Math.max(0, Math.min(rows.length, this.stat.selectedRow || 0));
+        rows.splice(idx, 0, { x: 0, y: 0, freq: 1 });
+        this.stat.list = rows.map(r => r.x);
         this.stat.buffer = '';
+        this.osState = 'STAT_INPUT';
+        this.ensureStatRowVisible();
         this.renderStatInput();
         return;
-      } else if (key === '3') {
-        this.stat.results = this.engine.calc1VarStat(this.stat.list || []);
-        this.stat.resScroll = 0;
-        this.osState = 'STAT_RESULT';
-        this.renderStatResult();
-        return;
-      } else if (key === '4') {
-        this.osState = 'STAT_CALC';
-        this.renderStatCalc();
+      }
+      if (key === '2') {
+        // 2: Delete All (Xóa tất cả)
+        this.stat.rows = [];
+        this.stat.list = [];
+        this.stat.selectedRow = 0;
+        this.stat.scrollIdx = 0;
+        this.stat.buffer = '';
+        this.osState = 'STAT_INPUT';
+        this.renderStatInput();
         return;
       }
       return;
     }
 
-    // 4. Trạng thái CHỌN LOẠI THỐNG KÊ (STAT_TYPE)
-    if (this.osState === 'STAT_TYPE') {
-      if (key === '1') {
-        // 1: 1-Biến -> Khởi tạo bảng dữ liệu mới (làm sạch dữ liệu cũ theo chuẩn Casio fx-580)
-        this.osState = 'STAT_INPUT';
-        this.stat.list = [];
-        this.stat.selectedRow = 0;
-        this.stat.scrollOffset = 0;
-        this.stat.buffer = '';
-        this.stat.results = null;
-        this.renderStatInput();
+    // 3c. Trạng thái MENU PHỤ LỆNH THỐNG KÊ (STAT_SUBMENU — Summation, Variable, Min/Max, Norm Dist, Regression)
+    if (this.osState === 'STAT_SUBMENU') {
+      if (key === 'LEFT') {
+        this.osState = 'STAT_OPTN';
+        this.renderStatOptnMenu();
         return;
       }
-      if (key === 'AC' || key === 'optn') {
+      const pages = this.getStatSubmenuPages();
+      const totalPages = pages.length;
+      const curPage = Math.max(1, Math.min(totalPages, this.stat.submenuPage || 1));
+
+      if (key === 'DOWN') {
+        if (totalPages > 1) {
+          this.stat.submenuPage = (curPage < totalPages) ? (curPage + 1) : 1;
+          this.renderStatSubmenu();
+        }
+        return;
+      }
+      if (key === 'UP') {
+        if (totalPages > 1) {
+          this.stat.submenuPage = (curPage > 1) ? (curPage - 1) : totalPages;
+          this.renderStatSubmenu();
+        }
+        return;
+      }
+      if (['1', '2', '3', '4'].includes(key)) {
+        const idx = parseInt(key, 10) - 1;
+        const pageItems = pages[curPage - 1] || [];
+        if (idx < pageItems.length) {
+          const item = pageItems[idx];
+          this.insertStatCalcToken(item.token, !!item.postfix);
+        }
+        return;
+      }
+      return;
+    }
+
+    // 4. Trạng thái CHỌN LOẠI THỐNG KÊ (STAT_TYPE — 2 trang chuẩn Casio fx-580VN X)
+    if (this.osState === 'STAT_TYPE') {
+      if (key === 'DOWN' || key === 'UP') {
+        this.stat.typePage = (this.stat.typePage === 2) ? 1 : 2;
+        this.renderStatTypeMenu();
+        return;
+      }
+      if (['1', '2', '3', '4'].includes(key)) {
+        const num = parseInt(key, 10);
+        const newType = (this.stat.typePage === 2) ? (num + 4) : num;
+        const prevType = this.stat.type || 1;
+        this.stat.type = newType;
         this.osState = 'STAT_INPUT';
+        if (!Array.isArray(this.stat.rows)) this.stat.rows = [];
+        if (prevType !== newType) {
+          this.stat.rows = [];
+          this.stat.list = [];
+        }
+        this.stat.selectedRow = 0;
+        this.stat.selectedCol = 'x';
+        this.stat.scrollIdx = 0;
+        this.stat.buffer = '';
+        this.stat.results = null;
         this.renderStatInput();
         return;
       }
@@ -5213,11 +6079,25 @@ class CasioApp {
 
     // 5. Trạng thái NHẬP LIỆU BẢNG (STAT_INPUT)
     if (this.osState === 'STAT_INPUT') {
+      this.syncStatRowsFromList();
+      const rows = this.stat.rows;
+      const cols = this.getStatColumns();
+      if (!cols.includes(this.stat.selectedCol)) {
+        this.stat.selectedCol = 'x';
+      }
+
       if (['0','1','2','3','4','5','6','7','8','9','.'].includes(key)) {
         this.stat.buffer += key;
         this.renderStatInput();
         return;
       }
+
+      // Hỗ trợ gõ biểu thức tính nhanh giá trị đại diện (a+b)/2 ngay trong ô bảng
+      if (key === 'add' || key === '+') { this.stat.buffer += '+'; this.renderStatInput(); return; }
+      if (key === 'mul' || key === '*') { this.stat.buffer += '×'; this.renderStatInput(); return; }
+      if (key === 'div' || key === '/' || key === 'frac') { this.stat.buffer += '÷'; this.renderStatInput(); return; }
+      if (key === 'open_paren' || key === '(') { this.stat.buffer += '('; this.renderStatInput(); return; }
+      if (key === 'close_paren' || key === ')') { this.stat.buffer += ')'; this.renderStatInput(); return; }
 
       if (key === 'x10x') {
         if (this.stat.buffer !== '' && !this.stat.buffer.includes('e')) {
@@ -5228,10 +6108,14 @@ class CasioApp {
       }
 
       if (key === 'neg' || key === 'sub' || key === '-') {
-        if (!this.stat.buffer.startsWith('-')) {
-          this.stat.buffer = '-' + this.stat.buffer;
+        if (this.stat.buffer === '') {
+          this.stat.buffer = '-';
+        } else if (key === 'neg') {
+          this.stat.buffer = this.stat.buffer.startsWith('-')
+            ? this.stat.buffer.slice(1)
+            : ('-' + this.stat.buffer);
         } else {
-          this.stat.buffer = this.stat.buffer.slice(1);
+          this.stat.buffer += '-';
         }
         this.renderStatInput();
         return;
@@ -5240,12 +6124,13 @@ class CasioApp {
       if (key === 'DEL') {
         if (this.stat.buffer.length > 0) {
           this.stat.buffer = this.stat.buffer.slice(0, -1);
-        } else if (this.stat.selectedRow < this.stat.list.length) {
-          this.stat.list.splice(this.stat.selectedRow, 1);
-          if (this.stat.selectedRow > this.stat.list.length) {
-            this.stat.selectedRow = this.stat.list.length;
+        } else if (this.stat.selectedRow < rows.length) {
+          rows.splice(this.stat.selectedRow, 1);
+          this.stat.list = rows.map(r => r.x);
+          if (this.stat.selectedRow > rows.length) {
+            this.stat.selectedRow = rows.length;
           }
-          this.stat.scrollOffset = Math.min(this.stat.selectedRow, Math.max(0, this.stat.list.length - 1));
+          this.ensureStatRowVisible();
         }
         this.renderStatInput();
         return;
@@ -5253,111 +6138,262 @@ class CasioApp {
 
       if (key === 'EQUALS' || key === '=') {
         if (this.stat.buffer !== '') {
-          const val = parseFloat(this.stat.buffer);
-          if (!isNaN(val)) {
-            if (this.stat.selectedRow < this.stat.list.length) {
-              this.stat.list[this.stat.selectedRow] = val;
-            } else {
-              this.stat.list.push(val);
-            }
+          const ok = this.commitStatBuffer();
+          if (ok) {
+            this.stat.selectedRow = Math.min(rows.length, (this.stat.selectedRow || 0) + 1);
+            this.ensureStatRowVisible();
           }
-          this.stat.buffer = '';
-          this.stat.selectedRow++;
-          this.stat.scrollOffset = Math.max(0, this.stat.list.length - 1);
         } else {
-          this.stat.selectedRow = Math.min(this.stat.list.length, this.stat.selectedRow + 1);
-          this.stat.scrollOffset = Math.min(this.stat.selectedRow, Math.max(0, this.stat.list.length - 1));
+          this.stat.selectedRow = Math.min(rows.length, (this.stat.selectedRow || 0) + 1);
+          this.ensureStatRowVisible();
         }
         this.renderStatInput();
         return;
       }
 
       if (key === 'UP') {
-        this.stat.buffer = '';
-        this.stat.selectedRow = Math.max(0, (this.stat.selectedRow || 0) - 1);
-        this.stat.scrollOffset = this.stat.selectedRow;
+        if (this.stat.buffer !== '') this.commitStatBuffer();
+        const maxRow = (this.stat.selectedCol === 'x') ? rows.length : Math.max(0, rows.length - 1);
+        if ((this.stat.selectedRow || 0) > 0) {
+          this.stat.selectedRow--;
+        } else {
+          this.stat.selectedRow = maxRow;
+        }
+        this.ensureStatRowVisible();
         this.renderStatInput();
         return;
       }
 
       if (key === 'DOWN') {
-        this.stat.buffer = '';
-        this.stat.selectedRow = Math.min(this.stat.list.length, (this.stat.selectedRow || 0) + 1);
-        this.stat.scrollOffset = Math.min(this.stat.selectedRow, Math.max(0, this.stat.list.length - 1));
+        if (this.stat.buffer !== '') this.commitStatBuffer();
+        const maxRow = (this.stat.selectedCol === 'x') ? rows.length : Math.max(0, rows.length - 1);
+        if ((this.stat.selectedRow || 0) < maxRow) {
+          this.stat.selectedRow++;
+        } else {
+          this.stat.selectedRow = 0;
+        }
+        this.ensureStatRowVisible();
         this.renderStatInput();
+        return;
+      }
+
+      if (key === 'RIGHT') {
+        if (this.stat.buffer !== '') this.commitStatBuffer();
+        if (cols.length > 1) {
+          const curColIdx = cols.indexOf(this.stat.selectedCol);
+          const nextCol = cols[(curColIdx + 1) % cols.length];
+          this.stat.selectedCol = nextCol;
+          if (nextCol !== 'x' && this.stat.selectedRow >= rows.length && rows.length > 0) {
+            this.stat.selectedRow = rows.length - 1;
+          }
+          this.ensureStatRowVisible();
+          this.renderStatInput();
+        }
+        return;
+      }
+
+      if (key === 'LEFT') {
+        if (this.stat.buffer !== '') this.commitStatBuffer();
+        if (cols.length > 1) {
+          const curColIdx = cols.indexOf(this.stat.selectedCol);
+          const prevCol = cols[(curColIdx - 1 + cols.length) % cols.length];
+          this.stat.selectedCol = prevCol;
+          if (prevCol !== 'x' && this.stat.selectedRow >= rows.length && rows.length > 0) {
+            this.stat.selectedRow = rows.length - 1;
+          }
+          this.ensureStatRowVisible();
+          this.renderStatInput();
+        }
         return;
       }
     }
 
-    // 6. Trạng thái MÀN HÌNH TÍNH TOÁN STAT (STAT_CALC)
+    // 6. Trạng thái MÀN HÌNH TÍNH TOÁN STAT (STAT_CALC — HDSD tr. 122-154)
     if (this.osState === 'STAT_CALC') {
-      if (key === 'optn') {
-        this.stat.prevOsState = 'STAT_CALC';
-        this.osState = 'STAT_OPTN';
-        this.renderStatOptnMenu();
+      if (this.stat.calcExpr === undefined) this.stat.calcExpr = '';
+
+      if (['0','1','2','3','4','5','6','7','8','9','.'].includes(key)) {
+        this.insertStatCalcToken(key, false);
         return;
       }
-      if (['0','1','2','3','4','5','6','7','8','9','.','+','-','*','/'].includes(key)) {
-        // Cho phép tính toán biểu thức nếu người dùng gõ
+      if (key === 'add' || key === '+') { this.insertStatCalcToken('+', true); return; }
+      if (key === 'sub' || key === '-') { this.insertStatCalcToken('-', this.stat.calcExpr !== ''); return; }
+      if (key === 'neg') { this.insertStatCalcToken('-', false); return; }
+      if (key === 'mul' || key === '*') { this.insertStatCalcToken('×', true); return; }
+      if (key === 'div' || key === '/' || key === 'frac') { this.insertStatCalcToken('÷', true); return; }
+      if (key === 'open_paren' || key === '(') { this.insertStatCalcToken('(', false); return; }
+      if (key === 'close_paren' || key === ')') { this.insertStatCalcToken(')', false); return; }
+      if (key === 'sqr') { this.insertStatCalcToken('^2', true); return; }
+      if (key === 'pow') { this.insertStatCalcToken('^', true); return; }
+      if (key === 'sqrt') { this.insertStatCalcToken('sqrt(', false); return; }
+      if (key === 'Ans') { this.insertStatCalcToken('Ans', false); return; }
+
+      if (key === 'DEL') {
+        if (this.stat.calcJustEvaluated) {
+          this.stat.calcJustEvaluated = false;
+          this.stat.calcResult = null;
+        } else if (this.stat.calcExpr.length > 0) {
+          // Xóa nguyên cụm ký hiệu thống kê nếu ở cuối
+          const multiTokens = ['min(x)', 'max(x)', 'min(y)', 'max(y)', 'Σx²y', 'Σx⁴', 'Σx³', 'Σx²', 'Σy²', 'Σxy', 'σ²x', 's²x', 'σ²y', 's²y', 'Σx', 'Σy', 'x̄', 'σx', 'sx', 'ȳ', 'σy', 'sy', 'Q₁', 'Med', 'Q₃', 'P(', 'Q(', 'R(', '▶t', 'x̂₁', 'x̂₂', 'x̂', 'ŷ', 'Ans'];
+          let removed = false;
+          for (const tk of multiTokens) {
+            if (this.stat.calcExpr.endsWith(tk)) {
+              this.stat.calcExpr = this.stat.calcExpr.slice(0, -tk.length);
+              removed = true;
+              break;
+            }
+          }
+          if (!removed) {
+            this.stat.calcExpr = this.stat.calcExpr.slice(0, -1);
+          }
+        }
+        this.renderStatCalc();
+        return;
+      }
+
+      if (key === 'EQUALS' || key === '=') {
+        if (this.stat.calcExpr && this.stat.calcExpr.trim() !== '') {
+          const val = this.evaluateStatCalcExpression(this.stat.calcExpr);
+          this.stat.calcResult = val;
+          this.stat.calcJustEvaluated = true;
+          if (typeof val === 'number' && !isNaN(val)) {
+            this.rawResult = val;
+          }
+          this.renderStatCalc();
+          return;
+        }
+        // Nếu dòng tính đang trống và bấm =, hiển thị nhanh kết quả 1-Variable / 2-Variable Calc
+        this.syncStatRowsFromList();
+        this.stat.results = (this.stat.type || 1) >= 2
+          ? this.engine.calc2VarStat(this.stat.rows, this.stat.type)
+          : this.engine.calc1VarStat(this.stat.rows);
+        this.stat.resultMode = (this.stat.type || 1) >= 2 ? '2VAR' : '1VAR';
+        this.stat.resScroll = 0;
+        this.osState = 'STAT_RESULT';
+        this.renderStatResult();
+        return;
       }
     }
 
     // 7. Trạng thái KẾT QUẢ THỐNG KÊ (STAT_RESULT)
     if (this.osState === 'STAT_RESULT') {
+      const totalPages = this.getStatResultPages().length;
       if (key === 'DOWN') {
-        if (this.stat.resScroll < 8) {
+        if (this.stat.resScroll < totalPages - 1) {
           this.stat.resScroll++;
-          this.renderStatResult();
+        } else {
+          this.stat.resScroll = 0;
         }
+        this.renderStatResult();
       } else if (key === 'UP') {
         if (this.stat.resScroll > 0) {
           this.stat.resScroll--;
-          this.renderStatResult();
+        } else {
+          this.stat.resScroll = Math.max(0, totalPages - 1);
         }
+        this.renderStatResult();
+      } else if (key === 'LEFT') {
+        this.osState = 'STAT_INPUT';
+        this.renderStatInput();
       }
     }
   }
 
   renderStatInput() {
-    const list = this.stat.list || [];
+    this.syncStatRowsFromList();
+    const rows = this.stat.rows;
+    const cols = this.getStatColumns();
+    const hasY = cols.includes('y');
+    const hasFreq = cols.includes('freq');
+
+    if (!cols.includes(this.stat.selectedCol)) {
+      this.stat.selectedCol = 'x';
+    }
     if (this.stat.selectedRow === undefined) {
-      this.stat.selectedRow = list.length;
+      this.stat.selectedRow = rows.length;
     }
-    this.stat.selectedRow = Math.max(0, Math.min(list.length, this.stat.selectedRow));
+    this.stat.selectedRow = Math.max(0, Math.min(rows.length, this.stat.selectedRow));
+    this.ensureStatRowVisible();
 
-    if (this.stat.scrollOffset === undefined) {
-      this.stat.scrollOffset = Math.min(2, Math.max(0, list.length - 1));
+    const scroll = this.stat.scrollIdx || 0;
+    const maxVisible = 3;
+    let trHtml = '';
+
+    for (let i = 0; i < maxVisible; i++) {
+      const rIdx = scroll + i;
+      const rowData = rIdx < rows.length ? rows[rIdx] : null;
+      const isRowVisible = rIdx <= rows.length;
+      const rowNumStr = isRowVisible ? String(rIdx + 1) : '';
+
+      const isXSel = (rIdx === this.stat.selectedRow && this.stat.selectedCol === 'x');
+      const isYSel = (rIdx === this.stat.selectedRow && this.stat.selectedCol === 'y');
+      const isFreqSel = (rIdx === this.stat.selectedRow && this.stat.selectedCol === 'freq');
+
+      const xValStr = rowData ? String(rowData.x) : (isXSel ? ' ' : '');
+      const yValStr = rowData ? String(rowData.y !== undefined ? rowData.y : 0) : (isYSel ? ' ' : '');
+      const freqValStr = rowData ? String(rowData.freq !== undefined ? rowData.freq : 1) : (isFreqSel ? ' ' : '');
+
+      const cellStyle = (isSel) => isSel
+        ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;padding:0 3px;border-radius:1px;display:block;min-height:13px;line-height:1.15;'
+        : 'padding:0 3px;display:block;min-height:13px;line-height:1.15;';
+
+      trHtml += `
+        <tr style="border-bottom:1px solid rgba(18,24,17,0.18);">
+          <td style="width:22px;text-align:center;border-right:1.2px solid var(--lcd-dark);font-weight:bold;font-size:calc(10.5px * var(--lcd-scale, 1));">${rowNumStr}</td>
+          <td style="text-align:right;${(hasY || hasFreq) ? 'border-right:1px solid rgba(18,24,17,0.3);' : ''}">
+            <span style="${cellStyle(isXSel)}">${xValStr}</span>
+          </td>
+          ${hasY ? `
+            <td style="text-align:right;${hasFreq ? 'border-right:1px solid rgba(18,24,17,0.3);' : ''}">
+              <span style="${cellStyle(isYSel)}">${yValStr}</span>
+            </td>
+          ` : ''}
+          ${hasFreq ? `
+            <td style="width:34%;text-align:right;">
+              <span style="${cellStyle(isFreqSel)}">${freqValStr}</span>
+            </td>
+          ` : ''}
+        </tr>
+      `;
     }
 
-    let displayRowIdx = this.stat.selectedRow < list.length ? this.stat.selectedRow : this.stat.scrollOffset;
-    if (displayRowIdx >= list.length) {
-      displayRowIdx = Math.max(0, list.length - 1);
+    // Dòng hiển thị / soạn thảo dưới đáy chuẩn Casio fx-580VN X
+    const selRowObj = this.stat.selectedRow < rows.length ? rows[this.stat.selectedRow] : null;
+    let currentCellVal = '';
+    if (selRowObj) {
+      if (this.stat.selectedCol === 'freq') currentCellVal = String(selRowObj.freq !== undefined ? selRowObj.freq : 1);
+      else if (this.stat.selectedCol === 'y') currentCellVal = String(selRowObj.y !== undefined ? selRowObj.y : 0);
+      else currentCellVal = String(selRowObj.x);
     }
 
-    const displayRowNum = list.length > 0 ? (displayRowIdx + 1) : 1;
-    const displayRowVal = list.length > 0 && displayRowIdx < list.length ? list[displayRowIdx] : '';
+    const isTyping = this.stat.buffer !== '';
+    const bottomLeftLabel = isTyping
+      ? `${this.stat.selectedCol === 'freq' ? 'Freq' : this.stat.selectedCol}[${this.stat.selectedRow + 1}]=`
+      : `${this.stat.selectedRow + 1}:`;
+    const bottomRightHtml = isTyping
+      ? `${this.stat.buffer}<span class="cursor"></span>`
+      : `${currentCellVal}<span class="cursor"></span>`;
 
-    const currentRowNum = this.stat.selectedRow + 1;
-    let displayVal = '';
-    if (this.stat.buffer !== '') {
-      displayVal = this.stat.buffer;
-    } else if (this.stat.selectedRow < list.length) {
-      displayVal = list[this.stat.selectedRow];
-    }
+    this.display.setScrollArrows(scroll > 0, scroll + maxVisible <= rows.length);
 
     this.display.renderCustom(`
-      <div class="stat-table-screen">
-        <div class="stat-header-row">
-          <span>#</span>
-          <span class="stat-col-x">x</span>
-        </div>
-        <div class="stat-data-row">
-          <span>${displayRowNum}</span>
-          <span style="font-family:var(--font-lcd);letter-spacing:0.5px;">${displayRowVal}</span>
-        </div>
-        <div class="stat-input-row">
-          <span>${currentRowNum}=</span>
-          <span style="font-family:var(--font-lcd);letter-spacing:0.5px;">${displayVal}<span class="cursor"></span></span>
+      <div class="stat-table-screen" style="padding:1px 2px;display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;">
+        <table style="width:100%;border-collapse:collapse;font-size:calc(11.5px * var(--lcd-scale, 1));font-family:var(--font-lcd);table-layout:fixed;">
+          <thead>
+            <tr style="border-bottom:1.6px solid var(--lcd-dark);font-weight:bold;">
+              <td style="width:22px;text-align:center;border-right:1.2px solid var(--lcd-dark);">#</td>
+              <td style="text-align:center;font-style:italic;${(hasY || hasFreq) ? 'border-right:1px solid rgba(18,24,17,0.35);' : ''}">x</td>
+              ${hasY ? `<td style="text-align:center;font-style:italic;${hasFreq ? 'border-right:1px solid rgba(18,24,17,0.35);' : ''}">y</td>` : ''}
+              ${hasFreq ? `<td style="width:34%;text-align:center;">Freq</td>` : ''}
+            </tr>
+          </thead>
+          <tbody>
+            ${trHtml}
+          </tbody>
+        </table>
+        <div class="stat-input-row" style="border-top:1.2px solid var(--lcd-dark);padding:1px 4px 0 4px;margin-top:auto;font-size:calc(12.5px * var(--lcd-scale, 1));line-height:1.2;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:calc(10.5px * var(--lcd-scale, 1));opacity:0.85;">${bottomLeftLabel}</span>
+          <span style="font-family:var(--font-lcd);font-weight:bold;letter-spacing:0.3px;">${bottomRightHtml}</span>
         </div>
       </div>
     `);
@@ -5365,78 +6401,448 @@ class CasioApp {
 
   renderStatOptnMenu() {
     const isVi = this.display.language === 'VI';
-    this.display.renderList(isVi ? 'Thống kê' : 'Statistics', isVi ? [
-      '1:Chọn dạng',
-      '2:Dữ liệu',
-      '3:Tính 1-Biến'
+    const is2Var = (this.stat.type || 1) >= 2;
+    const isEditorCtx = this.stat.optnContext === 'EDITOR';
+    const page = this.stat.optnPage || 1;
+
+    if (isEditorCtx) {
+      // Menu OPTN khi mở từ Bộ soạn thảo thống kê (STAT_INPUT — HDSD tr. 122-123)
+      if (!is2Var) {
+        this.display.renderList(isVi ? 'Thống kê (OPTN)' : 'Statistics', isVi ? [
+          '1:Chọn kiểu',
+          '2:Bộ soạn thảo',
+          '3:Tính 1-biến',
+          '4:Tính thống kê'
+        ] : [
+          '1:Select Type',
+          '2:Editor',
+          '3:1-Variable Calc',
+          '4:Statistics Calc'
+        ], false, false);
+      } else if (page === 1) {
+        this.display.renderList(isVi ? 'Thống kê 2-Biến' : '2-Variable Stat', isVi ? [
+          '1:Chọn kiểu',
+          '2:Bộ soạn thảo',
+          '3:Tính 2-biến',
+          '4:Tính hồi quy'
+        ] : [
+          '1:Select Type',
+          '2:Editor',
+          '3:2-Variable Calc',
+          '4:Regression Calc'
+        ], false, true);
+      } else {
+        this.display.renderList(isVi ? 'Thống kê 2-Biến' : '2-Variable Stat', isVi ? [
+          '1:Tính thống kê'
+        ] : [
+          '1:Statistics Calc'
+        ], true, false);
+      }
+      return;
+    }
+
+    // Menu OPTN khi mở từ Màn hình tính toán thống kê (STAT_CALC — HDSD tr. 123-125)
+    if (!is2Var) {
+      if (page === 1) {
+        this.display.renderList(isVi ? 'Thống kê (OPTN)' : 'Statistics', isVi ? [
+          '1:Chọn kiểu',
+          '2:Tính 1-biến',
+          '3:Dữ liệu'
+        ] : [
+          '1:Select Type',
+          '2:1-Variable Calc',
+          '3:Data'
+        ], false, true);
+      } else {
+        this.display.renderList(isVi ? 'Thống kê (OPTN)' : 'Statistics', isVi ? [
+          '1:Tính tổng',
+          '2:Biến số',
+          '3:Cực tiểu/Cực đại',
+          '4:Phân phối chuẩn'
+        ] : [
+          '1:Summation',
+          '2:Variable',
+          '3:Min/Max',
+          '4:Norm Dist'
+        ], true, false);
+      }
+    } else {
+      if (page === 1) {
+        this.display.renderList(isVi ? 'Thống kê 2-Biến' : '2-Variable Stat', isVi ? [
+          '1:Chọn kiểu',
+          '2:Tính 2-biến',
+          '3:Tính hồi quy',
+          '4:Dữ liệu'
+        ] : [
+          '1:Select Type',
+          '2:2-Variable Calc',
+          '3:Regression Calc',
+          '4:Data'
+        ], false, true);
+      } else {
+        this.display.renderList(isVi ? 'Thống kê 2-Biến' : '2-Variable Stat', isVi ? [
+          '1:Tính tổng',
+          '2:Biến số',
+          '3:Cực tiểu/Cực đại',
+          '4:Hồi quy'
+        ] : [
+          '1:Summation',
+          '2:Variable',
+          '3:Min/Max',
+          '4:Regression'
+        ], true, false);
+      }
+    }
+  }
+
+  renderStatEditorMenu() {
+    const isVi = this.display.language === 'VI';
+    this.display.renderList(isVi ? 'Bộ soạn thảo' : 'Editor', isVi ? [
+      '1:Chèn dòng',
+      '2:Xóa tất cả'
     ] : [
-      '1:Select Type',
-      '2:Data',
-      '3:1-Variable Calc'
+      '1:Insert Row',
+      '2:Delete All'
     ], false, false);
+  }
+
+  getStatSubmenuPages() {
+    const is2Var = (this.stat.type || 1) >= 2;
+    const sub = this.stat.submenuType || 'SUM';
+
+    if (sub === 'SUM') {
+      if (!is2Var) {
+        return [[
+          { label: '1:Σx', token: 'Σx' },
+          { label: '2:Σx²', token: 'Σx²' }
+        ]];
+      }
+      return [
+        [
+          { label: '1:Σx', token: 'Σx' },
+          { label: '2:Σx²', token: 'Σx²' },
+          { label: '3:Σy', token: 'Σy' },
+          { label: '4:Σy²', token: 'Σy²' }
+        ],
+        [
+          { label: '1:Σxy', token: 'Σxy' },
+          { label: '2:Σx³', token: 'Σx³' },
+          { label: '3:Σx²y', token: 'Σx²y' },
+          { label: '4:Σx⁴', token: 'Σx⁴' }
+        ]
+      ];
+    }
+
+    if (sub === 'VAR') {
+      if (!is2Var) {
+        return [
+          [
+            { label: '1:x̄', token: 'x̄' },
+            { label: '2:σ²x', token: 'σ²x' },
+            { label: '3:σx', token: 'σx' },
+            { label: '4:s²x', token: 's²x' }
+          ],
+          [
+            { label: '1:sx', token: 'sx' },
+            { label: '2:n', token: 'n' }
+          ]
+        ];
+      }
+      return [
+        [
+          { label: '1:x̄', token: 'x̄' },
+          { label: '2:σ²x', token: 'σ²x' },
+          { label: '3:σx', token: 'σx' },
+          { label: '4:s²x', token: 's²x' }
+        ],
+        [
+          { label: '1:sx', token: 'sx' },
+          { label: '2:n', token: 'n' },
+          { label: '3:ȳ', token: 'ȳ' },
+          { label: '4:σ²y', token: 'σ²y' }
+        ],
+        [
+          { label: '1:σy', token: 'σy' },
+          { label: '2:s²y', token: 's²y' },
+          { label: '3:sy', token: 'sy' }
+        ]
+      ];
+    }
+
+    if (sub === 'MINMAX') {
+      if (!is2Var) {
+        return [
+          [
+            { label: '1:min(x)', token: 'min(x)' },
+            { label: '2:Q₁', token: 'Q₁' },
+            { label: '3:Med', token: 'Med' },
+            { label: '4:Q₃', token: 'Q₃' }
+          ],
+          [
+            { label: '1:max(x)', token: 'max(x)' }
+          ]
+        ];
+      }
+      return [[
+        { label: '1:min(x)', token: 'min(x)' },
+        { label: '2:max(x)', token: 'max(x)' },
+        { label: '3:min(y)', token: 'min(y)' },
+        { label: '4:max(y)', token: 'max(y)' }
+      ]];
+    }
+
+    if (sub === 'NORM') {
+      return [[
+        { label: '1:P(', token: 'P(' },
+        { label: '2:Q(', token: 'Q(' },
+        { label: '3:R(', token: 'R(' },
+        { label: '4:▶t', token: '▶t', postfix: true }
+      ]];
+    }
+
+    if (sub === 'REG') {
+      if (this.stat.type === 3) {
+        // Hồi quy bậc hai y=a+bx+cx² (HDSD tr. 126, 138)
+        return [
+          [
+            { label: '1:a', token: 'a' },
+            { label: '2:b', token: 'b' },
+            { label: '3:c', token: 'c' },
+            { label: '4:x̂₁', token: 'x̂₁', postfix: true }
+          ],
+          [
+            { label: '1:x̂₂', token: 'x̂₂', postfix: true },
+            { label: '2:ŷ', token: 'ŷ', postfix: true }
+          ]
+        ];
+      }
+      // Các hồi quy khác (2, 4, 5, 6, 7, 8)
+      return [
+        [
+          { label: '1:a', token: 'a' },
+          { label: '2:b', token: 'b' },
+          { label: '3:r', token: 'r' },
+          { label: '4:x̂', token: 'x̂', postfix: true }
+        ],
+        [
+          { label: '1:ŷ', token: 'ŷ', postfix: true }
+        ]
+      ];
+    }
+
+    return [[]];
+  }
+
+  renderStatSubmenu() {
+    const isVi = this.display.language === 'VI';
+    const sub = this.stat.submenuType || 'SUM';
+    const titlesVi = {
+      SUM: 'Tính tổng',
+      VAR: 'Biến số',
+      MINMAX: 'Cực tiểu/Cực đại',
+      NORM: 'Phân phối chuẩn',
+      REG: 'Hồi quy'
+    };
+    const titlesEn = {
+      SUM: 'Summation',
+      VAR: 'Variable',
+      MINMAX: 'Min/Max',
+      NORM: 'Norm Dist',
+      REG: 'Regression'
+    };
+    const pages = this.getStatSubmenuPages();
+    const totalPages = pages.length;
+    const curPage = Math.max(1, Math.min(totalPages, this.stat.submenuPage || 1));
+    this.stat.submenuPage = curPage;
+    const items = (pages[curPage - 1] || []).map(it => it.label);
+    const title = isVi ? (titlesVi[sub] || 'Thống kê') : (titlesEn[sub] || 'Statistics');
+    this.display.renderList(title, items, curPage > 1, curPage < totalPages);
   }
 
   renderStatTypeMenu() {
     const isVi = this.display.language === 'VI';
-    this.display.renderList(isVi ? 'Thống kê' : 'Statistics', isVi ? [
-      '1:1-Biến',
-      '2:y=a+bx',
-      '3:y=a+bx+cx²'
-    ] : [
-      '1:1-Variable',
-      '2:y=a+bx',
-      '3:y=a+bx+cx²'
-    ], false, false);
+    const page = this.stat.typePage || 1;
+    if (page === 1) {
+      this.display.renderList(isVi ? 'Chọn kiểu' : 'Select Type', isVi ? [
+        '1:1-Biến',
+        '2:y=a+bx',
+        '3:y=a+bx+cx²',
+        '4:y=a+b·ln(x)'
+      ] : [
+        '1:1-Variable',
+        '2:y=a+bx',
+        '3:y=a+bx+cx²',
+        '4:y=a+b·ln(x)'
+      ], false, true);
+    } else {
+      this.display.renderList(isVi ? 'Chọn kiểu' : 'Select Type', [
+        '1:y=a·e^(bx)',
+        '2:y=a·b^x',
+        '3:y=a·x^b',
+        '4:y=a+b/x'
+      ], true, false);
+    }
   }
 
   renderStatCalc() {
+    const isVi = this.display.language === 'VI';
+    const is2Var = (this.stat.type || 1) >= 2;
+    const typeNames = {
+      1: isVi ? '1-Biến' : '1-Variable',
+      2: 'y=a+bx',
+      3: 'y=a+bx+cx²',
+      4: 'y=a+b·ln(x)',
+      5: 'y=a·e^(bx)',
+      6: 'y=a·b^x',
+      7: 'y=a·x^b',
+      8: 'y=a+b/x'
+    };
+    const subLabel = typeNames[this.stat.type || 1] || (is2Var ? '2-Variable' : '1-Variable');
+    const expr = this.stat.calcExpr || '';
+    const hasExpr = expr.length > 0;
+    const hasRes = this.stat.calcResult !== null && this.stat.calcResult !== undefined;
+    const hint = isVi
+      ? 'Bấm [OPTN] chọn Tính 1-biến / Biến số / Phân phối chuẩn'
+      : 'Press [OPTN] for Calc / Variable / Norm Dist';
+
+    this.display.setScrollArrows(false, false);
     this.display.renderCustom(`
-      <div style="height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:4px 6px;font-family:var(--font-lcd);color:var(--lcd-dark);box-sizing:border-box;">
-        <div style="font-size:10px;color:rgba(18,24,17,0.5);">[STAT] Bấm OPTN để xem kết quả</div>
-        <div style="text-align:right;font-size:16px;font-weight:bold;margin-top:auto;"><span class="cursor"></span>0</div>
+      <div style="height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:3px 6px;font-family:var(--font-lcd);color:var(--lcd-dark);box-sizing:border-box;">
+        <div>
+          <div style="font-size:10px;font-weight:bold;border-bottom:1px solid rgba(18,24,17,0.22);padding-bottom:1px;display:flex;justify-content:space-between;">
+            <span>[STAT] ${subLabel}</span>
+            <span>[OPTN]</span>
+          </div>
+          <div style="font-size:13px;font-weight:bold;margin-top:3px;min-height:17px;word-break:break-all;">
+            ${hasExpr ? `${expr}${!this.stat.calcJustEvaluated ? '<span class="cursor"></span>' : ''}` : `<span style="font-size:9.5px;font-weight:normal;color:rgba(18,24,17,0.72);">${hint}</span>`}
+          </div>
+        </div>
+        <div style="text-align:right;font-size:16px;font-weight:bold;margin-top:auto;">
+          ${hasRes ? String(this.stat.calcResult) : (!hasExpr ? '<span class="cursor"></span>0' : '')}
+        </div>
       </div>
     `);
   }
 
+  getStatResultPages() {
+    this.syncStatRowsFromList();
+    const is2Var = (this.stat.type || 1) >= 2;
+    if (!is2Var) {
+      const s = this.stat.results || this.engine.calc1VarStat(this.stat.rows);
+      if (!s) return [];
+      return [
+        [
+          `x̄ = ${s.mean}`,
+          `Σx = ${s.sum}`,
+          `Σx² = ${s.sumSq}`,
+          `σ²x = ${s.sigmaSq !== undefined ? s.sigmaSq : Number((s.sigma * s.sigma).toFixed(6))}`
+        ],
+        [
+          `σx = ${s.sigma}`,
+          `s²x = ${s.sSq !== undefined ? s.sSq : Number((s.s * s.s).toFixed(6))}`,
+          `sx = ${s.s}`,
+          `n = ${s.n}`
+        ],
+        [
+          `min(x) = ${s.min}`,
+          `Q₁ = ${s.q1}`,
+          `Med = ${s.median}`,
+          `Q₃ = ${s.q3}`,
+          `max(x) = ${s.max}`
+        ]
+      ];
+    }
+
+    const s2 = this.stat.results || this.engine.calc2VarStat(this.stat.rows, this.stat.type);
+    if (!s2) return [];
+    if (this.stat.resultMode === 'REG') {
+      const reg = s2.reg || { a: 0, b: 0, r: 0, formula: 'y=a+bx' };
+      const lines = [
+        `${reg.formula}`,
+        `a = ${reg.a}`,
+        `b = ${reg.b}`
+      ];
+      if (reg.c !== null && reg.c !== undefined) {
+        lines.push(`c = ${reg.c}`);
+      } else {
+        lines.push(`r = ${reg.r}`);
+      }
+      return [lines];
+    }
+
+    return [
+      [
+        `x̄ = ${s2.meanX}`,
+        `Σx = ${s2.sumX}`,
+        `Σx² = ${s2.sumSqX}`,
+        `σ²x = ${s2.sigmaSqX}`
+      ],
+      [
+        `σx = ${s2.sigmaX}`,
+        `s²x = ${s2.sSqX}`,
+        `sx = ${s2.sX}`,
+        `n = ${s2.n}`
+      ],
+      [
+        `ȳ = ${s2.meanY}`,
+        `Σy = ${s2.sumY}`,
+        `Σy² = ${s2.sumSqY}`,
+        `σ²y = ${s2.sigmaSqY}`
+      ],
+      [
+        `σy = ${s2.sigmaY}`,
+        `s²y = ${s2.sSqY}`,
+        `sy = ${s2.sY}`,
+        `Σxy = ${s2.sumXY}`
+      ],
+      [
+        `min(x) = ${s2.minX}`,
+        `max(x) = ${s2.maxX}`,
+        `min(y) = ${s2.minY}`,
+        `max(y) = ${s2.maxY}`
+      ]
+    ];
+  }
+
   renderStatResult() {
-    const list = this.stat.list || [];
-    if (list.length === 0) {
+    this.syncStatRowsFromList();
+    if (this.stat.rows.length === 0) {
+      const isVi = this.display.language === 'VI';
+      this.display.setScrollArrows(false, false);
       this.display.renderCustom(`
         <div style="font-size:11px;padding:6px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">
-          <div style="font-weight:bold;margin-bottom:4px;">Chưa có dữ liệu</div>
-          <div style="font-size:10px;opacity:0.75;">Bấm OPTN 2 để nhập số liệu</div>
+          <div style="font-weight:bold;margin-bottom:4px;">${isVi ? 'Chưa có dữ liệu' : 'No Data'}</div>
+          <div style="font-size:10px;opacity:0.8;">${isVi ? 'Bấm [OPTN] → [3] để nhập số liệu' : 'Press [OPTN] → [3] for Data'}</div>
         </div>
       `);
       return;
     }
-    const s = this.stat.results || this.engine.calc1VarStat(list);
-    if (!s) return;
-    const all = [
-      `x̄ = ${s.mean}`,
-      `Σx = ${s.sum}`,
-      `Σx² = ${s.sumSq}`,
-      `σx = ${s.sigma}`,
-      `sx = ${s.s}`,
-      `n = ${s.n}`,
-      `min(x) = ${s.min}`,
-      `Q₁ = ${s.q1}`,
-      `Med = ${s.median}`,
-      `Q₃ = ${s.q3}`,
-      `max(x) = ${s.max}`
-    ];
-    const slice = all.slice(this.stat.resScroll, this.stat.resScroll + 3);
-    this.display.setScrollArrows(this.stat.resScroll > 0, this.stat.resScroll + 3 < all.length);
+
+    const pages = this.getStatResultPages();
+    if (pages.length === 0) return;
+    const pageIdx = Math.max(0, Math.min(pages.length - 1, this.stat.resScroll || 0));
+    this.stat.resScroll = pageIdx;
+    const lines = pages[pageIdx];
+
+    this.display.setScrollArrows(pageIdx > 0, pageIdx < pages.length - 1);
+
+    const headerTitle = (this.stat.type || 1) >= 2
+      ? (this.stat.resultMode === 'REG' ? 'Regression' : '2-Variable')
+      : '1-Variable';
 
     this.display.renderCustom(`
-      <div style="font-size:11px;padding:2px 6px;font-family:var(--font-lcd);color:var(--lcd-dark);line-height:1.45;height:100%;box-sizing:border-box;">
-        <div style="font-weight:bold;font-size:10px;border-bottom:1.5px solid var(--lcd-dark);padding-bottom:1px;margin-bottom:2px;display:flex;justify-content:space-between;">
-          <span>1-Variable</span>
-          <span style="font-size:9px;opacity:0.8;">${this.stat.resScroll + 1}~${Math.min(all.length, this.stat.resScroll + 3)}/${all.length}</span>
+      <div style="font-size:calc(11px * var(--lcd-scale, 1));padding:1px 5px;font-family:var(--font-lcd);color:var(--lcd-dark);line-height:1.28;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
+        <div style="font-weight:bold;font-size:calc(9.5px * var(--lcd-scale, 1));border-bottom:1.4px solid var(--lcd-dark);padding-bottom:1px;margin-bottom:1px;display:flex;justify-content:space-between;">
+          <span>${headerTitle}</span>
+          <span>${pageIdx + 1}/${pages.length} ▲▼</span>
         </div>
-        ${slice.map(l => `<div style="padding:1px 0;border-bottom:1px dotted rgba(18,24,17,0.15);">${l}</div>`).join('')}
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-around;">
+          ${lines.map(l => `<div style="padding:0.5px 0;border-bottom:1px dotted rgba(18,24,17,0.16);font-weight:bold;">${l}</div>`).join('')}
+        </div>
       </div>
     `);
   }
+
 
   // -------------------------------------------------------------
   // MODE 4: MATRIX (100% ON-SCREEN LCD)
@@ -8907,6 +10313,16 @@ function initCasioWithParams() {
 
     getCurrentDisplayText: function() {
       var app = window.casioApp;
+      if (app && app.osState === 'STAT_RESULT' && !fxState._rawExpression) {
+        var pages = typeof app.getStatResultPages === 'function' ? app.getStatResultPages() : [];
+        if (pages && pages.length > 0) {
+          var flat = [];
+          for (var p = 0; p < pages.length; p++) {
+            for (var j = 0; j < pages[p].length; j++) flat.push(pages[p][j]);
+          }
+          return flat.join(' | ');
+        }
+      }
       var expr = fxState.rawExpression || (app ? app.expression : '');
       var res = '';
       if (fxState.lastResult && fxState.lastResult.val !== undefined && fxState.lastResult.val !== null) {

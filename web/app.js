@@ -243,10 +243,76 @@ document.addEventListener('DOMContentLoaded', () => {
           ? state.selectedElements
           : (state.selectedElement ? [state.selectedElement] : []);
 
+        // Helper phân giải 2 đầu mút thực tế của cạnh đang chọn / đang hover
+        const resolveEdgeSegment = (edgeObj) => {
+          if (!edgeObj || !edgeObj.element) return null;
+          const edgeEl = edgeObj.element;
+          let eStart = edgeObj.start;
+          let eEnd = edgeObj.end;
+          if (
+            edgeEl.shape === 'line' ||
+            edgeEl.shape === 'perpendicular' ||
+            edgeEl.shape === 'parallel' ||
+            edgeEl.shape === 'bisector' ||
+            edgeEl.shape === 'tangent' ||
+            edgeEl.shape === 'perpendicular-bisector'
+          ) {
+            eStart = edgeEl.start;
+            eEnd = edgeEl.end;
+          } else if (edgeEl.points && edgeObj.v1Index !== undefined && edgeObj.v2Index !== undefined) {
+            eStart = edgeEl.points[edgeObj.v1Index] || eStart;
+            eEnd = edgeEl.points[edgeObj.v2Index] || eEnd;
+          } else if (edgeEl.shape === 'inscribed-triangle' && edgeEl.triPoints && edgeObj.v1Index !== undefined && edgeObj.v2Index !== undefined) {
+            eStart = edgeEl.triPoints[edgeObj.v1Index] || eStart;
+            eEnd = edgeEl.triPoints[edgeObj.v2Index] || eEnd;
+          }
+          if (!eStart || !eEnd) return null;
+          return { start: eStart, end: eEnd };
+        };
+
+        // Helper phân giải tọa độ thực tế của Điểm / Đỉnh đang chọn
+        const resolveVertexCoords = (vObj) => {
+          if (!vObj || !vObj.element) return null;
+          const vEl = vObj.element;
+          if (vEl.shape === 'point') return vEl.start;
+          if (vEl.points && vObj.vIndex !== undefined && vEl.points[vObj.vIndex]) {
+            return vEl.points[vObj.vIndex];
+          }
+          if (vEl.shape === 'inscribed-triangle' && vEl.triPoints && vObj.vIndex !== undefined && vEl.triPoints[vObj.vIndex]) {
+            return vEl.triPoints[vObj.vIndex];
+          }
+          if (vObj.handleId && vObj.handleId.startsWith('p') && vEl.points) {
+            const idx = parseInt(vObj.handleId.replace('p', ''), 10);
+            if (!isNaN(idx) && vEl.points[idx]) return vEl.points[idx];
+          }
+          if (vObj.handleId && vObj.handleId.startsWith('tri_') && vEl.triPoints) {
+            const idx = parseInt(vObj.handleId.replace('tri_', ''), 10);
+            if (!isNaN(idx) && vEl.triPoints[idx]) return vEl.triPoints[idx];
+          }
+          if (vObj.handleId === 'center' && vEl.start) return vEl.start;
+          if (vObj.handleId === 'start' && vEl.start) return vEl.start;
+          if (vObj.handleId === 'end' && vEl.end) return vEl.end;
+          if (vObj.handleId === 'foot' && vEl.foot) return vEl.foot;
+          if (vObj.handleId === 'midpoint' && vEl.midpoint) return vEl.midpoint;
+          if (vObj.handleId === 'tangentPoint' && vEl.tangentPoint) return vEl.tangentPoint;
+          if (vObj.x !== undefined && vObj.y !== undefined) return { x: vObj.x, y: vObj.y };
+          return null;
+        };
+
+        const isSingleSubElementSelect =
+          selectedList.length === 1 &&
+          !state.isFromAreaSelect &&
+          ((state.selectedVertex && state.selectedVertex.element === selectedList[0]) ||
+           (state.selectedEdge && state.selectedEdge.element === selectedList[0]));
+
         for (const el of selectedList) {
           if (elements.includes(el)) {
             if (selectedList.length === 1) {
-              drawSelectionOutline(el);
+              // Nếu chỉ chọn 1 Đỉnh hoặc 1 Cạnh bằng thao tác bấm chuột đơn -> KHÔNG vẽ viền sáng cả hình và KHÔNG vẽ khung nét đứt bao quanh cả hình!
+              // Chỉ khi Quét chọn cả hình (state.isFromAreaSelect === true) hoặc chọn đối tượng không tách cạnh/đỉnh mới vẽ khung bao toàn hình.
+              if (!isSingleSubElementSelect) {
+                drawSelectionOutline(el);
+              }
             } else {
               highlightElementShape(targetCtx, el, true);
             }
@@ -258,10 +324,27 @@ document.addEventListener('DOMContentLoaded', () => {
           drawUnifiedSelectionBoundingBox(targetCtx, selectedList);
         }
 
-        // Làm sáng nhẹ hình đang hover nhưng chưa chọn để người dùng dễ hình dung trước khi bấm (chỉ sáng đơn lẻ một đối tượng)
-        if (state.hoverElement && elements.includes(state.hoverElement)) {
-          if (!selectedList.includes(state.hoverElement)) {
-            highlightElementShape(targetCtx, state.hoverElement, false);
+        // Làm sáng nhẹ đúng bộ phận đang hover (Ưu tiên: Đỉnh -> Cạnh -> Thân hình)
+        if (!state.isDrawing && state.currentPage === p) {
+          if (state.hoverEdge && state.hoverEdge.element && elements.includes(state.hoverEdge.element)) {
+            const seg = resolveEdgeSegment(state.hoverEdge);
+            if (seg) {
+              const hEdgeEl = state.hoverEdge.element;
+              targetCtx.save();
+              targetCtx.strokeStyle = '#10b981';
+              targetCtx.lineWidth = (hEdgeEl.width || 2) + 5;
+              targetCtx.lineCap = 'round';
+              targetCtx.globalAlpha = 0.35;
+              targetCtx.beginPath();
+              targetCtx.moveTo(seg.start.x, seg.start.y);
+              targetCtx.lineTo(seg.end.x, seg.end.y);
+              targetCtx.stroke();
+              targetCtx.restore();
+            }
+          } else if (state.hoverElement && elements.includes(state.hoverElement) && !state.hoverHandle) {
+            if (!selectedList.includes(state.hoverElement)) {
+              highlightElementShape(targetCtx, state.hoverElement, false);
+            }
           }
         }
 
@@ -274,44 +357,60 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        if (selectedList.length > 0) {
+        // Chỉ vẽ toàn bộ chốt điều khiển của cả hình khi Quét chọn cả hình (state.isFromAreaSelect) hoặc chọn đối tượng nguyên khối
+        if (selectedList.length > 0 && !isSingleSubElementSelect) {
           for (const el of selectedList) {
             if (elements.includes(el)) {
               drawControlHandles(el);
             }
           }
         } else if (selectedList.length === 0) {
-          // Khi chưa có hình nào được chọn: Nếu hover gần đỉnh/đầu mút hoặc hình học, vẽ các chấm điều khiển trực quan đón trước
+          // Khi chưa có hình nào được chọn: Nếu hover trúng 1 đỉnh cụ thể, chỉ vẽ chấm tròn của đỉnh đó
           if (state.hoverHandle && elements.includes(state.hoverHandle.element)) {
-            drawControlHandles(state.hoverHandle.element, true);
-          } else if (state.hoverElement && elements.includes(state.hoverElement)) {
+            const hh = state.hoverHandle.handle;
+            if (hh && !hh.isRotate2D && !hh.isRotate3D) {
+              targetCtx.save();
+              targetCtx.beginPath();
+              targetCtx.arc(hh.x, hh.y, 6, 0, Math.PI * 2);
+              targetCtx.fillStyle = '#ffffff';
+              targetCtx.fill();
+              targetCtx.lineWidth = 2.2;
+              targetCtx.strokeStyle = '#10b981';
+              targetCtx.stroke();
+              targetCtx.restore();
+            }
+          } else if (state.hoverElement && elements.includes(state.hoverElement) && !state.hoverEdge) {
             drawControlHandles(state.hoverElement, true);
           }
         }
 
-        // Vẽ sáng cạnh đã chọn (selectedEdge) - chỉ vẽ khi phần tử đang được chọn và không trong thao tác kéo/xoay hình
-        if (state.selectedEdge && state.currentPage === p && !state.activeHandle && !state.isDrawing) {
+        // Vẽ sáng RIÊNG CẠNH ĐÃ CHỌN (selectedEdge) - chỉ sáng đúng 1 cạnh đó + 2 đầu mút của cạnh
+        if (state.selectedEdge && state.currentPage === p && !state.activeHandle && !state.isDrawing && !state.isFromAreaSelect) {
           const edgeEl = state.selectedEdge.element;
           if (edgeEl && elements.includes(edgeEl) && isElementSelected(edgeEl)) {
-            let eStart = state.selectedEdge.start;
-            let eEnd = state.selectedEdge.end;
-            if (edgeEl.shape === 'line') {
-              eStart = edgeEl.start;
-              eEnd = edgeEl.end;
-            } else if (edgeEl.points && state.selectedEdge.v1Index !== undefined && state.selectedEdge.v2Index !== undefined) {
-              eStart = edgeEl.points[state.selectedEdge.v1Index];
-              eEnd = edgeEl.points[state.selectedEdge.v2Index];
-            }
-            if (eStart && eEnd) {
+            const seg = resolveEdgeSegment(state.selectedEdge);
+            if (seg) {
               targetCtx.save();
               targetCtx.strokeStyle = '#10b981';
               targetCtx.lineWidth = (edgeEl.width || 2) + 6;
               targetCtx.lineCap = 'round';
-              targetCtx.globalAlpha = 0.55;
+              targetCtx.globalAlpha = 0.6;
               targetCtx.beginPath();
-              targetCtx.moveTo(eStart.x, eStart.y);
-              targetCtx.lineTo(eEnd.x, eEnd.y);
+              targetCtx.moveTo(seg.start.x, seg.start.y);
+              targetCtx.lineTo(seg.end.x, seg.end.y);
               targetCtx.stroke();
+
+              // Vẽ 2 chấm tròn ở 2 đầu mút của riêng cạnh được chọn để người dùng biết rõ giới hạn cạnh
+              targetCtx.globalAlpha = 1;
+              for (const ep of [seg.start, seg.end]) {
+                targetCtx.beginPath();
+                targetCtx.arc(ep.x, ep.y, 5, 0, Math.PI * 2);
+                targetCtx.fillStyle = '#ffffff';
+                targetCtx.fill();
+                targetCtx.lineWidth = 2.2;
+                targetCtx.strokeStyle = '#10b981';
+                targetCtx.stroke();
+              }
               targetCtx.restore();
             }
           } else {
@@ -319,37 +418,26 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        // Vẽ sáng đỉnh đã chọn (selectedVertex) - chỉ vẽ đỉnh hình học thật sự của phần tử đang được chọn và không trong thao tác kéo/xoay hình
-        if (state.selectedVertex && state.currentPage === p && !state.activeHandle && !state.isDrawing) {
+        // Vẽ sáng RIÊNG ĐỈNH / ĐIỂM ĐÃ CHỌN (selectedVertex) - chỉ sáng đúng 1 đỉnh/điểm đó + mũi tên chỉ báo
+        if (state.selectedVertex && state.currentPage === p && !state.activeHandle && !state.isDrawing && !state.isFromAreaSelect) {
           const vEl = state.selectedVertex.element;
           if (vEl && elements.includes(vEl) && isElementSelected(vEl)) {
-            let vPt = null;
-            if (vEl.shape === 'point') {
-              vPt = vEl.start;
-            } else if (vEl.points && state.selectedVertex.vIndex !== undefined && vEl.points[state.selectedVertex.vIndex]) {
-              vPt = vEl.points[state.selectedVertex.vIndex];
-            } else if (state.selectedVertex.handleId && state.selectedVertex.handleId.startsWith('p') && vEl.points) {
-              const idx = parseInt(state.selectedVertex.handleId.replace('p', ''), 10);
-              if (!isNaN(idx) && vEl.points[idx]) {
-                vPt = vEl.points[idx];
-              }
-            } else if (vEl.shape === 'line' && (state.selectedVertex.handleId === 'start' || state.selectedVertex.handleId === 'end')) {
-              vPt = vEl[state.selectedVertex.handleId];
-            }
+            const vPt = resolveVertexCoords(state.selectedVertex);
             if (vPt) {
               targetCtx.save();
               targetCtx.beginPath();
               targetCtx.arc(vPt.x, vPt.y, 14, 0, Math.PI * 2);
-              targetCtx.fillStyle = 'rgba(16, 185, 129, 0.4)';
+              targetCtx.fillStyle = 'rgba(16, 185, 129, 0.35)';
               targetCtx.fill();
               targetCtx.beginPath();
-              targetCtx.arc(vPt.x, vPt.y, 5.5, 0, Math.PI * 2);
+              targetCtx.arc(vPt.x, vPt.y, 6, 0, Math.PI * 2);
               targetCtx.fillStyle = '#10b981';
               targetCtx.fill();
               targetCtx.strokeStyle = '#ffffff';
-              targetCtx.lineWidth = 2;
+              targetCtx.lineWidth = 2.2;
               targetCtx.stroke();
               targetCtx.restore();
+              drawSharpArrowIndicator(targetCtx, vPt.x, vPt.y, state.selectedVertex.name || 'Đỉnh', true);
             } else {
               state.selectedVertex = null;
             }
@@ -4967,8 +5055,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const p2 = geo.points[edge[1]];
       if (!p1 || !p2) continue;
 
+      const eKey = Math.min(edge[0], edge[1]) + '_' + Math.max(edge[0], edge[1]);
+      const dashStyle = (geo.edgeDashes && geo.edgeDashes[eKey]) ? geo.edgeDashes[eKey] : edge[2];
+      const edgeColor = (geo.edgeColors && geo.edgeColors[eKey]) ? geo.edgeColors[eKey] : (geo.color || '#184e3a');
+
       context.save();
-      if (edge[2] === 'dashed') {
+      context.strokeStyle = edgeColor;
+      if (dashStyle === 'dashed') {
         context.setLineDash([7, 5]);
       } else {
         context.setLineDash([]);
@@ -5096,7 +5189,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const len = Math.hypot(dx, dy) || 1;
           let nx = -dy / len, ny = dx / len;
           if (ny > 0) { nx = -nx; ny = -ny; }
-          drawMathLabel(context, eName, mx + nx * 12 - 3, my + ny * 12 + 4, geo.color || '#184e3a', true);
+          const eColor = (geo.edgeColors && geo.edgeColors[eKey]) ? geo.edgeColors[eKey] : (geo.color || '#184e3a');
+          drawMathLabel(context, eName, mx + nx * 12 - 3, my + ny * 12 + 4, eColor, true);
         }
       }
     }
@@ -5284,12 +5378,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      if (geo.edgeDashes && Object.keys(geo.edgeDashes).length > 0) {
+      if ((geo.edgeDashes && Object.keys(geo.edgeDashes).length > 0) || (geo.edgeColors && Object.keys(geo.edgeColors).length > 0)) {
         for (let j = 0; j < 3; j++) {
           const ptA = geo.points[j];
           const ptB = geo.points[(j + 1) % 3];
           context.save();
-          if (geo.edgeDashes[j] === 'dashed') {
+          if (geo.edgeColors && geo.edgeColors[j]) {
+            context.strokeStyle = geo.edgeColors[j];
+          }
+          const eDash = (geo.edgeDashes && geo.edgeDashes[j]) ? geo.edgeDashes[j] : (geo.dash || 'solid');
+          if (eDash === 'dashed') {
             context.setLineDash([8, 6]);
           } else {
             context.setLineDash([]);
@@ -5389,13 +5487,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      if (geo.edgeDashes && Object.keys(geo.edgeDashes).length > 0) {
+      if ((geo.edgeDashes && Object.keys(geo.edgeDashes).length > 0) || (geo.edgeColors && Object.keys(geo.edgeColors).length > 0)) {
         const n = geo.points.length;
         for (let j = 0; j < n; j++) {
           const ptA = geo.points[j];
           const ptB = geo.points[(j + 1) % n];
           context.save();
-          if (geo.edgeDashes[j] === 'dashed') {
+          if (geo.edgeColors && geo.edgeColors[j]) {
+            context.strokeStyle = geo.edgeColors[j];
+          }
+          const eDash = (geo.edgeDashes && geo.edgeDashes[j]) ? geo.edgeDashes[j] : (geo.dash || 'solid');
+          if (eDash === 'dashed') {
             context.setLineDash([8, 6]);
           } else {
             context.setLineDash([]);
@@ -5451,12 +5553,35 @@ document.addEventListener('DOMContentLoaded', () => {
       const p2 = { x: start.x + radius * Math.cos(geo.angles[1]), y: start.y + radius * Math.sin(geo.angles[1]) };
       const p3 = { x: start.x + radius * Math.cos(geo.angles[2]), y: start.y + radius * Math.sin(geo.angles[2]) };
 
-      context.beginPath();
-      context.moveTo(p1.x, p1.y);
-      context.lineTo(p2.x, p2.y);
-      context.lineTo(p3.x, p3.y);
-      context.closePath();
-      context.stroke();
+      if ((geo.edgeDashes && Object.keys(geo.edgeDashes).length > 0) || (geo.edgeColors && Object.keys(geo.edgeColors).length > 0)) {
+        const triPts = [p1, p2, p3];
+        for (let j = 0; j < 3; j++) {
+          const ptA = triPts[j];
+          const ptB = triPts[(j + 1) % 3];
+          context.save();
+          if (geo.edgeColors && geo.edgeColors[j]) {
+            context.strokeStyle = geo.edgeColors[j];
+          }
+          const eDash = (geo.edgeDashes && geo.edgeDashes[j]) ? geo.edgeDashes[j] : (geo.dash || 'solid');
+          if (eDash === 'dashed') {
+            context.setLineDash([8, 6]);
+          } else {
+            context.setLineDash([]);
+          }
+          context.beginPath();
+          context.moveTo(ptA.x, ptA.y);
+          context.lineTo(ptB.x, ptB.y);
+          context.stroke();
+          context.restore();
+        }
+      } else {
+        context.beginPath();
+        context.moveTo(p1.x, p1.y);
+        context.lineTo(p2.x, p2.y);
+        context.lineTo(p3.x, p3.y);
+        context.closePath();
+        context.stroke();
+      }
     } else if (shape === 'tangent') {
       // Tiếp tuyến của đường tròn đi qua điểm đã chọn
       context.beginPath();
@@ -5705,7 +5830,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const my = (p1.y + p2.y) / 2;
             const dx = mx - cx, dy = my - cy;
             const d = Math.hypot(dx, dy) || 1;
-            drawMathLabel(context, eName, mx + (dx / d) * 14 - 4, my + (dy / d) * 14 + 4, labelColor, true);
+            const eColor = (geo.edgeColors && geo.edgeColors[i]) ? geo.edgeColors[i] : labelColor;
+            drawMathLabel(context, eName, mx + (dx / d) * 14 - 4, my + (dy / d) * 14 + 4, eColor, true);
           }
         }
       }
@@ -5732,7 +5858,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const my = (p1.y + p2.y) / 2;
             const dx = mx - start.x, dy = my - start.y;
             const d = Math.hypot(dx, dy) || 1;
-            drawMathLabel(context, eName, mx + (dx / d) * 13 - 4, my + (dy / d) * 13 + 4, labelColor, true);
+            const eColor = (geo.edgeColors && geo.edgeColors[i]) ? geo.edgeColors[i] : labelColor;
+            drawMathLabel(context, eName, mx + (dx / d) * 13 - 4, my + (dy / d) * 13 + 4, eColor, true);
           }
         }
       }
@@ -10458,7 +10585,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.selectedEdge = null;
         state.selectedVertex = null;
 
-        // 1. Kiểm tra trúng điểm hình học rời
+        // 1. Kiểm tra trúng điểm hình học rời (Ưu tiên 1A: Điểm rời độc lập)
         const hitPoint = findElementAt(point.x, point.y);
         if (hitPoint && hitPoint.type === 'geo' && hitPoint.shape === 'point') {
           state.lastClickedNamingTarget = {
@@ -10469,6 +10596,14 @@ document.addEventListener('DOMContentLoaded', () => {
             y: hitPoint.start.y,
             title: 'Điểm hình học'
           };
+          state.selectedVertex = {
+            element: hitPoint,
+            handleId: 'point',
+            x: hitPoint.start.x,
+            y: hitPoint.start.y,
+            name: hitPoint.name ? `Điểm ${hitPoint.name}` : 'Điểm'
+          };
+          state.selectedEdge = null;
           state.isFromAreaSelect = false;
           hideFloatingSelectionBar();
           setSelectedElements([hitPoint]);
@@ -10507,11 +10642,20 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        // 2. Kiểm tra trúng đỉnh (handle) để kéo điều chỉnh hình hoặc xoay hình
-        const hitHandle = findHandleAt(point.x, point.y, 30);
+        // 2. Ưu tiên 1B: Kiểm tra trúng ĐỈNH (Vertex / Handle) trong bán kính lõi 18px để phân biệt chính xác Đỉnh với Cạnh
+        const hitHandle = findHandleAt(point.x, point.y, 18);
         if (hitHandle) {
           if (!hitHandle.handle.isRotate2D && !hitHandle.handle.isRotate3D) {
             state.lastClickedNamingTarget = resolveNamingTargetFromHandle(hitHandle.element, hitHandle.handle);
+            state.selectedVertex = {
+              element: hitHandle.element,
+              vIndex: hitHandle.handle.index,
+              handleId: hitHandle.handle.id,
+              x: hitHandle.handle.x,
+              y: hitHandle.handle.y,
+              name: hitHandle.handle.name || 'Đỉnh'
+            };
+            state.selectedEdge = null;
           }
           state.activeHandle = hitHandle;
           state.isDrawing = true;
@@ -10519,6 +10663,7 @@ document.addEventListener('DOMContentLoaded', () => {
           state.isFromAreaSelect = false;
           setSelectedElements([hitHandle.element]);
           state.hoverHandle = null;
+          state.hoverEdge = null;
           state.hoverPointTarget = null;
           state.lastDragPoint = { x: point.x, y: point.y };
           state.handleAdjustInitial = JSON.parse(JSON.stringify(hitHandle.element));
@@ -10533,17 +10678,21 @@ document.addEventListener('DOMContentLoaded', () => {
             };
           }
           canvas.style.cursor = hitHandle.handle.cursor || 'crosshair';
-          statusToolInfo.textContent = `🎯 Đang chỉnh: ${hitHandle.handle.name} (Kéo để điều chỉnh hình, các đối tượng sinh ra tự động biến đổi theo)`;
+          statusToolInfo.textContent = `🎯 Đã chọn: ${hitHandle.handle.name} (Kéo để điều chỉnh đỉnh, Chuột phải để đặt/đổi tên)`;
           renderPage();
           return;
         }
 
-        // 3. Kiểm tra chọn thân hình
+        // 3. Ưu tiên 2: Kiểm tra chọn CẠNH / ĐOẠN THẲNG (ngoài vùng lõi đỉnh 18px) hoặc chọn thân hình
         const el = findElementAt(point.x, point.y);
         if (el) {
-          const clickedEdge = findEdgeAt(point.x, point.y, 24);
+          const clickedEdge = findEdgeAt(point.x, point.y, 22);
           if (clickedEdge && clickedEdge.element === el) {
             state.lastClickedNamingTarget = resolveNamingTargetFromEdge(clickedEdge);
+            if (!(el.groupId && el.isManualGroup && !e.altKey)) {
+              state.selectedEdge = clickedEdge;
+              state.selectedVertex = null;
+            }
           } else if (el.type === 'geo' && (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'bisector' || el.shape === 'tangent' || el.shape === 'perpendicular-bisector')) {
             state.lastClickedNamingTarget = {
               category: 'line',
@@ -10553,6 +10702,15 @@ document.addEventListener('DOMContentLoaded', () => {
               y: point.y,
               title: 'Đường thẳng / Đoạn thẳng'
             };
+            if (!(el.groupId && el.isManualGroup && !e.altKey)) {
+              state.selectedEdge = {
+                element: el,
+                start: el.start,
+                end: el.end,
+                dist: 0
+              };
+              state.selectedVertex = null;
+            }
           }
           if (el.type === 'graph-widget') {
             const headerBtn = window.__GraphWidget ? window.__GraphWidget.hitTestWidgetHeaderButtons(el, point.x, point.y) : null;
@@ -11262,42 +11420,66 @@ document.addEventListener('DOMContentLoaded', () => {
         state.dragLast = { x: point.x, y: point.y };
         renderPage();
       } else {
-        // 1. Kiểm tra xem có đang hover trúng ĐIỂM hình học hay không
+        // 1. Ưu tiên 1A: Kiểm tra xem có đang hover trúng ĐIỂM hình học rời hay không
         const hoverPoint = findElementAt(point.x, point.y);
         const isPointEl = hoverPoint && hoverPoint.type === 'geo' && hoverPoint.shape === 'point';
 
         if (isPointEl) {
           setCanvasCursor(SHARP_ARROW_CURSOR);
-          if (state.hoverPointTarget !== hoverPoint || state.hoverHandle !== null) {
+          if (state.hoverPointTarget !== hoverPoint || state.hoverHandle !== null || state.hoverEdge !== null) {
             state.hoverPointTarget = hoverPoint;
             state.hoverHandle = null;
+            state.hoverEdge = null;
+            state.hoverElement = null;
             renderPage();
           }
-          statusToolInfo.textContent = '🎯 Đang nhắm: Điểm - Nhấp để chọn (hoặc giữ ⌘/Ctrl để chọn nhiều)';
+          statusToolInfo.textContent = '🎯 Đang nhắm: Điểm - Nhấp để chọn riêng điểm (Chuột phải để đặt/đổi tên)';
           return;
         } else if (state.hoverPointTarget) {
           state.hoverPointTarget = null;
           renderPage();
         }
 
-        // 2. Kiểm tra xem có đang hover trúng ĐỈNH TAM GIÁC hoặc ĐẦU MÚT ĐOẠN THẲNG (Handle)
-        const hitHandle = findHandleAt(point.x, point.y, 28);
+        // 2. Ưu tiên 1B: Kiểm tra xem có đang hover trúng ĐỈNH / ĐẦU MÚT (Handle) trong bán kính lõi 18px
+        const hitHandle = findHandleAt(point.x, point.y, 18);
         if (hitHandle) {
           setCanvasCursor(SHARP_ARROW_CURSOR);
           const isSame = state.hoverHandle && state.hoverHandle.handle && state.hoverHandle.handle.id === hitHandle.handle.id && state.hoverHandle.element === hitHandle.element;
-          if (!isSame) {
+          if (!isSame || state.hoverEdge !== null) {
             state.hoverHandle = hitHandle;
-            state.hoverElement = hitHandle.element;
+            state.hoverEdge = null;
+            state.hoverElement = null;
             renderPage();
           }
-          statusToolInfo.textContent = `🎯 Đang nhắm: ${hitHandle.handle.name} - Bấm kéo để điều chỉnh hình`;
+          statusToolInfo.textContent = `🎯 Đang nhắm: ${hitHandle.handle.name} - Nhấp chọn riêng đỉnh, kéo để chỉnh, Chuột phải để đặt/đổi tên`;
           return;
         } else if (state.hoverHandle) {
           state.hoverHandle = null;
           renderPage();
         }
 
-        // 3. Nếu không trúng handle, kiểm tra hover vào thân hình học
+        // 3. Ưu tiên 2: Kiểm tra xem có đang hover trúng CẠNH / ĐOẠN THẲNG (ngoài vùng lõi đỉnh 18px)
+        const hitEdge = findEdgeAt(point.x, point.y, 20);
+        if (hitEdge) {
+          setCanvasCursor(SHARP_ARROW_CURSOR);
+          const isSameEdge =
+            state.hoverEdge &&
+            state.hoverEdge.element === hitEdge.element &&
+            state.hoverEdge.v1Index === hitEdge.v1Index &&
+            state.hoverEdge.v2Index === hitEdge.v2Index;
+          if (!isSameEdge || state.hoverElement !== null) {
+            state.hoverEdge = hitEdge;
+            state.hoverElement = null;
+            renderPage();
+          }
+          statusToolInfo.textContent = '🎯 Đang nhắm: Cạnh / Đoạn thẳng - Nhấp để chọn riêng cạnh, Chuột phải để đổi nét đứt/liền, đổi màu, đặt tên';
+          return;
+        } else if (state.hoverEdge) {
+          state.hoverEdge = null;
+          renderPage();
+        }
+
+        // 4. Nếu không trúng Đỉnh và không trúng Cạnh, kiểm tra hover vào thân đối tượng khác (văn bản, ảnh, đường tròn...)
         const hoverEl = findElementAt(point.x, point.y);
         if (hoverEl) {
           setCanvasCursor(SHARP_ARROW_CURSOR);
@@ -11816,6 +11998,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.handleAdjustInitial = null;
         state.handleAdjustDependentsInitial = null;
       }
+      const releasedHandle = state.activeHandle;
       state.lastRotateAngle = undefined;
       state.lastDragPoint = null;
       state.activeHandle = null;
@@ -11824,7 +12007,18 @@ document.addEventListener('DOMContentLoaded', () => {
       state.hoverSnapPoint = null;
       state.isDrawing = false;
       state.selectedEdge = null;
-      state.selectedVertex = null;
+      if (releasedHandle && releasedHandle.handle && !releasedHandle.handle.isRotate2D && !releasedHandle.handle.isRotate3D && el) {
+        state.selectedVertex = {
+          element: el,
+          vIndex: releasedHandle.handle.index,
+          handleId: releasedHandle.handle.id,
+          x: releasedHandle.handle.x,
+          y: releasedHandle.handle.y,
+          name: releasedHandle.handle.name || 'Đỉnh'
+        };
+      } else {
+        state.selectedVertex = null;
+      }
       if (state.activeTool === 'select') {
         setCanvasCursor(SHARP_ARROW_CURSOR);
         if (el) {
@@ -12548,7 +12742,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const edgeHit = findEdgeAt(x, y, 24);
     if (edgeHit) {
       bestLine = resolveNamingTargetFromEdge(edgeHit);
-      if (bestLine) bestLine.dist = edgeHit.dist;
+      if (bestLine) {
+        bestLine.dist = edgeHit.dist;
+        bestLine.edgeHit = edgeHit;
+      }
     } else {
       const circleHit = findCircleAt(x, y, 20);
       if (circleHit && circleHit.element) {
@@ -12566,7 +12763,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (bestPoint && bestLine) {
       const isBareEndpoint = bestPoint.kind === 'start-point' || bestPoint.kind === 'end-point';
-      if (isBareEndpoint && bestPoint.dist > 14 && (bestLine.dist || 0) <= 8) {
+      if (isBareEndpoint && bestPoint.dist > 10 && (bestLine.dist || 0) <= 10) {
         return { primaryTarget: bestLine, alternateTarget: bestPoint };
       }
       return { primaryTarget: bestPoint, alternateTarget: bestLine };
@@ -12730,6 +12927,118 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
+  function getTargetCurrentDash(target) {
+    if (!target || !target.element) return 'solid';
+    const el = target.element;
+    if (target.kind === 'solid-edge') {
+      if (el.edgeDashes && el.edgeDashes[target.edgeKey]) {
+        return el.edgeDashes[target.edgeKey];
+      }
+      if (el.edges) {
+        for (const edge of el.edges) {
+          const eKey = Math.min(edge[0], edge[1]) + '_' + Math.max(edge[0], edge[1]);
+          if (eKey === target.edgeKey) {
+            return edge[2] === 'dashed' ? 'dashed' : 'solid';
+          }
+        }
+      }
+      return 'solid';
+    }
+    if (target.kind === 'polygon-edge' || target.kind === 'inscribed-edge') {
+      if (el.edgeDashes && el.edgeDashes[target.edgeIndex]) {
+        return el.edgeDashes[target.edgeIndex];
+      }
+      return el.dash === 'dashed' ? 'dashed' : 'solid';
+    }
+    return el.dash === 'dashed' ? 'dashed' : 'solid';
+  }
+
+  function applyDashToTarget(target, newDash, recordHistory = true) {
+    if (!target || !target.element) return false;
+    const dashVal = newDash === 'dashed' ? 'dashed' : 'solid';
+    const prevDash = getTargetCurrentDash(target);
+    if (prevDash === dashVal) return false;
+
+    const el = target.element;
+    const beforeSnapshot = recordHistory ? JSON.parse(JSON.stringify(el)) : null;
+
+    if (target.kind === 'solid-edge') {
+      if (!el.edgeDashes) el.edgeDashes = {};
+      el.edgeDashes[target.edgeKey] = dashVal;
+      if (el.edges) {
+        for (const edge of el.edges) {
+          const eKey = Math.min(edge[0], edge[1]) + '_' + Math.max(edge[0], edge[1]);
+          if (eKey === target.edgeKey) {
+            edge[2] = dashVal;
+          }
+        }
+      }
+    } else if (target.kind === 'polygon-edge' || target.kind === 'inscribed-edge') {
+      if (!el.edgeDashes) el.edgeDashes = {};
+      el.edgeDashes[target.edgeIndex] = dashVal;
+    } else {
+      el.dash = dashVal;
+    }
+
+    if (recordHistory && beforeSnapshot) {
+      pushCommand({
+        type: 'modify-element',
+        element: el,
+        before: beforeSnapshot,
+        after: JSON.parse(JSON.stringify(el))
+      });
+    }
+
+    renderPage();
+    showPageToast(dashVal === 'dashed' ? '╌╌ Đã chuyển đoạn thẳng sang Nét đứt' : '━━ Đã chuyển đoạn thẳng sang Nét liền');
+    return true;
+  }
+
+  function getTargetCurrentColor(target) {
+    if (!target || !target.element) return state.color || '#30493c';
+    const el = target.element;
+    if (target.kind === 'solid-edge') {
+      return (el.edgeColors && el.edgeColors[target.edgeKey]) || el.color || state.color || '#184e3a';
+    }
+    if (target.kind === 'polygon-edge' || target.kind === 'inscribed-edge') {
+      return (el.edgeColors && el.edgeColors[target.edgeIndex]) || el.color || state.color || '#30493c';
+    }
+    return el.color || state.color || '#30493c';
+  }
+
+  function applyColorToTarget(target, newColor, recordHistory = true) {
+    if (!target || !target.element || !newColor) return false;
+    const colorVal = String(newColor).trim();
+    const prevColor = getTargetCurrentColor(target);
+    if (prevColor && prevColor.toLowerCase() === colorVal.toLowerCase()) return false;
+
+    const el = target.element;
+    const beforeSnapshot = recordHistory ? JSON.parse(JSON.stringify(el)) : null;
+
+    if (target.kind === 'solid-edge') {
+      if (!el.edgeColors) el.edgeColors = {};
+      el.edgeColors[target.edgeKey] = colorVal;
+    } else if (target.kind === 'polygon-edge' || target.kind === 'inscribed-edge') {
+      if (!el.edgeColors) el.edgeColors = {};
+      el.edgeColors[target.edgeIndex] = colorVal;
+    } else {
+      el.color = colorVal;
+    }
+
+    if (recordHistory && beforeSnapshot) {
+      pushCommand({
+        type: 'modify-element',
+        element: el,
+        before: beforeSnapshot,
+        after: JSON.parse(JSON.stringify(el))
+      });
+    }
+
+    renderPage();
+    showPageToast('🎨 Đã đổi màu thành công');
+    return true;
+  }
+
   function closeRenamePopover() {
     if (renamePopoverEl) {
       renamePopoverEl.remove();
@@ -12748,11 +13057,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const currentName = getTargetCurrentName(activeRenameTarget);
     const isPoint = activeRenameTarget.category === 'point';
+    const isLine = activeRenameTarget.category === 'line';
     const actionLabel = currentName ? 'Đổi tên' : 'Đặt tên';
-    const targetBadge = isPoint ? `📍 ${activeRenameTarget.title || 'Điểm / Đỉnh'}` : `📏 ${activeRenameTarget.title || 'Đường thẳng / Cạnh'}`;
+    const targetBadge = isPoint ? `📍 ${activeRenameTarget.title || 'Điểm / Đỉnh'}` : `📏 ${activeRenameTarget.title || 'Đoạn thẳng / Cạnh'}`;
     const quickChips = isPoint
       ? ['A', 'B', 'C', 'D', 'S', 'M', 'N', 'H', 'I', 'O', "A'", "B'", "C'"]
       : ['d', 'd₁', 'd₂', 'Δ', 'a', 'b', 'c', 'h', 'l', 'R'];
+
+    const currentDash = isLine ? getTargetCurrentDash(activeRenameTarget) : 'solid';
+    const currentColor = getTargetCurrentColor(activeRenameTarget);
+    const quickColors = [
+      { hex: '#30493c', title: 'Xanh rừng' },
+      { hex: '#111827', title: 'Đen' },
+      { hex: '#dc2626', title: 'Đỏ' },
+      { hex: '#2563eb', title: 'Xanh dương' },
+      { hex: '#d97706', title: 'Cam đậm' },
+      { hex: '#7c3aed', title: 'Tím' },
+      { hex: '#0891b2', title: 'Xanh ngọc' },
+      { hex: '#db2777', title: 'Hồng đậm' }
+    ];
 
     const pop = document.createElement('div');
     pop.className = 'net-rename-popover';
@@ -12762,8 +13085,36 @@ document.addEventListener('DOMContentLoaded', () => {
     let switchBtnHtml = '';
     if (alternateRenameTarget) {
       const altIsPoint = alternateRenameTarget.category === 'point';
-      const altLabel = altIsPoint ? '📍 Chọn Đỉnh/Điểm' : '📏 Chọn Đường/Cạnh';
-      switchBtnHtml = `<button type="button" class="net-rename-switch-btn" id="btn-rename-switch" title="Chuyển sang đặt tên cho ${alternateRenameTarget.title}">${altLabel}</button>`;
+      const altLabel = altIsPoint ? '📍 Chọn Đỉnh/Điểm' : '📏 Chọn Đoạn/Cạnh';
+      switchBtnHtml = `<button type="button" class="net-rename-switch-btn" id="btn-rename-switch" title="Chuyển sang thao tác cho ${alternateRenameTarget.title}">${altLabel}</button>`;
+    }
+
+    let lineStyleSectionHtml = '';
+    if (isLine) {
+      lineStyleSectionHtml = `
+        <div class="net-rename-divider"></div>
+        <div class="net-rename-style-row">
+          <span class="net-rename-sublabel">Kiểu nét:</span>
+          <div class="net-rename-dash-group">
+            <button type="button" class="net-rename-dash-btn${currentDash === 'solid' ? ' active' : ''}" data-dash="solid" id="btn-net-dash-solid">
+              <span class="dash-preview solid"></span> Nét liền
+            </button>
+            <button type="button" class="net-rename-dash-btn${currentDash === 'dashed' ? ' active' : ''}" data-dash="dashed" id="btn-net-dash-dashed">
+              <span class="dash-preview dashed"></span> Nét đứt
+            </button>
+          </div>
+        </div>
+        <div class="net-rename-style-row">
+          <span class="net-rename-sublabel">Màu sắc:</span>
+          <div class="net-rename-color-group">
+            ${quickColors.map(c => `<button type="button" class="net-rename-color-dot${currentColor.toLowerCase() === c.hex.toLowerCase() ? ' active' : ''}" data-color="${c.hex}" title="${c.title}" style="background:${c.hex};"></button>`).join('')}
+            <label class="net-rename-color-custom" title="Chọn màu tùy chỉnh">
+              <input type="color" id="input-net-custom-color" value="${currentColor.startsWith('#') && currentColor.length === 7 ? currentColor : '#30493c'}" />
+              <span>🎨</span>
+            </label>
+          </div>
+        </div>
+      `;
     }
 
     pop.innerHTML = `
@@ -12778,6 +13129,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="net-rename-chips" id="net-rename-chips">
         ${quickChips.map(ch => `<button type="button" class="net-rename-chip${currentName === ch ? ' active' : ''}" data-chip="${ch}">${ch}</button>`).join('')}
       </div>
+      ${lineStyleSectionHtml}
       <div class="net-rename-footer">
         ${currentName ? '<button type="button" id="btn-net-rename-clear" class="net-rename-btn danger">Xóa tên</button>' : '<span class="net-rename-hint">Nhấn Enter để lưu · Esc để đóng</span>'}
         <button type="button" id="btn-net-rename-cancel" class="net-rename-btn ghost">Đóng</button>
@@ -12789,8 +13141,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const vw = window.innerWidth || 1024;
     const vh = window.innerHeight || 768;
-    const popWidth = 286;
-    const popHeight = 168;
+    const popWidth = 304;
+    const popHeight = isLine ? 256 : 168;
     const left = Math.max(12, Math.min(vw - popWidth - 12, (clientX || 240) + 6));
     const top = Math.max(12, Math.min(vh - popHeight - 12, (clientY || 180) + 6));
     pop.style.left = `${left}px`;
@@ -12801,6 +13153,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearBtn = pop.querySelector('#btn-net-rename-clear');
     const cancelBtn = pop.querySelector('#btn-net-rename-cancel');
     const switchBtn = pop.querySelector('#btn-rename-switch');
+    const customColorInputEl = pop.querySelector('#input-net-custom-color');
 
     const commitRename = (val) => {
       applyNameToTarget(activeRenameTarget, val, true);
@@ -12839,6 +13192,41 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
+    // Xử lý đổi Nét liền / Nét đứt ngay lập tức khi bấm chuột phải vào đoạn thẳng
+    pop.querySelectorAll('.net-rename-dash-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dashVal = btn.getAttribute('data-dash') || 'solid';
+        applyDashToTarget(activeRenameTarget, dashVal, true);
+        pop.querySelectorAll('.net-rename-dash-btn').forEach(b => {
+          b.classList.toggle('active', b.getAttribute('data-dash') === dashVal);
+        });
+      });
+    });
+
+    // Xử lý đổi màu đoạn thẳng ngay lập tức khi bấm vào chấm màu
+    pop.querySelectorAll('.net-rename-color-dot').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const colorVal = btn.getAttribute('data-color') || '#30493c';
+        applyColorToTarget(activeRenameTarget, colorVal, true);
+        pop.querySelectorAll('.net-rename-color-dot').forEach(b => {
+          b.classList.toggle('active', (b.getAttribute('data-color') || '').toLowerCase() === colorVal.toLowerCase());
+        });
+        if (customColorInputEl) customColorInputEl.value = colorVal;
+      });
+    });
+
+    if (customColorInputEl) {
+      customColorInputEl.addEventListener('input', (ev) => {
+        const colorVal = ev.target.value;
+        if (colorVal) {
+          applyColorToTarget(activeRenameTarget, colorVal, true);
+          pop.querySelectorAll('.net-rename-color-dot').forEach(b => {
+            b.classList.toggle('active', (b.getAttribute('data-color') || '').toLowerCase() === colorVal.toLowerCase());
+          });
+        }
+      });
+    }
+
     if (inputEl) {
       inputEl.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') {
@@ -12871,8 +13259,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cho phép bấm chuột phải đặt tên / đổi tên ngay trong chế độ Chọn (hoặc bất kỳ lúc nào bấm chuột phải trúng điểm/đường)
     const resolved = resolveNamingTargetAt(point.x, point.y);
     if (resolved && resolved.primaryTarget) {
-      if (resolved.primaryTarget.element) {
-        setSelectedElements([resolved.primaryTarget.element]);
+      const ptTarget = resolved.primaryTarget;
+      if (ptTarget.element) {
+        state.isFromAreaSelect = false;
+        hideFloatingSelectionBar();
+        setSelectedElements([ptTarget.element]);
+        if (ptTarget.category === 'point') {
+          state.selectedVertex = {
+            element: ptTarget.element,
+            vIndex: ptTarget.vIndex,
+            handleId: ptTarget.kind === 'center-point' ? 'center'
+              : ptTarget.kind === 'start-point' ? 'start'
+              : ptTarget.kind === 'end-point' ? 'end'
+              : ptTarget.kind === 'foot-point' ? 'foot'
+              : ptTarget.kind === 'midpoint-point' ? 'midpoint'
+              : ptTarget.kind === 'tangent-point' ? 'tangentPoint'
+              : undefined,
+            x: ptTarget.x,
+            y: ptTarget.y,
+            name: ptTarget.title || 'Đỉnh'
+          };
+          state.selectedEdge = null;
+        } else if (ptTarget.category === 'line') {
+          if (ptTarget.edgeHit) {
+            state.selectedEdge = ptTarget.edgeHit;
+          } else {
+            const hitE = findEdgeAt(point.x, point.y, 26);
+            if (hitE && hitE.element === ptTarget.element) {
+              state.selectedEdge = hitE;
+            }
+          }
+          state.selectedVertex = null;
+        }
         renderPage();
       }
       openRenamePopover(resolved, e.clientX, e.clientY);
@@ -16920,6 +17338,10 @@ document.addEventListener('DOMContentLoaded', () => {
       resolveNamingTargetFromEdge,
       getTargetCurrentName,
       applyNameToTarget,
+      getTargetCurrentDash,
+      applyDashToTarget,
+      getTargetCurrentColor,
+      applyColorToTarget,
       openRenamePopover,
       closeRenamePopover,
       handleCanvasContextMenu
