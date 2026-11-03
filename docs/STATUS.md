@@ -7,6 +7,10 @@
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Thanh Trượt Độ Dày Nét Số Thập Phân (Mặc Định 1.5), Cố Định Chế Độ Nét Bút Siêu Siêu Mượt & Hợp Nhất Thanh Trên Cùng (v57–v61):**
+    + Thay danh sách chọn độ dày nét trong menu `Bút ▾` và trên thanh tác vụ nổi vùng chọn (`#floating-selection-bar`) bằng **Thanh trượt Độ dày nét số thập phân từ `1` đến `5`** (`step="0.1"`, **mặc định là `1.5`**), kèm ô nhập số thập phân trực tiếp `#pen-size-value-badge` và các mốc chọn nhanh `1 · 1.5 · 2 · 3 · 4 · 5`.
+    + Lược bỏ hoàn toàn mục chọn "Độ mượt nét bút" khỏi giao diện menu `Bút ▾` và cố định thuật toán lọc quán tính Streamline (`smoothingFactor = 0.36`) + làm mịn đường cong Chaikin 2 cấp (`chaikinSmooth(..., 2)`) để nét bút **luôn luôn ở chế độ siêu siêu mượt**.
+    + Đưa toàn bộ cụm công cụ viết & thao tác (`Chọn`, `Bút ▾`, `Tẩy ▾`, `Chữ`, `OCR`, `↶ Hoàn tác`, `↷ Làm lại`) lên thẳng thanh tiêu đề trên cùng (`.app-header`), xóa nút `Vừa ngang` ở thanh đáy và bỏ nút `Xóa toàn bộ trang` (`#btn-clear-canvas`) khỏi menu `Tệp ▾`.
   - **Đồng Bộ 100% Thao Tác Phím Bấm Theo Sách Hướng Dẫn Sử Dụng `fx-580VNX_VI.pdf` (Trang 117–154: Tính Toán Thống Kê - v56):**
     + *Thực đơn `OPTN` ngữ cảnh kép (Context-Sensitive `OPTN`) đúng y hệt sách HDSD trang 122–126:*
       * **Khi bấm `OPTN` ngay tại Bộ soạn thảo thống kê (`STAT_INPUT` — HDSD trang 122):**

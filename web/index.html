@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Nét">
-  <link rel="stylesheet" href="style.css?v=20261102_1955">
+  <link rel="stylesheet" href="style.css?v=20261103_1112">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&family=Caveat:wght@600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -259,14 +259,227 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               <span>Thông tin Nét</span>
             </button>
-            <button class="header-menu-item item-danger" id="btn-clear-canvas">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-              <span>Xóa toàn bộ trang</span>
-            </button>
           </div>
           <input type="file" id="input-pdf-file" accept="application/pdf" style="display: none;">
           <input type="file" id="input-image-file" accept="image/*" style="display: none;">
           <input type="file" id="input-project-file" accept=".net,.json" style="display: none;">
+        </div>
+
+        <div class="header-divider"></div>
+
+        <!-- CỤM CÔNG CỤ THAO TÁC CHÍNH ĐẶT TRỰC TIẾP TRÊN HÀNG TRÊN CÙNG: Chọn · Bút ▾ · Tẩy ▾ · Chữ · OCR | ↶ ↷ -->
+        <div class="primary-tools-left">
+          <!-- Nút Chọn (Select) -->
+          <button id="tool-select" class="tool-btn" data-tool="select" title="Chọn đối tượng (Phím V hoặc S)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+            <span>Chọn</span>
+          </button>
+
+          <!-- Nút Bút gom chung: [ ✏️ Bút ▾ ] (Gộp Bút viết, Dạ quang, Màu sắc & Cỡ nét) -->
+          <div class="toolbar-dropdown-container" id="dropdown-pen-container">
+            <button id="tool-pen" class="tool-btn active" data-tool="pen" title="Bút vẽ (Phím B) / Nhấp để chọn loại bút, màu và nét">
+              <span class="pen-icon-slot" id="pen-icon-slot">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+              </span>
+              <span class="pen-color-dot" id="pen-active-color-dot" style="background-color: #30493c;"></span>
+              <span id="label-pen-main">Bút</span>
+              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="toolbar-dropdown-menu pen-dropdown-menu" id="menu-pen-cluster">
+              <!-- 1. Chọn loại bút: Bút mực & Dạ quang -->
+              <div class="pen-cluster-section">
+                <div class="pen-type-segmented">
+                  <button type="button" class="pen-segment-btn active" id="btn-pen-type-pen" data-pen-mode="pen" title="Bút viết tay (Phím B)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                    <span>Bút mực</span>
+                  </button>
+                  <button type="button" class="pen-segment-btn" id="btn-pen-type-highlighter" data-pen-mode="highlighter" title="Bút dạ quang đánh dấu (Phím H)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11-6 6v3h3l6-6"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+                    <span>Dạ quang</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="toolbar-menu-divider"></div>
+
+              <!-- 2. Bảng màu sắc -->
+              <div class="pen-cluster-section">
+                <div class="pen-cluster-label">Màu sắc</div>
+                <div class="color-palette-group pen-cluster-colors">
+                  <button class="color-swatch active" data-color="#30493c" style="--swatch-color: #30493c;" title="Mực xanh sẫm tự nhiên"></button>
+                  <button class="color-swatch" data-color="#537fc1" style="--swatch-color: #537fc1;" title="Xanh dương cổ điển"></button>
+                  <button class="color-swatch" data-color="#cf7969" style="--swatch-color: #cf7969;" title="Đất nung / Đỏ gạch"></button>
+                  <button class="color-swatch" data-color="#b6a24c" style="--swatch-color: #b6a24c;" title="Vàng mù tạt trầm"></button>
+                  <label class="custom-color-picker" title="Chọn màu tùy ý">
+                    <input type="color" id="input-custom-color" value="#30493c">
+                    <span class="custom-color-btn">+</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="toolbar-menu-divider"></div>
+
+              <!-- 3. Độ dày nét (Thanh trượt số thập phân từ 1 đến 5, mặc định 1.5) -->
+              <div class="pen-cluster-section">
+                <div class="pen-size-header-row">
+                  <span class="pen-cluster-label" style="margin-bottom: 0;">Độ dày nét</span>
+                  <div class="pen-size-live-badge">
+                    <span class="pen-size-live-line-wrap">
+                      <span id="pen-size-live-line" class="pen-size-live-line" style="height: 1.95px;"></span>
+                    </span>
+                    <input type="number" id="pen-size-value-badge" class="pen-size-value-input" min="1" max="5" step="0.1" value="1.5" title="Nhập độ dày nét (số thập phân từ 1 đến 5)">
+                  </div>
+                </div>
+                <div class="pen-size-slider-wrap">
+                  <input type="range" id="input-pen-size-slider" class="pen-size-slider" min="1" max="5" step="0.1" value="1.5" aria-label="Độ dày nét từ 1 đến 5">
+                  <div class="pen-size-ticks" id="pen-size-ticks">
+                    <button type="button" class="pen-size-tick" data-size="1">1</button>
+                    <button type="button" class="pen-size-tick active" data-size="1.5">1.5</button>
+                    <button type="button" class="pen-size-tick" data-size="2">2</button>
+                    <button type="button" class="pen-size-tick" data-size="3">3</button>
+                    <button type="button" class="pen-size-tick" data-size="4">4</button>
+                    <button type="button" class="pen-size-tick" data-size="5">5</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="toolbar-menu-divider"></div>
+
+              <!-- 4. Kiểu nét (Liền / Đứt) -->
+              <div class="pen-cluster-section">
+                <div class="pen-cluster-label">Kiểu nét</div>
+                <div class="pen-dash-segmented">
+                  <button type="button" class="pen-segment-btn style-btn active" id="stroke-solid" data-dash="solid">
+                    <svg width="22" height="6" viewBox="0 0 22 6"><line x1="1" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+                    <span>Liền</span>
+                  </button>
+                  <button type="button" class="pen-segment-btn style-btn" id="stroke-dashed" data-dash="dashed">
+                    <svg width="22" height="6" viewBox="0 0 22 6"><line x1="1" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2.2" stroke-dasharray="4 3" stroke-linecap="round"/></svg>
+                    <span>Đứt</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nút Tẩy ▾ -->
+          <div class="toolbar-dropdown-container" id="dropdown-eraser-container">
+            <button id="tool-eraser" class="tool-btn" data-tool="eraser" title="Công cụ Tẩy (Phím E)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+              <span id="label-eraser">Tẩy</span>
+              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="toolbar-dropdown-menu eraser-dropdown-menu" id="menu-eraser">
+              <!-- 1. Kiểu tẩy: Tẩy nét / Tẩy cả hình -->
+              <div class="eraser-cluster-section">
+                <div class="eraser-cluster-label">Chế độ tẩy</div>
+                <div class="eraser-mode-segmented">
+                  <button type="button" class="eraser-mode-btn active" id="btn-eraser-partial" data-eraser-mode="partial" title="Tẩy nét nhỏ mịn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/></svg>
+                    <span>Tẩy nét nhỏ</span>
+                  </button>
+                  <button type="button" class="eraser-mode-btn" id="btn-eraser-object" data-eraser-mode="object" title="Chạm là xóa trọn hình">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/></svg>
+                    <span>Tẩy cả hình</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="toolbar-menu-divider"></div>
+
+              <!-- 2. Kích thước đầu tẩy (Nhỏ 4px / Vừa 12px / Lớn 24px) -->
+              <div class="eraser-cluster-section">
+                <div class="eraser-cluster-label">Cỡ đầu tẩy</div>
+                <div class="eraser-size-segmented">
+                  <button type="button" class="eraser-size-btn btn-eraser-size" data-rad="4" title="Đầu tẩy nhỏ (4px) - Tẩy số mũ, ký hiệu chi tiết">
+                    <span class="eraser-size-dot dot-sm"></span>
+                    <span>Nhỏ (4px)</span>
+                  </button>
+                  <button type="button" class="eraser-size-btn btn-eraser-size active" data-rad="12" title="Đầu tẩy vừa (12px) - Tẩy chữ thông thường">
+                    <span class="eraser-size-dot dot-md"></span>
+                    <span>Vừa (12px)</span>
+                  </button>
+                  <button type="button" class="eraser-size-btn btn-eraser-size" data-rad="24" title="Đầu tẩy lớn (24px) - Xóa nhanh mảng lớn">
+                    <span class="eraser-size-dot dot-lg"></span>
+                    <span>Lớn (24px)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="toolbar-menu-divider"></div>
+
+              <!-- 3. Tùy chọn thông minh -->
+              <div class="eraser-cluster-section">
+                <div class="eraser-cluster-label">Tùy chọn thông minh</div>
+                
+                <div class="eraser-card-toggle" id="row-erase-highlighter" title="Khi bật: chỉ xóa vệt dạ quang, bảo vệ toàn bộ chữ và hình bên dưới">
+                  <div class="eraser-card-left">
+                    <span class="eraser-card-icon">🖍️</span>
+                    <div class="eraser-card-text">
+                      <span class="eraser-card-title">Chỉ tẩy dạ quang</span>
+                      <span class="eraser-card-sub">Giữ lại nét bút mực</span>
+                    </div>
+                  </div>
+                  <label class="ios-switch">
+                    <input type="checkbox" id="chk-erase-highlighter-only">
+                    <span class="ios-slider"></span>
+                  </label>
+                </div>
+
+                <div class="eraser-card-toggle" id="row-auto-switch" title="Khi bật: sau khi tẩy xong và nhấc bút lên, tự động quay lại Bút vẽ">
+                  <div class="eraser-card-left">
+                    <span class="eraser-card-icon">✏️</span>
+                    <div class="eraser-card-text">
+                      <span class="eraser-card-title">Tự đổi lại Bút vẽ</span>
+                      <span class="eraser-card-sub">Sau khi tẩy xong tự quay lại bút</span>
+                    </div>
+                  </div>
+                  <label class="ios-switch">
+                    <input type="checkbox" id="chk-auto-switch-to-pen">
+                    <span class="ios-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="toolbar-menu-divider"></div>
+
+              <!-- 4. Xóa toàn bộ trang -->
+              <button class="toolbar-menu-item item-danger" id="btn-clear-canvas-from-eraser">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                <span>Xóa toàn bộ hình trên trang</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Nút Chữ (Text) -->
+          <button id="tool-text" class="tool-btn" data-tool="text" title="Chèn văn bản vào ghi chú (Phím T)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            <span>Chữ</span>
+          </button>
+
+          <!-- Nút OCR nhận dạng chữ viết tay (Quét vùng chữ) -->
+          <button id="btn-ocr" class="tool-btn btn-toolbar-ocr" data-tool="ocr" title="Quét vùng chữ viết tay (OCR) để chuyển thành văn bản">
+            <span class="ocr-icon-emoji">✍️</span>
+            <span>OCR</span>
+          </button>
+
+          <!-- Vùng context ẩn để tương thích code cũ -->
+          <div class="context-section" id="context-select-options" style="display: none;"></div>
+
+          <div class="primary-divider"></div>
+
+          <!-- Hoàn tác / Làm lại -->
+          <div class="history-controls">
+            <button id="btn-undo" class="icon-tool-btn" title="Hoàn tác (⌘Z)" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+            </button>
+            <button id="btn-redo" class="icon-tool-btn" title="Làm lại (⌘⇧Z)" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+            </button>
+          </div>
+
+          <!-- Phần context-pen-options ảo để tương thích mã cũ nếu có truy vấn -->
+          <div id="context-pen-options" style="display: none;"></div>
         </div>
 
         <div class="header-divider"></div>
@@ -591,240 +804,6 @@
       </div>
     </header>
 
-    <!-- 2. THANH CÔNG CỤ CHÍNH: Đầy đủ tính năng, sẵn sàng sử dụng ngay trên 1 hàng duy nhất -->
-    <nav class="primary-toolbar" aria-label="Thanh công cụ thao tác chính">
-      <div class="primary-tools-left">
-        <!-- Nút Chọn (Select) -->
-        <button id="tool-select" class="tool-btn" data-tool="select" title="Chọn đối tượng (Phím V hoặc S)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
-          <span>Chọn</span>
-        </button>
-
-        <!-- Nút Bút gom chung: [ ✏️ Bút ▾ ] (Gộp Bút viết, Dạ quang, Màu sắc & Cỡ nét) -->
-        <div class="toolbar-dropdown-container" id="dropdown-pen-container">
-          <button id="tool-pen" class="tool-btn active" data-tool="pen" title="Bút vẽ (Phím B) / Nhấp để chọn loại bút, màu và nét">
-            <span class="pen-icon-slot" id="pen-icon-slot">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-            </span>
-            <span class="pen-color-dot" id="pen-active-color-dot" style="background-color: #30493c;"></span>
-            <span id="label-pen-main">Bút</span>
-            <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="toolbar-dropdown-menu pen-dropdown-menu" id="menu-pen-cluster">
-            <!-- 1. Chọn loại bút: Bút mực & Dạ quang -->
-            <div class="pen-cluster-section">
-              <div class="pen-type-segmented">
-                <button type="button" class="pen-segment-btn active" id="btn-pen-type-pen" data-pen-mode="pen" title="Bút viết tay (Phím B)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                  <span>Bút mực</span>
-                </button>
-                <button type="button" class="pen-segment-btn" id="btn-pen-type-highlighter" data-pen-mode="highlighter" title="Bút dạ quang đánh dấu (Phím H)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11-6 6v3h3l6-6"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
-                  <span>Dạ quang</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="toolbar-menu-divider"></div>
-
-            <!-- 2. Bảng màu sắc -->
-            <div class="pen-cluster-section">
-              <div class="pen-cluster-label">Màu sắc</div>
-              <div class="color-palette-group pen-cluster-colors">
-                <button class="color-swatch active" data-color="#30493c" style="--swatch-color: #30493c;" title="Mực xanh sẫm tự nhiên"></button>
-                <button class="color-swatch" data-color="#537fc1" style="--swatch-color: #537fc1;" title="Xanh dương cổ điển"></button>
-                <button class="color-swatch" data-color="#cf7969" style="--swatch-color: #cf7969;" title="Đất nung / Đỏ gạch"></button>
-                <button class="color-swatch" data-color="#b6a24c" style="--swatch-color: #b6a24c;" title="Vàng mù tạt trầm"></button>
-                <label class="custom-color-picker" title="Chọn màu tùy ý">
-                  <input type="color" id="input-custom-color" value="#30493c">
-                  <span class="custom-color-btn">+</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="toolbar-menu-divider"></div>
-
-            <!-- 3. Độ dày nét -->
-            <div class="pen-cluster-section">
-              <div class="pen-cluster-label">Độ dày nét</div>
-              <div class="pen-size-list">
-                <button type="button" class="pen-size-row size-btn" data-size="1.5">
-                  <span class="size-line-preview"><span class="size-line" style="height: 1.5px;"></span></span>
-                  <span class="size-text">Mảnh (1.5px)</span>
-                </button>
-                <button type="button" class="pen-size-row size-btn active" data-size="2.5">
-                  <span class="size-line-preview"><span class="size-line" style="height: 2.5px;"></span></span>
-                  <span class="size-text">Vừa (2.5px)</span>
-                </button>
-                <button type="button" class="pen-size-row size-btn" data-size="5">
-                  <span class="size-line-preview"><span class="size-line" style="height: 5px;"></span></span>
-                  <span class="size-text">Đậm (5px)</span>
-                </button>
-                <button type="button" class="pen-size-row size-btn" data-size="10">
-                  <span class="size-line-preview"><span class="size-line" style="height: 8px;"></span></span>
-                  <span class="size-text">Rất đậm (10px)</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="toolbar-menu-divider"></div>
-
-            <!-- 4. Kiểu nét (Liền / Đứt) -->
-            <div class="pen-cluster-section">
-              <div class="pen-cluster-label">Kiểu nét</div>
-              <div class="pen-dash-segmented">
-                <button type="button" class="pen-segment-btn style-btn active" id="stroke-solid" data-dash="solid">
-                  <svg width="22" height="6" viewBox="0 0 22 6"><line x1="1" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-                  <span>Liền</span>
-                </button>
-                <button type="button" class="pen-segment-btn style-btn" id="stroke-dashed" data-dash="dashed">
-                  <svg width="22" height="6" viewBox="0 0 22 6"><line x1="1" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="2.2" stroke-dasharray="4 3" stroke-linecap="round"/></svg>
-                  <span>Đứt</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="toolbar-menu-divider"></div>
-
-            <!-- 5. Độ mượt nét bút -->
-            <div class="pen-cluster-section">
-              <div class="pen-cluster-label">Độ mượt nét bút</div>
-              <div class="pen-dash-segmented" id="pen-smoothing-segmented">
-                <button type="button" class="pen-segment-btn style-btn" id="smoothing-normal" data-smoothing="normal" title="Độ mượt tiêu chuẩn, bám sát cử động tay">
-                  <span>Tiêu chuẩn</span>
-                </button>
-                <button type="button" class="pen-segment-btn style-btn" id="smoothing-smooth" data-smoothing="smooth" title="Làm mượt cơ bản, uốn cong êm ái">
-                  <span>Mượt mà</span>
-                </button>
-                <button type="button" class="pen-segment-btn style-btn active" id="smoothing-ultra" data-smoothing="ultra" title="Làm mượt Streamline cao cấp, khử sạch rung tay, nét chữ uốn lượn tuyệt đẹp">
-                  <span>✨ Siêu mượt</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Nút Tẩy ▾ -->
-        <div class="toolbar-dropdown-container" id="dropdown-eraser-container">
-          <button id="tool-eraser" class="tool-btn" data-tool="eraser" title="Công cụ Tẩy (Phím E)">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
-            <span id="label-eraser">Tẩy</span>
-            <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="toolbar-dropdown-menu eraser-dropdown-menu" id="menu-eraser">
-            <!-- 1. Kiểu tẩy: Tẩy nét / Tẩy cả hình -->
-            <div class="eraser-cluster-section">
-              <div class="eraser-cluster-label">Chế độ tẩy</div>
-              <div class="eraser-mode-segmented">
-                <button type="button" class="eraser-mode-btn active" id="btn-eraser-partial" data-eraser-mode="partial" title="Tẩy nét nhỏ mịn">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/></svg>
-                  <span>Tẩy nét nhỏ</span>
-                </button>
-                <button type="button" class="eraser-mode-btn" id="btn-eraser-object" data-eraser-mode="object" title="Chạm là xóa trọn hình">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/></svg>
-                  <span>Tẩy cả hình</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="toolbar-menu-divider"></div>
-
-            <!-- 2. Kích thước đầu tẩy (Nhỏ 4px / Vừa 12px / Lớn 24px) -->
-            <div class="eraser-cluster-section">
-              <div class="eraser-cluster-label">Cỡ đầu tẩy</div>
-              <div class="eraser-size-segmented">
-                <button type="button" class="eraser-size-btn btn-eraser-size" data-rad="4" title="Đầu tẩy nhỏ (4px) - Tẩy số mũ, ký hiệu chi tiết">
-                  <span class="eraser-size-dot dot-sm"></span>
-                  <span>Nhỏ (4px)</span>
-                </button>
-                <button type="button" class="eraser-size-btn btn-eraser-size active" data-rad="12" title="Đầu tẩy vừa (12px) - Tẩy chữ thông thường">
-                  <span class="eraser-size-dot dot-md"></span>
-                  <span>Vừa (12px)</span>
-                </button>
-                <button type="button" class="eraser-size-btn btn-eraser-size" data-rad="24" title="Đầu tẩy lớn (24px) - Xóa nhanh mảng lớn">
-                  <span class="eraser-size-dot dot-lg"></span>
-                  <span>Lớn (24px)</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="toolbar-menu-divider"></div>
-
-            <!-- 3. Tùy chọn thông minh -->
-            <div class="eraser-cluster-section">
-              <div class="eraser-cluster-label">Tùy chọn thông minh</div>
-              
-              <div class="eraser-card-toggle" id="row-erase-highlighter" title="Khi bật: chỉ xóa vệt dạ quang, bảo vệ toàn bộ chữ và hình bên dưới">
-                <div class="eraser-card-left">
-                  <span class="eraser-card-icon">🖍️</span>
-                  <div class="eraser-card-text">
-                    <span class="eraser-card-title">Chỉ tẩy dạ quang</span>
-                    <span class="eraser-card-sub">Giữ lại nét bút mực</span>
-                  </div>
-                </div>
-                <label class="ios-switch">
-                  <input type="checkbox" id="chk-erase-highlighter-only">
-                  <span class="ios-slider"></span>
-                </label>
-              </div>
-
-              <div class="eraser-card-toggle" id="row-auto-switch" title="Khi bật: sau khi tẩy xong và nhấc bút lên, tự động quay lại Bút vẽ">
-                <div class="eraser-card-left">
-                  <span class="eraser-card-icon">✏️</span>
-                  <div class="eraser-card-text">
-                    <span class="eraser-card-title">Tự đổi lại Bút vẽ</span>
-                    <span class="eraser-card-sub">Sau khi tẩy xong tự quay lại bút</span>
-                  </div>
-                </div>
-                <label class="ios-switch">
-                  <input type="checkbox" id="chk-auto-switch-to-pen">
-                  <span class="ios-slider"></span>
-                </label>
-              </div>
-            </div>
-
-            <div class="toolbar-menu-divider"></div>
-
-            <!-- 4. Xóa toàn bộ trang -->
-            <button class="toolbar-menu-item item-danger" id="btn-clear-canvas-from-eraser">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-              <span>Xóa toàn bộ hình trên trang</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Nút Chữ (Text) -->
-        <button id="tool-text" class="tool-btn" data-tool="text" title="Chèn văn bản vào ghi chú (Phím T)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-          <span>Chữ</span>
-        </button>
-
-        <!-- Nút OCR nhận dạng chữ viết tay (Quét vùng chữ) -->
-        <button id="btn-ocr" class="tool-btn btn-toolbar-ocr" data-tool="ocr" title="Quét vùng chữ viết tay (OCR) để chuyển thành văn bản">
-          <span class="ocr-icon-emoji">✍️</span>
-          <span>OCR</span>
-        </button>
-
-        <!-- Vùng context ẩn để tương thích code cũ -->
-        <div class="context-section" id="context-select-options" style="display: none;"></div>
-
-        <div class="primary-divider"></div>
-
-        <!-- Hoàn tác / Làm lại -->
-        <div class="history-controls">
-          <button id="btn-undo" class="icon-tool-btn" title="Hoàn tác (⌘Z)" disabled>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-          </button>
-          <button id="btn-redo" class="icon-tool-btn" title="Làm lại (⌘⇧Z)" disabled>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
-          </button>
-        </div>
-
-        <!-- Phần context-pen-options ảo để tương thích mã cũ nếu có truy vấn -->
-        <div id="context-pen-options" style="display: none;"></div>
-      </div>
-    </nav>
-
     <!-- 4. VÙNG CHÍNH: Cột thu nhỏ trang bên trái & Vùng giấy vẽ (Theo Hình 4) -->
     <div class="app-main-layout" id="app-main-layout">
       <!-- Cột hiển thị trang thu nhỏ bên trái -->
@@ -973,12 +952,11 @@
 
         <div class="bottom-divider"></div>
 
-        <!-- Cụm Zoom: − 100% + · Vừa ngang -->
+        <!-- Cụm Zoom: − 100% + -->
         <div class="zoom-controls">
           <button id="btn-zoom-out" class="zoom-btn" title="Thu nhỏ (⌘ -)">−</button>
           <span id="zoom-level" class="zoom-text">100%</span>
           <button id="btn-zoom-in" class="zoom-btn" title="Phóng to (⌘ +)">+</button>
-          <button id="btn-zoom-reset" class="btn-fit-width" title="Vừa chiều ngang màn hình">Vừa ngang</button>
         </div>
       </div>
     </footer>
@@ -1691,11 +1669,11 @@
   <script src="fx580.js?v=20261103_1045"></script>
   <!-- Module Đồ thị hàm số & 3D Solid of Revolution -->
   <script src="graph_widget.js?v=20261102_1955"></script>
-  <script src="app.js?v=20261102_1955"></script>
+  <script src="app.js?v=20261103_1116"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261103_1045').catch(function() {});
+        navigator.serviceWorker.register('./sw.js?v=20261103_1116').catch(function() {});
       });
     }
   </script>

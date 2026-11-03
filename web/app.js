@@ -103,9 +103,9 @@ document.addEventListener('DOMContentLoaded', () => {
     activeTool: 'pen', // 'pen' | 'highlighter' | 'eraser' | 'select' | 'text' | 'geo'
     activeGeo: null,   // 'line' | 'circle' | 'angle' | 'triangle' | 'right-triangle' | 'isosceles-triangle' | 'inscribed-triangle' | 'tangent'
     color: '#30493c',
-    strokeWidth: 2.5,
+    strokeWidth: 1.5,
     dashStyle: 'solid', // 'solid' | 'dashed'
-    penSmoothing: 'ultra', // 'normal' | 'smooth' | 'ultra' (mặc định Siêu mượt Streamline)
+    penSmoothing: 'ultra', // Luôn luôn cố định ở chế độ Siêu siêu mượt (Ultra Streamline)
     lastSmoothedPressure: 0.5,
     streamlinePos: null,
     currentPage: 1,
@@ -1901,7 +1901,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Tác vụ: Đổi độ dày nét cho các đối tượng đang chọn
   function changeSelectedElementsWidth(newWidth) {
-    const numW = parseFloat(newWidth) || 2.5;
+    const numW = Math.round(Math.max(1, Math.min(5, parseFloat(newWidth) || 1.5)) * 10) / 10;
     const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
     if (selected.length === 0 || !numW) return;
     const list = state.pages[state.currentPage] || [];
@@ -2058,16 +2058,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cập nhật nút độ dày nét
     const btnWidth = bar.querySelector('#fsb-btn-width');
     const labelWidth = bar.querySelector('#fsb-width-label');
+    const fsbSlider = bar.querySelector('#fsb-width-slider');
     if (firstEl.type === 'image') {
       if (btnWidth) btnWidth.style.display = 'none';
     } else {
       if (btnWidth) btnWidth.style.display = 'inline-flex';
-      const curW = firstEl.width !== undefined ? firstEl.width : 2.5;
+      const curW = Math.round((firstEl.width !== undefined ? firstEl.width : 1.5) * 10) / 10;
       if (labelWidth) labelWidth.textContent = `${curW}px`;
+      if (fsbSlider) fsbSlider.value = String(Math.max(1, Math.min(5, curW)));
       const wItems = bar.querySelectorAll('.fsb-width-item');
       wItems.forEach(item => {
         const itemW = parseFloat(item.dataset.width);
-        item.classList.toggle('active', Math.abs(itemW - curW) < 0.2);
+        item.classList.toggle('active', Math.abs(itemW - curW) < 0.05);
       });
     }
 
@@ -2176,21 +2178,30 @@ document.addEventListener('DOMContentLoaded', () => {
             <span id="fsb-width-label">Độ dày</span>
           </button>
           <div class="fsb-width-palette" id="fsb-width-palette" style="display:none;">
-            <div class="fsb-width-item" data-width="1.5" title="Mảnh (1.5px)">
+            <input type="range" id="fsb-width-slider" min="1" max="5" step="0.1" value="1.5" title="Kéo chọn độ dày nét thập phân (1 – 5)" style="width:90px; accent-color:#235b47; cursor:pointer; margin:0 4px;">
+            <div class="fsb-width-item" data-width="1" title="1px">
+              <span class="fsb-width-line" style="height:1px;"></span>
+              <span>1</span>
+            </div>
+            <div class="fsb-width-item" data-width="1.5" title="Mặc định (1.5px)">
               <span class="fsb-width-line" style="height:1.5px;"></span>
               <span>1.5</span>
             </div>
-            <div class="fsb-width-item" data-width="2.5" title="Vừa (2.5px)">
-              <span class="fsb-width-line" style="height:2.5px;"></span>
-              <span>2.5</span>
+            <div class="fsb-width-item" data-width="2" title="2px">
+              <span class="fsb-width-line" style="height:2px;"></span>
+              <span>2</span>
             </div>
-            <div class="fsb-width-item" data-width="4" title="Đậm (4px)">
+            <div class="fsb-width-item" data-width="3" title="3px">
+              <span class="fsb-width-line" style="height:3px;"></span>
+              <span>3</span>
+            </div>
+            <div class="fsb-width-item" data-width="4" title="4px">
               <span class="fsb-width-line" style="height:4px;"></span>
-              <span>4.0</span>
+              <span>4</span>
             </div>
-            <div class="fsb-width-item" data-width="6" title="Rất đậm (6px)">
-              <span class="fsb-width-line" style="height:6px;"></span>
-              <span>6.0</span>
+            <div class="fsb-width-item" data-width="5" title="5px">
+              <span class="fsb-width-line" style="height:5px;"></span>
+              <span>5</span>
             </div>
           </div>
         </div>
@@ -2312,6 +2323,24 @@ document.addEventListener('DOMContentLoaded', () => {
         paletteWidth.style.display = 'none';
       });
     });
+
+    const fsbSlider = bar.querySelector('#fsb-width-slider');
+    if (fsbSlider) {
+      fsbSlider.addEventListener('input', (e) => {
+        e.stopPropagation();
+        const numW = Math.round(Math.max(1, Math.min(5, parseFloat(e.target.value) || 1.5)) * 10) / 10;
+        const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
+        for (const el of selected) {
+          el.width = numW;
+        }
+        updateFloatingBarState(selected);
+        renderPage();
+      });
+      fsbSlider.addEventListener('change', (e) => {
+        e.stopPropagation();
+        changeSelectedElementsWidth(e.target.value);
+      });
+    }
 
     const customColor = bar.querySelector('#fsb-custom-color');
     customColor.addEventListener('input', (e) => {
@@ -11860,9 +11889,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        // Bộ lọc động học Streamline Stabilizer (Lọc quán tính khử sạch rung giật thời gian thực)
-        const smoothingFactor = state.penSmoothing === 'ultra' ? 0.42 : (state.penSmoothing === 'smooth' ? 0.68 : 1.0);
-        if (state.streamlinePos && state.penSmoothing !== 'normal') {
+        // Bộ lọc động học Streamline Stabilizer (Luôn luôn Siêu siêu mượt khử sạch rung giật thời gian thực)
+        const smoothingFactor = 0.36;
+        if (state.streamlinePos) {
           state.streamlinePos.x += (pt.x - state.streamlinePos.x) * smoothingFactor;
           state.streamlinePos.y += (pt.y - state.streamlinePos.y) * smoothingFactor;
           pt.x = state.streamlinePos.x;
@@ -12359,8 +12388,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (len > 0) {
         let finalPoints = [...state.currentPath];
-        if (state.penSmoothing !== 'normal' && finalPoints.length >= 4) {
-          finalPoints = chaikinSmooth(finalPoints, 1);
+        if (finalPoints.length >= 4) {
+          finalPoints = chaikinSmooth(finalPoints, 2);
         }
         pushNewElement({
           type: 'stroke',
@@ -12369,7 +12398,7 @@ document.addEventListener('DOMContentLoaded', () => {
           color: state.color,
           width: state.strokeWidth,
           dash: state.dashStyle,
-          smoothing: state.penSmoothing || 'ultra'
+          smoothing: 'ultra'
         });
       }
       state.currentPath = [];
@@ -14083,15 +14112,83 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Chọn độ dày nét bên trong dropdown Bút ▾
+  // Chọn độ dày nét bằng thanh trượt số thập phân từ 1 đến 5 (mặc định 1.5) bên trong dropdown Bút ▾
+  const inputPenSizeSlider = document.getElementById('input-pen-size-slider');
+  const penSizeValueBadge = document.getElementById('pen-size-value-badge');
+  const penSizeLiveLine = document.getElementById('pen-size-live-line');
+  const penSizeTicks = document.querySelectorAll('.pen-size-tick');
+
+  function applyPenStrokeWidth(rawVal) {
+    const parsed = parseFloat(rawVal);
+    const val = Math.round(Math.max(1, Math.min(5, isNaN(parsed) ? 1.5 : parsed)) * 10) / 10;
+    state.strokeWidth = val;
+    state.eraserRadius = Math.max(2.5, Math.min(5.5, Math.round(state.strokeWidth * 1.1 * 10) / 10));
+    if (inputPenSizeSlider && Math.abs(parseFloat(inputPenSizeSlider.value) - val) > 0.001) {
+      inputPenSizeSlider.value = String(val);
+    }
+    if (penSizeValueBadge) {
+      if ('value' in penSizeValueBadge) {
+        if (document.activeElement !== penSizeValueBadge) {
+          penSizeValueBadge.value = String(val);
+        }
+      } else {
+        penSizeValueBadge.textContent = String(val);
+      }
+    }
+    if (penSizeLiveLine) {
+      penSizeLiveLine.style.height = `${Math.max(1, Math.min(7, val * 1.3))}px`;
+    }
+    penSizeTicks.forEach(t => {
+      t.classList.toggle('active', Math.abs(parseFloat(t.dataset.size) - val) < 0.02);
+    });
+    statusToolInfo.textContent = `Công cụ: ${state.activeTool === 'highlighter' ? 'Dạ quang' : 'Bút viết'} (Màu: ${state.color}, Nét: ${state.strokeWidth})`;
+  }
+
+  if (inputPenSizeSlider) {
+    inputPenSizeSlider.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const val = Math.round(parseFloat(e.target.value) * 10) / 10;
+      if (penSizeValueBadge && 'value' in penSizeValueBadge) {
+        penSizeValueBadge.value = String(val);
+      }
+      applyPenStrokeWidth(val);
+    });
+    inputPenSizeSlider.addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  if (penSizeValueBadge && 'value' in penSizeValueBadge) {
+    penSizeValueBadge.addEventListener('click', (e) => e.stopPropagation());
+    penSizeValueBadge.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v) && v >= 1 && v <= 5) {
+        applyPenStrokeWidth(v);
+      }
+    });
+    penSizeValueBadge.addEventListener('change', (e) => {
+      e.stopPropagation();
+      applyPenStrokeWidth(e.target.value);
+      penSizeValueBadge.value = String(state.strokeWidth);
+    });
+  }
+
+  penSizeTicks.forEach(tick => {
+    tick.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const v = parseFloat(tick.dataset.size);
+      if (penSizeValueBadge && 'value' in penSizeValueBadge) {
+        penSizeValueBadge.value = String(v);
+      }
+      applyPenStrokeWidth(v);
+    });
+  });
+
   document.querySelectorAll('.pen-size-row').forEach(row => {
     row.addEventListener('click', (e) => {
       e.stopPropagation();
       document.querySelectorAll('.pen-size-row').forEach(r => r.classList.remove('active'));
       row.classList.add('active');
-      state.strokeWidth = parseFloat(row.dataset.size);
-      state.eraserRadius = Math.max(2.5, Math.min(5.5, Math.round(state.strokeWidth * 1.1 * 10) / 10));
-      statusToolInfo.textContent = `Công cụ: ${state.activeTool === 'highlighter' ? 'Dạ quang' : 'Bút viết'} (Màu: ${state.color}, Nét: ${state.strokeWidth}px)`;
+      applyPenStrokeWidth(row.dataset.size);
     });
   });
 
@@ -14102,23 +14199,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.pen-dash-segmented .style-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.dashStyle = btn.dataset.dash;
-    });
-  });
-
-  // Chọn độ mượt nét bút (Tiêu chuẩn / Mượt mà / Siêu mượt Streamline) bên trong dropdown Bút ▾
-  document.querySelectorAll('#pen-smoothing-segmented .style-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.querySelectorAll('#pen-smoothing-segmented .style-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.penSmoothing = btn.dataset.smoothing; // 'normal' | 'smooth' | 'ultra'
-      if (state.penSmoothing === 'ultra') {
-        showPageToast('✨ Đã bật nét bút Siêu mượt (Streamline)!');
-      } else if (state.penSmoothing === 'smooth') {
-        showPageToast('🖊️ Đã bật nét bút Mượt mà!');
-      } else {
-        showPageToast('✏️ Đã bật nét bút Tiêu chuẩn!');
-      }
     });
   });
 
@@ -16438,14 +16518,18 @@ document.addEventListener('DOMContentLoaded', () => {
     zoomLevelDisplay.textContent = `${Math.round(state.zoom * 100)}%`;
   }
 
-  btnZoomIn.addEventListener('click', () => updateZoom(state.zoom + 0.1));
-  btnZoomOut.addEventListener('click', () => updateZoom(state.zoom - 0.1));
-  btnZoomReset.addEventListener('click', () => {
+  function fitCanvasToWidth() {
     const dims = getCanvasDimensions();
     const containerWidth = canvasContainer.clientWidth - 48;
     const fitZoom = containerWidth / dims.width;
     updateZoom(Math.min(1.4, Math.max(0.4, fitZoom)));
-  });
+  }
+
+  btnZoomIn.addEventListener('click', () => updateZoom(state.zoom + 0.1));
+  btnZoomOut.addEventListener('click', () => updateZoom(state.zoom - 0.1));
+  if (btnZoomReset) {
+    btnZoomReset.addEventListener('click', fitCanvasToWidth);
+  }
 
   // 10. Xuất ảnh PNG & Xóa trang
   btnExportPng.addEventListener('click', () => {
@@ -16457,16 +16541,18 @@ document.addEventListener('DOMContentLoaded', () => {
     link.click();
   });
 
-  btnClearCanvas.addEventListener('click', () => {
-    closeAllDropdowns();
-    if (confirm('Bạn có chắc muốn xóa sạch toàn bộ nội dung của trang này?')) {
-      state.pages[state.currentPage] = [];
-      state.undoStacks[state.currentPage] = [];
-      state.redoStacks[state.currentPage] = [];
-      renderPage();
-      updateUndoState();
-    }
-  });
+  if (btnClearCanvas) {
+    btnClearCanvas.addEventListener('click', () => {
+      closeAllDropdowns();
+      if (confirm('Bạn có chắc muốn xóa sạch toàn bộ nội dung của trang này?')) {
+        state.pages[state.currentPage] = [];
+        state.undoStacks[state.currentPage] = [];
+        state.redoStacks[state.currentPage] = [];
+        renderPage();
+        updateUndoState();
+      }
+    });
+  }
 
   // 11. Phím tắt chuẩn Mac (Keyboard Shortcuts)
   window.addEventListener('keydown', (e) => {
@@ -17240,7 +17326,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateScrollBanner();
   // Tự động căn vừa màn hình khi mở
   setTimeout(() => {
-    btnZoomReset.click();
+    fitCanvasToWidth();
   }, 100);
 
   if (typeof window !== 'undefined') {

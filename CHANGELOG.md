@@ -2,6 +2,19 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Thanh Trượt Độ Dày Nét Số Thập Phân Mặc Định 1.5, Luôn Luôn Siêu Siêu Mượt & Hợp Nhất Hàng Trên Cùng (v57–v61)] - 03/11/2026
+
+- **1. Thanh Trượt Độ Dày Nét Số Thập Phân Từ 1 Đến 5 (Mặc Định `1.5`) & Cố Định Nét Bút Siêu Siêu Mượt (`web/index.html`, `web/style.css`, `web/app.js`):**
+  - Cập nhật thanh trượt `#input-pen-size-slider` (trong menu `Bút ▾`) và `#fsb-width-slider` (trên thanh nổi khi chọn hình/nét `#floating-selection-bar`) hỗ trợ bước trượt thập phân `step="0.1"` từ `1.0` đến `5.0` (**mặc định khởi tạo là `1.5`**), cho phép gõ số thập phân trực tiếp vào ô `#pen-size-value-badge` hoặc bấm chọn nhanh vào các mốc `1 · 1.5 · 2 · 3 · 4 · 5`.
+  - Xóa mục "Độ mượt nét bút" khỏi menu `Bút ▾`; cố định thuật toán lọc quán tính Streamline (`smoothingFactor = 0.36`) kết hợp 2 vòng làm mịn Chaikin (`chaikinSmooth(finalPoints, 2)`) để nét viết tay luôn luôn siêu siêu mượt.
+- **2. Gộp Thanh Công Cụ Viết & Thao Tác Lên Thanh Tiêu Đề Trên Cùng (`web/index.html`, `web/style.css`):**
+  - Đưa cụm công cụ `Chọn · Bút ▾ · Tẩy ▾ · Chữ · OCR | ↶ · ↷` (`.primary-tools-left`) lên trực tiếp thanh trên cùng `.app-header` (nằm ngay sau `nét. | Tệp ▾` và trước `Hình ▾ · Dựng hình ▾ · HHKG ▾ · Đồ thị`).
+  - Loại bỏ hàng `.primary-toolbar` thứ hai để toàn bộ công cụ nằm gọn trên 1 hàng trên cùng duy nhất, giúp tiết kiệm chiều cao màn hình và tăng không gian viết cho trang giấy.
+- **3. Lược Bỏ Nút "Vừa Ngang" Ở Thanh Đáy & Nút "Xóa Toàn Bộ Trang" Trong Menu Tệp (`web/index.html`, `web/app.js`):**
+  - Xóa nút `Vừa ngang` (`#btn-zoom-reset`) khỏi cụm điều khiển thu phóng ở góc phải thanh đáy và xóa nút `Xóa toàn bộ trang` (`#btn-clear-canvas`) khỏi menu `Tệp ▾` (tính năng xóa toàn bộ hình trên trang vẫn được giữ nguyên trong menu `Tẩy ▾`).
+- **4. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v61` và query string `?v=20261103_1116` trong `web/index.html`.
+
 ## [Đồng Bộ 100% Thao Tác Phím Bấm Theo Sách HDSD Casio fx-580VN X `fx-580VNX_VI.pdf` (v56)] - 03/11/2026
 
 - **1. Thực Đơn `OPTN` Ngữ Cảnh Kép & Bộ Soạn Thảo Thống Kê Chuẩn Sách HDSD (`fx-580VNX_VI.pdf` Trang 117–154):**
