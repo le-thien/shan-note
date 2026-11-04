@@ -7,6 +7,10 @@
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Hiển Thị Ô Số Cỡ Bút & Đầu Tẩy To Rõ, Đậm Nét, Không Bị Cắt Chữ Số (v67):**
+    + *Tăng Cỡ Chữ & Độ Tương Phản:* Nâng kích thước chữ số lên `13.5px`, in đậm nét `font-weight: 700` với màu mực tương phản cao (`#184e3a` cho Bút và `#dc2626` cho Tẩy).
+    + *Chống Cắt Xén Ký Tự:* Mở rộng chiều rộng ô nhập số lên `38px` và ẩn triệt để nút cuộn mặc định của trình duyệt (`::-webkit-inner-spin-button`), giúp các con số như `1,5` hay `12` hiển thị đầy đủ, không bị cụt hay dính vào đơn vị `px`.
+    + *Đệm Thẻ Badge Thoáng Đãng:* Tăng độ cao và khoảng cách đệm (`padding: 3px 8px; border-radius: 7px;`) cho cả 2 thẻ xem trước của Bút và Tẩy, tạo cảm giác sang trọng, dễ nhìn.
   - **Triệt Tiêu Hoàn Toàn Độ Trễ Khi Viết Nhiều - Nét Bút Gia Tăng 0ms & Bộ Đệm Cực Hạn (v66):**
     + *Ghi Nhận Nét Bút Gia Tăng 0ms (Zero-Redraw Incremental Commit):* Loại bỏ hoàn toàn việc xóa sạch Canvas để vẽ lại hàng nghìn nét cũ mỗi khi người dùng nhấc bút (`finishDrawing`). Nét vẽ đã được thể hiện mượt mà trực tiếp trên mặt giấy trong thời gian thực, do đó thao tác nhấc bút hoàn tất tức thì trong **0.05ms**, triệt tiêu triệt để độ trễ tích lũy dù viết hàng trăm trang hay hàng nghìn chữ.
     + *Bộ Đệm BoundingClientRect Khử Reflow (Layout Throttle):* Lưu đệm tọa độ khung Canvas trong suốt một nét vẽ, loại bỏ hàng trăm lần trình duyệt phải tính toán lại bố cục (reflow) mỗi giây khi nhận sự kiện bút vẽ.

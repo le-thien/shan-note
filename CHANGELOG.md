@@ -2,6 +2,15 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Hiển Thị Ô Số Cỡ Bút & Đầu Tẩy To Rõ, Đậm Nét, Không Bị Cắt Chữ Số (v67)] - 04/11/2026
+
+- **1. Ô Số Độ Dày Nét Bút & Cỡ Đầu Tẩy To Rõ, Sắc Nét (`web/style.css`, `web/index.html`):**
+  - Tăng kích cỡ chữ số từ `11px` lên `13.5px`, in đậm `font-weight: 700`, căn lề và khoảng cách thoáng đãng.
+  - Ẩn triệt để nút cuộn mặc định của trình duyệt (`::-webkit-inner-spin-button`) và mở rộng ô nhập để chữ số (như `12` và `1,5`) không bao giờ bị cắt xén mép phải.
+  - Tăng khoảng cách giữa con số và đơn vị `px` (`margin-left: 2px`), nâng độ tương phản màu mực (`#184e3a` cho Bút và `#dc2626` cho Tẩy).
+- **2. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v67` và đồng bộ truy vấn phiên bản `?v=20261104_0958` trong `web/index.html`.
+
 ## [Triệt Tiêu Hoàn Toàn Độ Trễ Khi Viết Nhiều - Nét Bút Gia Tăng 0ms & Bộ Đệm Cực Hạn (v66)] - 04/11/2026
 
 - **1. Ghi Nhận Nét Bút Gia Tăng Tức Thì 0ms (`web/app.js`):**
