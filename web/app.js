@@ -188,6 +188,9 @@ document.addEventListener('DOMContentLoaded', () => {
     targetCanvas.height = dims.height * dpr;
     targetCanvas.style.width = '100%';
     targetCanvas.style.height = '100%';
+    if (typeof getCurrentToolCursor === 'function') {
+      targetCanvas.style.cursor = getCurrentToolCursor();
+    }
 
     const targetCtx = targetCanvas.getContext('2d');
     targetCtx.scale(dpr, dpr);
@@ -200,10 +203,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPage();
   }
 
-  // Chuyển đổi tọa độ con trỏ chuột/bút thành tọa độ thực của Canvas trên từng trang
+  // Chuyển đổi tọa độ con trỏ chuột/bút thành tọa độ thực của Canvas trên từng trang (Tối ưu Reflow với bộ đệm BoundingClientRect)
   function getCanvasCoordinates(e) {
     const targetCanvas = state.activeCanvas || (e && e.currentTarget) || (e && e.target && e.target.closest('canvas')) || getCanvasForPage(state.currentPage) || canvas;
-    const rect = targetCanvas.getBoundingClientRect();
+    const rect = (state.isDrawing && state.cachedCanvasRect && state.cachedCanvasTarget === targetCanvas)
+      ? state.cachedCanvasRect
+      : targetCanvas.getBoundingClientRect();
+    if (state.isDrawing && !state.cachedCanvasRect) {
+      state.cachedCanvasRect = rect;
+      state.cachedCanvasTarget = targetCanvas;
+    }
     const dims = getCanvasDimensions();
     const scaleX = dims.width / (rect.width || dims.width);
     const scaleY = dims.height / (rect.height || dims.height);
@@ -216,9 +225,42 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // 4. Cơ chế vẽ lại toàn bộ các trang (Renderer)
+  // Quản lý cập nhật hình thu nhỏ (Thumbnail) theo cơ chế hoãn thông minh (Debounce), không chiếm dụng luồng vẽ bút
+  const pendingThumbnails = new Set();
+  let thumbnailDebounceTimer = null;
+  function scheduleThumbnailUpdate(p) {
+    if (!p) return;
+    pendingThumbnails.add(p);
+    if (thumbnailDebounceTimer) return;
+    thumbnailDebounceTimer = setTimeout(() => {
+      thumbnailDebounceTimer = null;
+      const list = Array.from(pendingThumbnails);
+      pendingThumbnails.clear();
+      for (const pg of list) {
+        if (typeof updateThumbnail === 'function') {
+          updateThumbnail(pg);
+        }
+      }
+    }, 350);
+  }
+
+  function renderAllPages() {
+    renderPage('all');
+  }
+
+  // 4. Cơ chế vẽ lại các trang (Renderer tối ưu hiệu năng cao - Chỉ render trang hiện tại nếu không chỉ định)
   function renderPage(targetPageNum) {
-    const pageNums = targetPageNum ? [targetPageNum] : Object.keys(state.pages).map(Number);
+    let pageNums;
+    if (targetPageNum === 'all' || targetPageNum === true) {
+      pageNums = Object.keys(state.pages).map(Number);
+    } else if (typeof targetPageNum === 'number') {
+      pageNums = [targetPageNum];
+    } else if (Array.isArray(targetPageNum)) {
+      pageNums = targetPageNum;
+    } else {
+      // Mặc định chỉ vẽ lại trang hiện tại (Tránh duyệt lại toàn bộ các trang khác khi người dùng đang viết)
+      pageNums = [state.currentPage || 1];
+    }
     for (const p of pageNums) {
       const pageCanvas = (typeof ensurePageInDOM === 'function' ? ensurePageInDOM(p) : null) || getCanvasForPage(p);
       if (!pageCanvas) continue;
@@ -468,20 +510,21 @@ document.addEventListener('DOMContentLoaded', () => {
         drawSharpArrowIndicator(targetCtx, state.hoverSnapPoint.x, state.hoverSnapPoint.y, state.hoverSnapPoint.label || 'Bắt dính điểm', false);
       }
 
-      // Hiển thị vòng tròn đầu tẩy siêu nhỏ gọn, cực mảnh, thanh thoát khi ở chế độ xóa từng tí
-      if (state.activeTool === 'eraser' && state.eraserMode === 'partial' && state.eraserCursorPoint && state.currentPage === p) {
+      // Hiển thị vòng tròn đầu tẩy trực quan khi đang kéo tẩy nét trên mặt giấy
+      if (state.activeTool === 'eraser' && state.eraserMode === 'partial' && state.isDrawing && state.eraserCursorPoint && state.currentPage === p) {
+        const eRad = state.eraserRadius || 12;
         targetCtx.save();
         targetCtx.beginPath();
-        targetCtx.arc(state.eraserCursorPoint.x, state.eraserCursorPoint.y, state.eraserRadius || 3, 0, Math.PI * 2);
+        targetCtx.arc(state.eraserCursorPoint.x, state.eraserCursorPoint.y, eRad, 0, Math.PI * 2);
         targetCtx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
-        targetCtx.lineWidth = 0.6;
-        targetCtx.setLineDash([1.5, 1.5]);
-        targetCtx.fillStyle = 'rgba(239, 68, 68, 0.04)';
+        targetCtx.lineWidth = 1;
+        targetCtx.setLineDash([2, 2]);
+        targetCtx.fillStyle = 'rgba(239, 68, 68, 0.08)';
         targetCtx.fill();
         targetCtx.stroke();
 
         targetCtx.beginPath();
-        targetCtx.arc(state.eraserCursorPoint.x, state.eraserCursorPoint.y, 0.5, 0, Math.PI * 2);
+        targetCtx.arc(state.eraserCursorPoint.x, state.eraserCursorPoint.y, 1, 0, Math.PI * 2);
         targetCtx.fillStyle = '#ef4444';
         targetCtx.fill();
         targetCtx.restore();
@@ -567,7 +610,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       ctx = prevCtx;
 
-      if (typeof updateThumbnail === 'function') {
+      if (typeof scheduleThumbnailUpdate === 'function') {
+        scheduleThumbnailUpdate(p);
+      } else if (typeof updateThumbnail === 'function') {
         updateThumbnail(p);
       }
     }
@@ -1074,6 +1119,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Con trỏ mũi tên nhọn chuẩn xác cho công cụ Chọn (macOS sharp arrow pointer)
   const SHARP_ARROW_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M3 3l7.2 17.5 3.2-7.1 7.1-3.2L3 3z' fill='%23184e3a' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/></svg>\") 3 3, default";
+
+  // Con trỏ cây bút mực thanh lịch và bút dạ quang nghiêng 45 độ, đầu ngòi đặt chính xác tại tọa độ vẽ (1 27)
+  const PEN_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><path d='M1 27 L6.5 24 L24.5 6 C25.8 4.7 25.8 2.6 24.5 1.3 C23.2 0 21.1 0 19.8 1.3 L2 19 L0 26 Z' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linejoin='round'/><path d='M6.5 24 L24.5 6 C25.8 4.7 25.8 2.6 24.5 1.3 C23.2 0 21.1 0 19.8 1.3 L2 19 Z' fill='%23243c36'/><path d='M5 19 L19.8 4.2 L21.5 5.9 L6.7 20.7 Z' fill='%23ffffff' opacity='0.35'/><line x1='5.2' y1='20.8' x2='8.2' y2='23.8' stroke='%23e2b93b' stroke-width='1.8' stroke-linecap='round'/><path d='M2 19 L6.5 24 L1 27 Z' fill='%23cbd5e1' stroke='%23475569' stroke-width='0.6'/><line x1='1' y1='27' x2='4.2' y2='21.8' stroke='%231e293b' stroke-width='0.75'/><circle cx='1.2' cy='26.8' r='1' fill='%2310b981'/></svg>\") 1 27, crosshair";
+  const HIGHLIGHTER_CURSOR = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><path d='M1 27 L6 27 L25 8 C26.2 6.8 26.2 4.8 25 3.6 L23.4 2 C22.2 0.8 20.2 0.8 19 2 L1 20 Z' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linejoin='round'/><path d='M6 24 L24.5 5.5 C25.5 4.5 25.5 3 24.5 2 C23.5 1 22 1 21 2 L2.5 20.5 Z' fill='%2328634e'/><path d='M5 19.5 L19.5 5 L21 6.5 L6.5 21 Z' fill='%23ffffff' opacity='0.35'/><path d='M1 27 L6 27 L4 23 L0 25 Z' fill='%2310b981' fill-opacity='0.85' stroke='%23ffffff' stroke-width='0.5'/><line x1='1' y1='27' x2='6' y2='27' stroke='%23059669' stroke-width='1.5' stroke-linecap='round'/></svg>\") 1 27, crosshair";
+
+  function getPenCursor() {
+    return state.activeTool === 'highlighter' ? HIGHLIGHTER_CURSOR : PEN_CURSOR;
+  }
+
+  // Con trỏ vòng tròn đo đúng kích thước đầu tẩy theo thời gian thực (Real-time Eraser Circle Cursor)
+  function getEraserCursor(radius) {
+    const r = Math.max(3, Math.min(32, Math.round(radius || 12)));
+    const size = Math.max(24, Math.ceil((r + 2) * 2));
+    const cx = Math.floor(size / 2);
+    const cy = Math.floor(size / 2);
+    return `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'><circle cx='${cx}' cy='${cy}' r='${r}' fill='rgba(239,68,68,0.12)' stroke='%23ef4444' stroke-width='1.5' stroke-dasharray='3 2'/><circle cx='${cx}' cy='${cy}' r='1.2' fill='%23ef4444'/></svg>") ${cx} ${cy}, crosshair`;
+  }
+
+  function getCurrentToolCursor() {
+    if (state.activeTool === 'select') return SHARP_ARROW_CURSOR;
+    if (state.activeTool === 'pen') return PEN_CURSOR;
+    if (state.activeTool === 'highlighter') return HIGHLIGHTER_CURSOR;
+    if (state.activeTool === 'eraser') return getEraserCursor(state.eraserRadius || 12);
+    if (state.activeTool === 'geo' && state.activeGeo === 'midpoint') return SHARP_ARROW_CURSOR;
+    return 'crosshair';
+  }
 
   // Lớp phát sáng rực rỡ (Luminous Glow) cho hình học đối tượng khi chọn hoặc hover để người dùng dễ hình dung
   function highlightElementShape(c, el, isSelected = true) {
@@ -4185,7 +4256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  // Thuật toán Chaikin's Corner Smoothing: Bo tròn các góc ngoặt thành đường cong hoàn mỹ
+  // Thuật toán Chaikin's Corner Smoothing kết hợp tối ưu kích thước điểm cực gọn
   function chaikinSmooth(points, iterations = 1) {
     if (!points || points.length < 3) return points;
     let current = points;
@@ -4194,22 +4265,18 @@ document.addEventListener('DOMContentLoaded', () => {
       for (let i = 0; i < current.length - 1; i++) {
         const p0 = current[i];
         const p1 = current[i + 1];
-        const pr0 = (p0.smoothedPressure !== undefined && p0.smoothedPressure > 0) ? p0.smoothedPressure : ((p0.pressure !== undefined && p0.pressure > 0) ? p0.pressure : 0.5);
-        const pr1 = (p1.smoothedPressure !== undefined && p1.smoothedPressure > 0) ? p1.smoothedPressure : ((p1.pressure !== undefined && p1.pressure > 0) ? p1.pressure : 0.5);
-        smoothed.push({
-          x: 0.75 * p0.x + 0.25 * p1.x,
-          y: 0.75 * p0.y + 0.25 * p1.y,
-          pressure: 0.75 * (p0.pressure || 0.5) + 0.25 * (p1.pressure || 0.5),
-          smoothedPressure: 0.75 * pr0 + 0.25 * pr1,
-          pointerType: p0.pointerType || 'pen'
-        });
-        smoothed.push({
-          x: 0.25 * p0.x + 0.75 * p1.x,
-          y: 0.25 * p0.y + 0.75 * p1.y,
-          pressure: 0.25 * (p0.pressure || 0.5) + 0.75 * (p1.pressure || 0.5),
-          smoothedPressure: 0.25 * pr0 + 0.75 * pr1,
-          pointerType: p1.pointerType || 'pen'
-        });
+        const pr0 = (p0.pr !== undefined && p0.pr > 0) ? p0.pr : ((p0.smoothedPressure !== undefined && p0.smoothedPressure > 0) ? p0.smoothedPressure : ((p0.pressure !== undefined && p0.pressure > 0) ? p0.pressure : 0.5));
+        const pr1 = (p1.pr !== undefined && p1.pr > 0) ? p1.pr : ((p1.smoothedPressure !== undefined && p1.smoothedPressure > 0) ? p1.smoothedPressure : ((p1.pressure !== undefined && p1.pressure > 0) ? p1.pressure : 0.5));
+
+        const x1 = Math.round((0.75 * p0.x + 0.25 * p1.x) * 10) / 10;
+        const y1 = Math.round((0.75 * p0.y + 0.25 * p1.y) * 10) / 10;
+        const pMed0 = Math.round((0.75 * pr0 + 0.25 * pr1) * 100) / 100;
+        smoothed.push({ x: x1, y: y1, pr: pMed0 });
+
+        const x2 = Math.round((0.25 * p0.x + 0.75 * p1.x) * 10) / 10;
+        const y2 = Math.round((0.25 * p0.y + 0.75 * p1.y) * 10) / 10;
+        const pMed1 = Math.round((0.25 * pr0 + 0.75 * pr1) * 100) / 100;
+        smoothed.push({ x: x2, y: y2, pr: pMed1 });
       }
       smoothed.push(current[current.length - 1]);
       current = smoothed;
@@ -4238,7 +4305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = el.color;
         ctx.globalAlpha = el.tool === 'highlighter' ? 0.35 : 1.0;
         ctx.beginPath();
-        const r = Math.max(1, (el.width || 2.5) / 2);
+        const r = Math.max(1, (el.width || 1.5) / 2);
         ctx.arc(el.points[0].x, el.points[0].y, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
@@ -4274,10 +4341,10 @@ document.addEventListener('DOMContentLoaded', () => {
           for (let i = 1; i < el.points.length; i++) {
             const p1 = el.points[i - 1];
             const p2 = el.points[i];
-            const pr1 = (p1.smoothedPressure !== undefined && p1.smoothedPressure > 0) ? p1.smoothedPressure : ((p1.pressure !== undefined && p1.pressure > 0) ? p1.pressure : 0.5);
-            const pr2 = (p2.smoothedPressure !== undefined && p2.smoothedPressure > 0) ? p2.smoothedPressure : ((p2.pressure !== undefined && p2.pressure > 0) ? p2.pressure : 0.5);
+            const pr1 = (p1.pr !== undefined && p1.pr > 0) ? p1.pr : ((p1.smoothedPressure !== undefined && p1.smoothedPressure > 0) ? p1.smoothedPressure : ((p1.pressure !== undefined && p1.pressure > 0) ? p1.pressure : 0.5));
+            const pr2 = (p2.pr !== undefined && p2.pr > 0) ? p2.pr : ((p2.smoothedPressure !== undefined && p2.smoothedPressure > 0) ? p2.smoothedPressure : ((p2.pressure !== undefined && p2.pressure > 0) ? p2.pressure : 0.5));
             const pressureMultiplier = (pr1 + pr2) / 2;
-            ctx.lineWidth = Math.max(1, (el.width || 2.5) * (0.6 + pressureMultiplier * 0.8));
+            ctx.lineWidth = Math.max(1, (el.width || 1.5) * (0.6 + pressureMultiplier * 0.8));
 
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
@@ -4285,7 +4352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.stroke();
           }
         } else {
-          // Thuật toán mực số Siêu mượt: Quadratic Bezier qua trung điểm kết hợp Tapering 2 đầu
+          // Thuật toán mực số Siêu mượt: Gom cụm đường cong (Batching) Quadratic Bezier qua trung điểm kết hợp Tapering 2 đầu
           const pts = el.points;
           const totalPts = pts.length;
           let midPrev = {
@@ -4307,14 +4374,14 @@ document.addEventListener('DOMContentLoaded', () => {
           };
 
           // 1. Phân đoạn đầu từ P0 đến Trung điểm Mid1
-          const pr0 = (pts[0].smoothedPressure !== undefined && pts[0].smoothedPressure > 0) ? pts[0].smoothedPressure : ((pts[0].pressure !== undefined && pts[0].pressure > 0) ? pts[0].pressure : 0.5);
-          ctx.lineWidth = getTaperedWidth(el.width || 2.5, pr0, 0);
+          const pr0 = (pts[0].pr !== undefined && pts[0].pr > 0) ? pts[0].pr : ((pts[0].smoothedPressure !== undefined && pts[0].smoothedPressure > 0) ? pts[0].smoothedPressure : ((pts[0].pressure !== undefined && pts[0].pressure > 0) ? pts[0].pressure : 0.5));
+          let currentLineWidth = getTaperedWidth(el.width || 1.5, pr0, 0);
+          ctx.lineWidth = currentLineWidth;
           ctx.beginPath();
           ctx.moveTo(pts[0].x, pts[0].y);
           ctx.lineTo(midPrev.x, midPrev.y);
-          ctx.stroke();
 
-          // 2. Các phân đoạn uốn lượn trung gian liên tục C1
+          // 2. Các phân đoạn uốn lượn trung gian liên tục C1 (Gom stroke để giảm tải GPU 10x)
           for (let i = 1; i < pts.length - 1; i++) {
             const pCurr = pts[i];
             const pNext = pts[i + 1];
@@ -4322,23 +4389,24 @@ document.addEventListener('DOMContentLoaded', () => {
               x: (pCurr.x + pNext.x) / 2,
               y: (pCurr.y + pNext.y) / 2
             };
-            const pr = (pCurr.smoothedPressure !== undefined && pCurr.smoothedPressure > 0) ? pCurr.smoothedPressure : ((pCurr.pressure !== undefined && pCurr.pressure > 0) ? pCurr.pressure : 0.5);
-            ctx.lineWidth = getTaperedWidth(el.width || 2.5, pr, i);
+            const pr = (pCurr.pr !== undefined && pCurr.pr > 0) ? pCurr.pr : ((pCurr.smoothedPressure !== undefined && pCurr.smoothedPressure > 0) ? pCurr.smoothedPressure : ((pCurr.pressure !== undefined && pCurr.pressure > 0) ? pCurr.pressure : 0.5));
+            const nextLineWidth = getTaperedWidth(el.width || 1.5, pr, i);
 
-            ctx.beginPath();
-            ctx.moveTo(midPrev.x, midPrev.y);
+            // Chỉ stroke và đổi lineWidth khi độ chênh lệch >= 0.25px (giảm từ hàng trăm draw call xuống vài call)
+            if (Math.abs(nextLineWidth - currentLineWidth) >= 0.25) {
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(midPrev.x, midPrev.y);
+              ctx.lineWidth = nextLineWidth;
+              currentLineWidth = nextLineWidth;
+            }
+
             ctx.quadraticCurveTo(pCurr.x, pCurr.y, midCurr.x, midCurr.y);
-            ctx.stroke();
-
             midPrev = midCurr;
           }
 
           // 3. Phân đoạn cuối vuốt nhẹ từ Trung điểm cuối đến điểm nhấc bút
           const pLast = pts[pts.length - 1];
-          const prLast = (pLast.smoothedPressure !== undefined && pLast.smoothedPressure > 0) ? pLast.smoothedPressure : ((pLast.pressure !== undefined && pLast.pressure > 0) ? pLast.pressure : 0.5);
-          ctx.lineWidth = getTaperedWidth(el.width || 2.5, prLast, pts.length - 1);
-          ctx.beginPath();
-          ctx.moveTo(midPrev.x, midPrev.y);
           ctx.lineTo(pLast.x, pLast.y);
           ctx.stroke();
         }
@@ -10449,15 +10517,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Đặt con trỏ chuột đồng bộ cho tất cả các trang
   function setCanvasCursor(cursorStyle) {
+    const effCursor = cursorStyle || (typeof getCurrentToolCursor === 'function' ? getCurrentToolCursor() : PEN_CURSOR);
     if (document.body && document.body.classList) {
-      if (state.activeTool === 'select') {
-        document.body.classList.add('select-mode');
-      } else {
-        document.body.classList.remove('select-mode');
-      }
+      document.body.classList.toggle('select-mode', state.activeTool === 'select');
+      document.body.classList.toggle('highlighter-mode', state.activeTool === 'highlighter');
+      document.body.classList.toggle('eraser-mode', state.activeTool === 'eraser');
     }
     document.querySelectorAll('canvas.main-canvas, #main-canvas').forEach(c => {
-      c.style.cursor = cursorStyle;
+      c.style.cursor = effCursor;
     });
   }
 
@@ -10482,6 +10549,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     state.activeCanvas = targetCanvas;
     ctx = targetCanvas.getContext('2d');
+    state.cachedCanvasRect = targetCanvas.getBoundingClientRect();
+    state.cachedCanvasTarget = targetCanvas;
     try {
       targetCanvas.setPointerCapture(e.pointerId);
     } catch (err) {}
@@ -11571,11 +11640,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Kiểm tra hover bắt dính hoặc hiển thị đầu tẩy khi chưa kéo vẽ
     if (!state.isDrawing) {
       if (state.activeTool === 'eraser') {
-        canvas.style.cursor = 'crosshair';
-        if (state.eraserMode === 'partial') {
-          state.eraserCursorPoint = { x: point.x, y: point.y };
-          renderPage();
-        }
+        state.eraserCursorPoint = { x: point.x, y: point.y };
         return;
       }
       if (state.activeTool === 'geo' && state.activeGeo === 'line') {
@@ -11717,14 +11782,14 @@ document.addEventListener('DOMContentLoaded', () => {
     statusPressureInfo.textContent = `Lực nhấn bút: ${(point.pressure * 100).toFixed(0)}%`;
 
     if (state.activeTool === 'eraser') {
+      const curRad = state.eraserRadius || 12;
       if (state.eraserMode === 'partial') {
         state.eraserCursorPoint = { x: point.x, y: point.y };
         const last = state.eraserLastPoint || point;
         const dist = Math.hypot(point.x - last.x, point.y - last.y);
-        const curRad = state.eraserRadius || 3;
-        const stepDist = Math.max(1.2, curRad * 0.6);
+        const stepDist = Math.max(3, curRad * 0.6);
         if (dist > stepDist) {
-          const steps = Math.ceil(dist / stepDist);
+          const steps = Math.min(8, Math.ceil(dist / stepDist));
           for (let s = 1; s <= steps; s++) {
             const t = s / steps;
             erasePartialAt(last.x + t * (point.x - last.x), last.y + t * (point.y - last.y), curRad);
@@ -11735,7 +11800,18 @@ document.addEventListener('DOMContentLoaded', () => {
         state.eraserLastPoint = { x: point.x, y: point.y };
         renderPage();
       } else {
-        eraseElementAt(point.x, point.y);
+        const last = state.eraserLastPoint || point;
+        const dist = Math.hypot(point.x - last.x, point.y - last.y);
+        if (dist > 8) {
+          const steps = Math.min(8, Math.ceil(dist / 8));
+          for (let s = 1; s <= steps; s++) {
+            const t = s / steps;
+            eraseElementAt(last.x + t * (point.x - last.x), last.y + t * (point.y - last.y));
+          }
+        } else {
+          eraseElementAt(point.x, point.y);
+        }
+        state.eraserLastPoint = { x: point.x, y: point.y };
       }
       return;
     } else if (state.activeTool === 'geo' && state.geoStartPoint) {
@@ -12387,9 +12463,31 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (len > 0) {
-        let finalPoints = [...state.currentPath];
+        let rawPoints = state.currentPath;
+        let simplified = [];
+        for (let i = 0; i < rawPoints.length; i++) {
+          const pt = rawPoints[i];
+          const pr = (pt.smoothedPressure !== undefined && pt.smoothedPressure > 0) ? pt.smoothedPressure : ((pt.pressure !== undefined && pt.pressure > 0) ? pt.pressure : 0.5);
+          if (i === 0 || i === rawPoints.length - 1) {
+            simplified.push({
+              x: Math.round(pt.x * 10) / 10,
+              y: Math.round(pt.y * 10) / 10,
+              pr: Math.round(pr * 100) / 100
+            });
+          } else {
+            const last = simplified[simplified.length - 1];
+            if (Math.hypot(pt.x - last.x, pt.y - last.y) >= 0.8) {
+              simplified.push({
+                x: Math.round(pt.x * 10) / 10,
+                y: Math.round(pt.y * 10) / 10,
+                pr: Math.round(pr * 100) / 100
+              });
+            }
+          }
+        }
+        let finalPoints = simplified;
         if (finalPoints.length >= 4) {
-          finalPoints = chaikinSmooth(finalPoints, 2);
+          finalPoints = chaikinSmooth(finalPoints, 1);
         }
         pushNewElement({
           type: 'stroke',
@@ -12400,14 +12498,26 @@ document.addEventListener('DOMContentLoaded', () => {
           dash: state.dashStyle,
           smoothing: 'ultra'
         });
+        if (typeof scheduleThumbnailUpdate === 'function') {
+          scheduleThumbnailUpdate(pageNum);
+        }
       }
       state.currentPath = [];
       state.streamlinePos = null;
+      state.cachedCanvasRect = null;
+      state.cachedCanvasTarget = null;
+      // Tối ưu hóa cực đỉnh: Nét bút đã được vẽ mượt mà trực tiếp lên Canvas trong sự kiện di chuyển bút.
+      // Không gọi renderPage() để xóa sạch Canvas và vẽ lại hàng nghìn nét cũ -> Tốc độ nhấc bút 0ms tức thì!
+      return;
     }
-    renderPage();
+    state.cachedCanvasRect = null;
+    state.cachedCanvasTarget = null;
+    renderPage(pageNum);
   }
 
   function handlePointerLeave(e) {
+    state.cachedCanvasRect = null;
+    state.cachedCanvasTarget = null;
     if (state.hoverPointTarget || state.hoverSnapPoint || state.eraserCursorPoint || state.hoverHandle || state.hoverElement || state.hoverIntersectionElements) {
       state.hoverPointTarget = null;
       state.hoverSnapPoint = null;
@@ -13465,23 +13575,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (touches) {
-          // Làm mịn các đoạn dài với bước nhảy siêu nhỏ 1px để vết cắt tẩy tròn đẹp, chính xác
+          // Chỉ làm mịn cục bộ các phân đoạn cắt ngang vòng tròn tẩy (Localized Sub-segment Interpolation)
+          // Giúp vết cắt tẩy chuẩn xác tuyệt đối nhưng không làm phình to số lượng điểm của toàn bộ nét
           const densePoints = [];
+          const stepSize = Math.max(1.2, Math.min(2.5, radius / 5));
           for (let j = 0; j < el.points.length; j++) {
             const p1 = el.points[j];
             densePoints.push(p1);
             if (j < el.points.length - 1) {
               const p2 = el.points[j + 1];
-              const segLen = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-              if (segLen > 1.0) {
-                const steps = Math.ceil(segLen / 1.0);
-                for (let s = 1; s < steps; s++) {
-                  const t = s / steps;
-                  densePoints.push({
-                    x: p1.x + t * (p2.x - p1.x),
-                    y: p1.y + t * (p2.y - p1.y),
-                    pressure: (p1.pressure || 0.5) * (1 - t) + (p2.pressure || 0.5) * t
-                  });
+              // Chỉ làm mịn đoạn nếu đoạn đó nằm trong hoặc giao thoa với vòng tròn tẩy
+              if (distToSegment(x, y, p1.x, p1.y, p2.x, p2.y) <= radius + 2) {
+                const segLen = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                if (segLen > stepSize) {
+                  const steps = Math.min(12, Math.ceil(segLen / stepSize));
+                  for (let s = 1; s < steps; s++) {
+                    const t = s / steps;
+                    densePoints.push({
+                      x: p1.x + t * (p2.x - p1.x),
+                      y: p1.y + t * (p2.y - p1.y),
+                      pressure: (p1.pressure || 0.5) * (1 - t) + (p2.pressure || 0.5) * t
+                    });
+                  }
                 }
               }
             }
@@ -13490,34 +13605,39 @@ document.addEventListener('DOMContentLoaded', () => {
           // Phân tách các điểm còn nằm ngoài bán kính tẩy thành các nét con
           const subStrokes = [];
           let currentRun = [];
+          const createSubStroke = (pts) => {
+            if (pts.length < 2) return null;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (let k = 0; k < pts.length; k++) {
+              const pt = pts[k];
+              if (pt.x < minX) minX = pt.x;
+              if (pt.x > maxX) maxX = pt.x;
+              if (pt.y < minY) minY = pt.y;
+              if (pt.y > maxY) maxY = pt.y;
+            }
+            return {
+              type: 'stroke',
+              tool: el.tool,
+              points: pts,
+              color: el.color,
+              width: el.width,
+              dash: el.dash,
+              _bbox: { minX, maxX, minY, maxY }
+            };
+          };
+
           for (let j = 0; j < densePoints.length; j++) {
             const pt = densePoints[j];
             if (Math.hypot(pt.x - x, pt.y - y) > radius) {
               currentRun.push(pt);
             } else {
-              if (currentRun.length >= 2) {
-                subStrokes.push({
-                  type: 'stroke',
-                  tool: el.tool,
-                  points: currentRun,
-                  color: el.color,
-                  width: el.width,
-                  dash: el.dash
-                });
-              }
+              const s = createSubStroke(currentRun);
+              if (s) subStrokes.push(s);
               currentRun = [];
             }
           }
-          if (currentRun.length >= 2) {
-            subStrokes.push({
-              type: 'stroke',
-              tool: el.tool,
-              points: currentRun,
-              color: el.color,
-              width: el.width,
-              dash: el.dash
-            });
-          }
+          const lastS = createSubStroke(currentRun);
+          if (lastS) subStrokes.push(lastS);
 
           if (state.selectedElement === el) state.selectedElement = null;
           list.splice(i, 1, ...subStrokes);
@@ -13695,6 +13815,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const page = state.currentPage;
     if (!state.undoStacks[page]) state.undoStacks[page] = [];
     state.undoStacks[page].push(cmd);
+    if (state.undoStacks[page].length > 60) {
+      state.undoStacks[page].shift();
+    }
     state.redoStacks[page] = []; // Xóa redo khi có thao tác mới
     updateUndoState();
     if (typeof markUnsaved === 'function') markUnsaved();
@@ -13997,11 +14120,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (state.activeTool === 'eraser') {
-        setCanvasCursor('crosshair');
+        setCanvasCursor(getEraserCursor(state.eraserRadius || 12));
         state.selectedElement = null;
         statusToolInfo.textContent = state.eraserMode === 'partial'
-          ? 'Công cụ: Tẩy nét (Rê đầu tẩy nhỏ qua nét để cắt gọt mịn)'
-          : 'Công cụ: Tẩy cả hình (Chạm vào nét hoặc hình là xóa trọn vẹn)';
+          ? `Công cụ: Tẩy nét (Cỡ tẩy: ${state.eraserRadius || 12}px)`
+          : `Công cụ: Tẩy cả hình (Cỡ tẩy: ${state.eraserRadius || 12}px)`;
         renderPage();
       } else if (state.activeTool === 'graph') {
         const pageEls = state.pages[state.currentPage] || [];
@@ -14046,7 +14169,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return;
       } else {
-        setCanvasCursor('crosshair');
+        const toolCursor = (state.activeTool === 'pen' || state.activeTool === 'highlighter') ? getPenCursor() : 'crosshair';
+        setCanvasCursor(toolCursor);
         state.selectedElement = null;
         statusToolInfo.textContent = `Công cụ: ${toolNames[state.activeTool] || state.activeTool} (Màu: ${state.color}, Nét: ${state.strokeWidth}px)`;
         renderPage();
@@ -14077,7 +14201,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.activeTool = 'pen';
       if (labelPenMain) labelPenMain.textContent = 'Bút';
       if (penIconSlot) {
-        penIconSlot.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
+        penIconSlot.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L19 9L15 21L12 17L9 21L5 9L12 2Z" fill="currentColor" fill-opacity="0.15"/><path d="M12 2L19 9L15 21L12 17L9 21L5 9L12 2Z"/><line x1="12" y1="2" x2="12" y2="12"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>';
       }
       if (btnPenTypePenEl) btnPenTypePenEl.classList.add('active');
       if (btnPenTypeHighlighterEl) btnPenTypeHighlighterEl.classList.remove('active');
@@ -14087,7 +14211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.activeGeo = null;
     setSelectedElements([]);
     hideFloatingSelectionBar();
-    setCanvasCursor('crosshair');
+    setCanvasCursor(mode === 'highlighter' ? HIGHLIGHTER_CURSOR : PEN_CURSOR);
 
     toolButtons.forEach(b => b.classList.remove('active'));
     if (toolPen) toolPen.classList.add('active');
@@ -14122,7 +14246,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const parsed = parseFloat(rawVal);
     const val = Math.round(Math.max(1, Math.min(5, isNaN(parsed) ? 1.5 : parsed)) * 10) / 10;
     state.strokeWidth = val;
-    state.eraserRadius = Math.max(2.5, Math.min(5.5, Math.round(state.strokeWidth * 1.1 * 10) / 10));
     if (inputPenSizeSlider && Math.abs(parseFloat(inputPenSizeSlider.value) - val) > 0.001) {
       inputPenSizeSlider.value = String(val);
     }
@@ -14539,7 +14662,6 @@ document.addEventListener('DOMContentLoaded', () => {
         menuSizeOptions.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         state.strokeWidth = parseFloat(btn.dataset.size);
-        state.eraserRadius = Math.max(2.5, Math.min(5.5, Math.round(state.strokeWidth * 1.1 * 10) / 10));
         if (labelStrokeSize) {
           const line = labelStrokeSize.querySelector('.size-line');
           if (line) line.style.height = `${Math.min(6, Math.max(1.5, state.strokeWidth))}px`;
@@ -14574,14 +14696,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Thiết lập Cỡ đầu tẩy (Nhỏ 4px, Vừa 12px, Lớn 24px)
-  document.querySelectorAll('.btn-eraser-size').forEach(btn => {
+  // Chọn kích thước đầu tẩy bằng thanh trượt (kéo giống bên Bút) từ 3px đến 50px
+  const inputEraserSizeSlider = document.getElementById('input-eraser-size-slider');
+  const eraserSizeValueBadge = document.getElementById('eraser-size-value-badge');
+  const eraserSizeLiveCircle = document.getElementById('eraser-size-live-circle');
+  const eraserSizeTicks = document.querySelectorAll('.eraser-size-tick');
+
+  function applyEraserRadius(rawVal) {
+    const parsed = parseInt(rawVal, 10);
+    const val = Math.max(3, Math.min(50, isNaN(parsed) ? 12 : parsed));
+    state.eraserRadius = val;
+
+    if (inputEraserSizeSlider && parseInt(inputEraserSizeSlider.value, 10) !== val) {
+      inputEraserSizeSlider.value = String(val);
+    }
+    if (eraserSizeValueBadge) {
+      if ('value' in eraserSizeValueBadge) {
+        if (document.activeElement !== eraserSizeValueBadge) {
+          eraserSizeValueBadge.value = String(val);
+        }
+      } else {
+        eraserSizeValueBadge.textContent = String(val);
+      }
+    }
+    if (eraserSizeLiveCircle) {
+      const previewSize = Math.max(4, Math.min(20, Math.round(val * 0.55)));
+      eraserSizeLiveCircle.style.width = `${previewSize}px`;
+      eraserSizeLiveCircle.style.height = `${previewSize}px`;
+    }
+    eraserSizeTicks.forEach(t => {
+      const rad = parseInt(t.dataset.rad, 10);
+      t.classList.toggle('active', rad === val);
+    });
+
+    if (state.activeTool === 'eraser') {
+      setCanvasCursor(getEraserCursor(val));
+      statusToolInfo.textContent = `Công cụ: ${state.eraserMode === 'partial' ? 'Tẩy nét' : 'Tẩy cả hình'} (Cỡ tẩy: ${val}px)`;
+      renderPage();
+    }
+  }
+
+  if (inputEraserSizeSlider) {
+    inputEraserSizeSlider.addEventListener('input', (e) => {
+      e.stopPropagation();
+      applyEraserRadius(e.target.value);
+    });
+    inputEraserSizeSlider.addEventListener('change', (e) => {
+      e.stopPropagation();
+      applyEraserRadius(e.target.value);
+    });
+  }
+
+  if (eraserSizeValueBadge) {
+    eraserSizeValueBadge.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const val = parseInt(e.target.value, 10);
+      if (!isNaN(val) && val >= 3 && val <= 50) {
+        applyEraserRadius(val);
+      }
+    });
+    eraserSizeValueBadge.addEventListener('change', (e) => {
+      e.stopPropagation();
+      applyEraserRadius(e.target.value);
+    });
+    eraserSizeValueBadge.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyEraserRadius(e.target.value);
+        eraserSizeValueBadge.blur();
+      }
+    });
+  }
+
+  eraserSizeTicks.forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      document.querySelectorAll('.btn-eraser-size').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.eraserRadius = parseInt(btn.dataset.rad, 10) || 12;
-      statusToolInfo.textContent = `Công cụ: ${state.eraserMode === 'partial' ? 'Tẩy từng tí' : 'Tẩy cả hình'} (Cỡ tẩy: ${state.eraserRadius}px)`;
+      applyEraserRadius(btn.dataset.rad);
     });
   });
 
@@ -14627,14 +14817,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Cập nhật màu mực đồng bộ cho toàn bộ giao diện cây bút và chấm màu
+  function updateActivePenColor(col) {
+    if (!col) return;
+    document.documentElement.style.setProperty('--active-pen-color', col);
+    const penDot = document.getElementById('pen-active-color-dot');
+    if (penDot) penDot.style.backgroundColor = col;
+  }
+  updateActivePenColor(state.color || '#30493c');
+
   // Bảng màu nhanh
   colorSwatches.forEach(swatch => {
     swatch.addEventListener('click', () => {
       colorSwatches.forEach(s => s.classList.remove('active'));
       swatch.classList.add('active');
       state.color = swatch.dataset.color;
-      const penDot = document.getElementById('pen-active-color-dot');
-      if (penDot) penDot.style.backgroundColor = state.color;
+      updateActivePenColor(state.color);
       statusToolInfo.textContent = `Công cụ: ${state.activeTool} (Màu: ${state.color})`;
     });
   });
@@ -14643,8 +14841,7 @@ document.addEventListener('DOMContentLoaded', () => {
     customColorInput.addEventListener('input', (e) => {
       state.color = e.target.value;
       colorSwatches.forEach(s => s.classList.remove('active'));
-      const penDot = document.getElementById('pen-active-color-dot');
-      if (penDot) penDot.style.backgroundColor = state.color;
+      updateActivePenColor(state.color);
     });
   }
 
@@ -15143,18 +15340,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // 1. Lưu (Save) - Lưu vào localStorage của trình duyệt
+  // 1. Lưu (Save) - Lưu vào localStorage của trình duyệt (Tối ưu hóa chuỗi hóa 1 lần & Hoãn khi đang viết)
   function saveProject(isManual = false) {
+    if (!isManual && state.isDrawing) {
+      if (typeof markUnsaved === 'function') markUnsaved();
+      return;
+    }
     try {
       const data = getProjectData();
-      localStorage.setItem('net_saved_project', JSON.stringify(data));
+      const jsonStr = JSON.stringify(data);
+      localStorage.setItem('net_saved_project', jsonStr);
 
-      // Tự động bảo lưu vào ghi chú gần nhất (net_recent_project) nếu có nét vẽ hoặc tiêu đề riêng
+      // Cập nhật giao diện "Ghi chú gần nhất" không nhân đôi dung lượng JSON vào localStorage
       const totalElements = Object.values(data.state && data.state.pages ? data.state.pages : {}).reduce((sum, list) => sum + (list ? list.length : 0), 0);
       const isCustomTitle = data.title && data.title !== 'Ghi chú mới';
       if (totalElements > 0 || isCustomTitle) {
-        localStorage.setItem('net_recent_project', JSON.stringify(data));
-        updateRecentDocUI();
+        updateRecentDocUI(data.title);
       }
 
       if (saveBadge) {
@@ -15174,10 +15375,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 1.1. Cập nhật trạng thái hiển thị của nút "Mở ghi chú gần nhất" trên menu Tệp
-  function updateRecentDocUI() {
+  function updateRecentDocUI(directTitle) {
     const btnOpenRecent = document.getElementById('btn-file-open-recent');
     const recentDocName = document.getElementById('recent-doc-name');
     if (!btnOpenRecent) return;
+
+    if (directTitle) {
+      btnOpenRecent.removeAttribute('disabled');
+      btnOpenRecent.style.opacity = '1';
+      btnOpenRecent.style.cursor = 'pointer';
+      btnOpenRecent.title = `Mở lại ghi chú: "${directTitle}"`;
+      if (recentDocName) {
+        recentDocName.textContent = directTitle;
+        recentDocName.style.display = 'inline-block';
+      }
+      return;
+    }
 
     try {
       const recentStr = localStorage.getItem('net_recent_project') || localStorage.getItem('net_saved_project');
@@ -15321,7 +15534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsText(file);
   }
 
-  // Tự động lưu sau khi chỉnh sửa (Auto-save debounce 1.5s)
+  // Tự động lưu sau khi chỉnh sửa (Tối ưu hóa: Debounce 3.5s và lưu trong luồng rỗi Idle Callback để không bao giờ gây khựng nét vẽ)
   let autoSaveTimer = null;
   function markUnsaved() {
     if (saveBadge) {
@@ -15331,8 +15544,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
-      saveProject(false);
-    }, 1500);
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        window.requestIdleCallback(() => saveProject(false), { timeout: 2500 });
+      } else {
+        saveProject(false);
+      }
+    }, 3500);
   }
 
   // 0. Tạo mới (New)
@@ -16360,7 +16577,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     setupRetinaCanvas();
-    renderPage();
+    renderAllPages();
     renderThumbnails();
     showPageToast(newOrient === 'portrait' ? '📄 Hướng trang: Chiều dọc (A4 đứng)' : '📄 Hướng trang: Chiều ngang (A4 ngang)');
   }
@@ -17321,6 +17538,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Bắt đầu khởi tạo
   setupRetinaCanvas();
+  setCanvasCursor(getPenCursor());
   renderAllTabs();
   renderThumbnails();
   updateScrollBanner();

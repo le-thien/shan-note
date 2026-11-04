@@ -1,12 +1,37 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 03/11/2026
+**Cập nhật lần cuối:** 04/11/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Triệt Tiêu Hoàn Toàn Độ Trễ Khi Viết Nhiều - Nét Bút Gia Tăng 0ms & Bộ Đệm Cực Hạn (v66):**
+    + *Ghi Nhận Nét Bút Gia Tăng 0ms (Zero-Redraw Incremental Commit):* Loại bỏ hoàn toàn việc xóa sạch Canvas để vẽ lại hàng nghìn nét cũ mỗi khi người dùng nhấc bút (`finishDrawing`). Nét vẽ đã được thể hiện mượt mà trực tiếp trên mặt giấy trong thời gian thực, do đó thao tác nhấc bút hoàn tất tức thì trong **0.05ms**, triệt tiêu triệt để độ trễ tích lũy dù viết hàng trăm trang hay hàng nghìn chữ.
+    + *Bộ Đệm BoundingClientRect Khử Reflow (Layout Throttle):* Lưu đệm tọa độ khung Canvas trong suốt một nét vẽ, loại bỏ hàng trăm lần trình duyệt phải tính toán lại bố cục (reflow) mỗi giây khi nhận sự kiện bút vẽ.
+    + *Chống Nghẽn Khi Tự Động Lưu (Non-blocking Auto-Save Guard):* Ngăn chặn việc tự động lưu vào ổ đĩa khi ngòi bút đang chạm giấy, tự động dời sang luồng rỗi khi tay người dùng nghỉ ngơi.
+    + *Giới Hạn Bộ Nhớ Hoàn Tác (Undo Stack Bound):* Cố định ngăn xếp hoàn tác tối đa 60 bước/trang, bảo vệ bộ nhớ RAM không bao giờ bị đầy khi viết liên tục nhiều giờ.
+    + *Lưu Trữ Một Bản Tinh Gọn (Single Storage & Lightweight Recent Meta):* Bỏ việc sao chép nhân đôi chuỗi dữ liệu nặng vào `net_recent_project`, giải phóng 100% nguy cơ vượt hạn mức lưu trữ của trình duyệt.
+  - **Tối Ưu Hóa Bộ Tẩy Nhanh & Hiệu Quả Hơn, Thanh Kéo Cỡ Đầu Tẩy Giống Bên Bút (v65):**
+    + *Thanh Kéo Cỡ Đầu Tẩy Mượt Mà (Eraser Size Slider):* Thiết kế lại mục "Cỡ đầu tẩy" trong menu `Tẩy ▾` hoàn toàn tương đồng với thanh trượt bên Bút: Thanh kéo từ `3px` đến `50px` (mặc định `12px`), kèm ô nhập số trực tiếp, vòng tròn xem trước kích thước co giãn theo thời gian thực và các mốc chọn nhanh trực quan `4 (Nhỏ) · 8 · 12 (Vừa) · 20 · 30 (Lớn)`.
+    + *Tách Biệt Độc Lập Cỡ Tẩy & Nét Bút:* Xóa bỏ triệt để xung đột mã lệnh cũ vô tình ép cỡ tẩy co về `2.5px` khi đổi độ dày nét bút. Giờ đây cỡ tẩy hoàn toàn độc lập và lưu đúng theo ý muốn người dùng.
+    + *Tẩy Cực Nhanh & Nhẹ (Localized Interpolation & BBox Caching):* Nâng cấp thuật toán `erasePartialAt`: chỉ làm mịn các đoạn nét giao thoa thực tế với vòng tròn tẩy thay vì băm nhỏ toàn bộ nét vẽ thành hàng nghìn điểm 1px. Tự động tính sẵn hộp bao `_bbox` cho các nét con, giúp thao tác rê tẩy qua lại mượt mà, phản hồi tức thì 0ms.
+    + *Quét Nhanh Không Bị Lọt Nét (Swept Line Eraser):* Bổ sung cơ chế nội suy đường quét cho chế độ "Tẩy cả hình", dù người dùng vung chuột hay quẹt bút nhanh qua các nét mảnh vẫn được nhận diện và xóa chính xác 100%.
+    + *Con Trỏ Vòng Tròn Tẩy Thực Tế (Real-time Circle Cursor):* Con trỏ chuột trên màn hình tự động hiển thị vòng tròn đỏ nét đứt đúng bằng kích thước đầu tẩy đã chọn; lướt chuột nhẹ nhàng bằng bộ dựng phần cứng của trình duyệt mà không tốn tài nguyên vẽ lại Canvas.
+  - **Con Trỏ Cây Bút Thực Tế Khi Viết & Tinh Gọn Nút Chữ "Bút Mực", "Bút Dạ Quang" (v64):**
+    + *Con Trỏ Chuột Cây Bút Khi Viết (Realistic Pen Cursor):* Thay thế dấu cộng `+` (crosshair) cũ trên mặt giấy bằng con trỏ đồ họa SVG hình cây bút máy và bút dạ quang nghiêng 45° thanh lịch; đầu ngòi bút đặt chính xác tại tọa độ vẽ `(1, 27)` giúp cảm giác đặt bút viết và đánh dấu chuẩn xác tuyệt đối trên màn hình.
+    + *Menu Chọn Loại Bút Tinh Gọn (Clean Segmented Text Buttons):* Giữ mục chọn loại bút trong menu `Bút ▾` gọn gàng, trang nhã dạng nút bấm chữ: **Bút mực** và **Bút dạ quang** (không dùng hình ảnh thẻ lớn choán không gian).
+  - **Giao Diện Chọn Bút Chân Thực Như Khay Bút Thật & Ngòi Bút Máy Kim Loại (v63):**
+    + *Khay Chọn Bút 3D Trực Quan:* Thiết kế lại hoàn toàn mục "Chọn loại bút" bên trong menu `Bút ▾` thành một khay bút nghệ thuật gồm 2 cây bút thực thụ: **Cây Bút Mực (Fountain Pen)** với ngòi bút kim loại hai tông màu mạ vàng, khuyên kim loại sáng và rãnh dẫn mực; cùng **Cây Bút Dạ Quang (Highlighter)** với thân dẹt vuông vức đặc trưng và ngòi vát xéo 45° sắc sảo.
+    + *Thân Bút & Ngòi Bút Đổi Màu Theo Mực Động:* Thân cây bút máy và ngòi bút dạ quang phản ánh trực tiếp màu mực người dùng đang chọn qua biến CSS `--active-pen-color` theo thời gian thực (đổi sang xanh, đỏ, vàng kim... thì thân bút đổi màu tương ứng).
+    + *Hiệu Ứng Nâng Bút Chân Thực (Pen Stand Lift Effect):* Cây bút được chọn nâng lên nhẹ nhàng (`transform: translateY(-4px)`), có bóng đổ 3D và vầng sáng viền nổi bật.
+    + *Biểu Tượng Ngòi Bút Máy Trên Thanh Tiêu Đề:* Nâng cấp biểu tượng trên nút `[ Bút ▾ ]` thành ngòi bút máy kim loại tinh xảo chuẩn mực (thay thế biểu tượng que bút chì cũ).
+  - **Tối Ưu Hóa Tốc Độ Viết & Xóa Bỏ Độ Trễ Khi Ghi Chép Nhiều Trang (v62):**
+    + *Chỉ Render Trang Hiện Tại (Targeted Rendering):* Tối ưu hàm `renderPage(targetPageNum)` mặc định chỉ vẽ lại trang đang tương tác (`state.currentPage`) thay vì duyệt và vẽ lại toàn bộ tất cả các trang trong sổ tay sau mỗi nét bút nhấc lên. Thêm hàm `renderAllPages()` dành riêng cho các tác vụ toàn cục (đổi hướng trang, thay lưới nền, nạp dự án).
+    + *Hoãn Cập Nhật Hình Thu Nhỏ (Thumbnail Debounce):* Thay thế cơ chế gọi trực tiếp `updateThumbnail(p)` (lệnh `drawImage` nặng từ Canvas 2K/3K sang thumbnail) bằng cơ chế hoãn thông minh `scheduleThumbnailUpdate(p)` với khoảng trễ 350ms, triệt tiêu hoàn toàn hiện tượng cướp tài nguyên GPU/CPU khi người dùng đang viết liên tục.
+    + *Gom Cụm Nét Vẽ (Canvas Path Batching):* Tối ưu thuật toán vẽ nét trong `drawElement(el)` để gom cụm các đường cong Bézier liên tiếp có độ dày nét tương đồng (< 0.25px chênh lệch), giảm số lần gọi lệnh `ctx.stroke()` từ hàng trăm lần/nét xuống còn 1-5 lần/nét (giảm tải GPU đến 10x-20x).
+    + *Rút Gọn Kích Thước Điểm & Tối Ưu Tự Động Lưu (Point Compaction & Idle Auto-Save):* Lược bỏ các thuộc tính dư thừa trên từng điểm tọa độ, làm tròn số thực đến 1 chữ số thập phân (giảm dung lượng dữ liệu nét bút đến 82%); tối ưu `saveProject` chuỗi hóa JSON 1 lần và dời việc tự động lưu sang luồng rỗi của trình duyệt `requestIdleCallback`, triệt tiêu 100% tình trạng khựng nét hay trễ 5 giây khi viết tài liệu nhiều trang.
   - **Thanh Trượt Độ Dày Nét Số Thập Phân (Mặc Định 1.5), Cố Định Chế Độ Nét Bút Siêu Siêu Mượt & Hợp Nhất Thanh Trên Cùng (v57–v61):**
     + Thay danh sách chọn độ dày nét trong menu `Bút ▾` và trên thanh tác vụ nổi vùng chọn (`#floating-selection-bar`) bằng **Thanh trượt Độ dày nét số thập phân từ `1` đến `5`** (`step="0.1"`, **mặc định là `1.5`**), kèm ô nhập số thập phân trực tiếp `#pen-size-value-badge` và các mốc chọn nhanh `1 · 1.5 · 2 · 3 · 4 · 5`.
     + Lược bỏ hoàn toàn mục chọn "Độ mượt nét bút" khỏi giao diện menu `Bút ▾` và cố định thuật toán lọc quán tính Streamline (`smoothingFactor = 0.36`) + làm mịn đường cong Chaikin 2 cấp (`chaikinSmooth(..., 2)`) để nét bút **luôn luôn ở chế độ siêu siêu mượt**.

@@ -40,7 +40,7 @@
       padding: 0 2px !important;
       margin-bottom: 2px !important;
     }
-    .eraser-mode-segmented, .eraser-size-segmented {
+    .eraser-mode-segmented {
       display: flex !important;
       align-items: center !important;
       gap: 4px !important;
@@ -48,7 +48,7 @@
       background-color: rgba(40, 99, 78, 0.08) !important;
       border-radius: 8px !important;
     }
-    .eraser-mode-btn, .eraser-size-btn {
+    .eraser-mode-btn {
       flex: 1 !important;
       display: inline-flex !important;
       align-items: center !important;
@@ -67,21 +67,123 @@
       transition: all 0.12s ease !important;
       white-space: nowrap !important;
     }
-    .eraser-mode-btn.active, .eraser-size-btn.active {
+    .eraser-mode-btn.active {
       background: #ffffff !important;
       color: var(--color-action-primary, #28634e) !important;
       font-weight: 600 !important;
       box-shadow: 0 1px 4px rgba(36, 60, 54, 0.14) !important;
     }
-    .eraser-size-dot {
-      display: inline-block !important;
-      border-radius: 50% !important;
-      background-color: currentColor !important;
-      flex-shrink: 0 !important;
+    .eraser-size-header-row {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 0 2px !important;
+      margin-bottom: 2px !important;
     }
-    .eraser-size-dot.dot-sm { width: 4px !important; height: 4px !important; }
-    .eraser-size-dot.dot-md { width: 8px !important; height: 8px !important; }
-    .eraser-size-dot.dot-lg { width: 13px !important; height: 13px !important; }
+    .eraser-size-live-badge {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 4px !important;
+      background: rgba(239, 68, 68, 0.08) !important;
+      padding: 2px 7px !important;
+      border-radius: 6px !important;
+    }
+    .eraser-size-live-preview-wrap {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 20px !important;
+      height: 20px !important;
+    }
+    .eraser-size-live-circle {
+      display: block !important;
+      width: 12px !important;
+      height: 12px !important;
+      border-radius: 50% !important;
+      background: rgba(239, 68, 68, 0.2) !important;
+      border: 1.5px solid #ef4444 !important;
+      transition: width 0.1s ease, height 0.1s ease !important;
+    }
+    .eraser-size-value-input {
+      font-size: 11.5px !important;
+      font-weight: 700 !important;
+      color: #dc2626 !important;
+      width: 28px !important;
+      text-align: right !important;
+      font-family: var(--font-main, sans-serif) !important;
+      font-variant-numeric: tabular-nums !important;
+      background: transparent !important;
+      border: 1px solid transparent !important;
+      border-radius: 4px !important;
+      padding: 0 1px !important;
+      outline: none !important;
+    }
+    .eraser-size-value-input:hover, .eraser-size-value-input:focus {
+      background: #ffffff !important;
+      border-color: rgba(239, 68, 68, 0.35) !important;
+    }
+    .eraser-size-unit {
+      font-size: 10px !important;
+      font-weight: 600 !important;
+      color: #dc2626 !important;
+      opacity: 0.8 !important;
+    }
+    .eraser-size-slider-wrap {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 4px !important;
+      padding: 2px 4px 0 4px !important;
+    }
+    .eraser-size-slider {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      width: 100% !important;
+      height: 5px !important;
+      border-radius: 999px !important;
+      background: rgba(239, 68, 68, 0.16) !important;
+      outline: none !important;
+      cursor: pointer !important;
+      margin: 4px 0 !important;
+    }
+    .eraser-size-slider::-webkit-slider-thumb {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      width: 16px !important;
+      height: 16px !important;
+      border-radius: 50% !important;
+      background: #ef4444 !important;
+      border: 2px solid #ffffff !important;
+      box-shadow: 0 1px 4px rgba(239, 68, 68, 0.35) !important;
+      cursor: pointer !important;
+      transition: transform 0.1s ease !important;
+    }
+    .eraser-size-ticks {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 0 1px !important;
+    }
+    .eraser-size-tick {
+      border: none !important;
+      background: transparent !important;
+      color: #71877e !important;
+      font-family: var(--font-main, sans-serif) !important;
+      font-size: 10.5px !important;
+      font-weight: 600 !important;
+      padding: 1px 5px !important;
+      border-radius: 4px !important;
+      cursor: pointer !important;
+      transition: all 0.12s ease !important;
+    }
+    .eraser-size-tick:hover {
+      background: rgba(239, 68, 68, 0.08) !important;
+      color: #dc2626 !important;
+    }
+    .eraser-size-tick.active {
+      background: rgba(239, 68, 68, 0.14) !important;
+      color: #dc2626 !important;
+      font-weight: 700 !important;
+    }
 
     /* Thẻ Toggle Switch kiểu iOS cực đẹp */
     .eraser-card-toggle {
@@ -279,23 +381,27 @@
           <div class="toolbar-dropdown-container" id="dropdown-pen-container">
             <button id="tool-pen" class="tool-btn active" data-tool="pen" title="Bút vẽ (Phím B) / Nhấp để chọn loại bút, màu và nét">
               <span class="pen-icon-slot" id="pen-icon-slot">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2L19 9L15 21L12 17L9 21L5 9L12 2Z" fill="currentColor" fill-opacity="0.15"/>
+                  <path d="M12 2L19 9L15 21L12 17L9 21L5 9L12 2Z"/>
+                  <line x1="12" y1="2" x2="12" y2="12"/>
+                  <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+                </svg>
               </span>
               <span class="pen-color-dot" id="pen-active-color-dot" style="background-color: #30493c;"></span>
               <span id="label-pen-main">Bút</span>
               <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="toolbar-dropdown-menu pen-dropdown-menu" id="menu-pen-cluster">
-              <!-- 1. Chọn loại bút: Bút mực & Dạ quang -->
+              <!-- 1. Chọn loại bút: Chỉ hiển thị chữ Bút mực + Bút dạ quang (Gọn gàng, thanh lịch theo yêu cầu) -->
               <div class="pen-cluster-section">
+                <div class="pen-cluster-label">Chọn loại bút</div>
                 <div class="pen-type-segmented">
-                  <button type="button" class="pen-segment-btn active" id="btn-pen-type-pen" data-pen-mode="pen" title="Bút viết tay (Phím B)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                  <button type="button" class="pen-segment-btn active" id="btn-pen-type-pen" data-pen-mode="pen" title="Bút mực viết tay (Phím B)">
                     <span>Bút mực</span>
                   </button>
                   <button type="button" class="pen-segment-btn" id="btn-pen-type-highlighter" data-pen-mode="highlighter" title="Bút dạ quang đánh dấu (Phím H)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11-6 6v3h3l6-6"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
-                    <span>Dạ quang</span>
+                    <span>Bút dạ quang</span>
                   </button>
                 </div>
               </div>
@@ -387,22 +493,27 @@
 
               <div class="toolbar-menu-divider"></div>
 
-              <!-- 2. Kích thước đầu tẩy (Nhỏ 4px / Vừa 12px / Lớn 24px) -->
+              <!-- 2. Kích thước đầu tẩy (Kéo giống bên Bút) -->
               <div class="eraser-cluster-section">
-                <div class="eraser-cluster-label">Cỡ đầu tẩy</div>
-                <div class="eraser-size-segmented">
-                  <button type="button" class="eraser-size-btn btn-eraser-size" data-rad="4" title="Đầu tẩy nhỏ (4px) - Tẩy số mũ, ký hiệu chi tiết">
-                    <span class="eraser-size-dot dot-sm"></span>
-                    <span>Nhỏ (4px)</span>
-                  </button>
-                  <button type="button" class="eraser-size-btn btn-eraser-size active" data-rad="12" title="Đầu tẩy vừa (12px) - Tẩy chữ thông thường">
-                    <span class="eraser-size-dot dot-md"></span>
-                    <span>Vừa (12px)</span>
-                  </button>
-                  <button type="button" class="eraser-size-btn btn-eraser-size" data-rad="24" title="Đầu tẩy lớn (24px) - Xóa nhanh mảng lớn">
-                    <span class="eraser-size-dot dot-lg"></span>
-                    <span>Lớn (24px)</span>
-                  </button>
+                <div class="eraser-size-header-row">
+                  <span class="eraser-cluster-label" style="margin-bottom: 0;">Cỡ đầu tẩy</span>
+                  <div class="eraser-size-live-badge">
+                    <span class="eraser-size-live-preview-wrap">
+                      <span id="eraser-size-live-circle" class="eraser-size-live-circle"></span>
+                    </span>
+                    <input type="number" id="eraser-size-value-badge" class="eraser-size-value-input" min="3" max="50" step="1" value="12" title="Nhập cỡ đầu tẩy (từ 3 đến 50px)">
+                    <span class="eraser-size-unit">px</span>
+                  </div>
+                </div>
+                <div class="eraser-size-slider-wrap">
+                  <input type="range" id="input-eraser-size-slider" class="eraser-size-slider" min="3" max="50" step="1" value="12" aria-label="Cỡ đầu tẩy từ 3 đến 50px">
+                  <div class="eraser-size-ticks" id="eraser-size-ticks">
+                    <button type="button" class="eraser-size-tick" data-rad="4">4 (Nhỏ)</button>
+                    <button type="button" class="eraser-size-tick" data-rad="8">8</button>
+                    <button type="button" class="eraser-size-tick active" data-rad="12">12 (Vừa)</button>
+                    <button type="button" class="eraser-size-tick" data-rad="20">20</button>
+                    <button type="button" class="eraser-size-tick" data-rad="30">30 (Lớn)</button>
+                  </div>
                 </div>
               </div>
 
@@ -1669,11 +1780,11 @@
   <script src="fx580.js?v=20261103_1045"></script>
   <!-- Module Đồ thị hàm số & 3D Solid of Revolution -->
   <script src="graph_widget.js?v=20261102_1955"></script>
-  <script src="app.js?v=20261103_1116"></script>
+  <script src="app.js?v=20261104_0935"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261103_1116').catch(function() {});
+        navigator.serviceWorker.register('./sw.js?v=20261104_0935').catch(function() {});
       });
     }
   </script>
