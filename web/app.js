@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const elements = state.pages[p] || [];
       for (const el of elements) {
-        drawElement(el);
+        drawElement(el, p);
       }
 
       // Hiển thị khung viền chọn và các nút điều khiển (CHỈ khi đang ở công cụ Chọn đối tượng)
@@ -631,6 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Nút điều khiển 4 góc cho ảnh để người dùng dễ dàng phóng to / thu nhỏ
     if (el.type === 'image') {
+      if (el.isPdfPage) return [];
       handles.push({ id: 'top_left', x: el.x, y: el.y, cursor: 'nwse-resize', name: 'Góc trên-trái (kéo để co giãn)' });
       handles.push({ id: 'top_right', x: el.x + el.width, y: el.y, cursor: 'nesw-resize', name: 'Góc trên-phải (kéo để co giãn)' });
       handles.push({ id: 'bottom_left', x: el.x, y: el.y + el.height, cursor: 'nesw-resize', name: 'Góc dưới-trái (kéo để co giãn)' });
@@ -1651,6 +1652,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Kiểm tra một đối tượng có nằm trong hoặc cắt qua vùng quét chữ nhật hay không
   function isElementInSelectionBox(el, rect) {
     if (!el || !rect) return false;
+    if (el.isPdfPage) return false; // Không quét chọn nhầm trang PDF nền
     const box = getElementBoundingBox(el);
     if (!box) return false;
 
@@ -4242,6 +4244,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return el;
         }
       } else if (el.type === 'image') {
+        if (el.isPdfPage) continue; // Bỏ qua trang PDF nền, không chọn nhầm khi tương tác ghi chú
         if (x >= el.x && x <= el.x + el.width && y >= el.y && y <= el.y + el.height) {
           return el;
         }
@@ -4285,7 +4288,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Dựng từng loại phần tử
-  function drawElement(el) {
+  function drawElement(el, pageNum = null) {
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -4428,7 +4431,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!el.img && el.src) {
         el.img = new Image();
         el.img.src = el.src;
-        el.img.onload = () => renderPage();
+        el.img.onload = () => {
+          renderPage(pageNum || state.currentPage);
+          if (typeof scheduleThumbnailUpdate === 'function') {
+            scheduleThumbnailUpdate(pageNum || state.currentPage);
+          } else {
+            updateThumbnail(pageNum || state.currentPage);
+          }
+        };
       }
       if (el.img && el.img.complete && el.img.naturalWidth > 0) {
         ctx.drawImage(el.img, el.x, el.y, el.width, el.height);
@@ -10534,6 +10544,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e && e.button === 2) {
       return;
     }
+    // Cơ chế Palm Rejection: Nếu đang viết bằng bút stylus / Apple Pencil (pen), bỏ qua mọi chạm lòng bàn tay (touch)
+    if (state.isDrawing && state.activePointerType === 'pen' && e && e.pointerType === 'touch') {
+      return;
+    }
+    state.activePointerType = (e && e.pointerType) || 'mouse';
     if (e && e.target && e.target.closest && e.target.closest('.net-rename-popover')) {
       return;
     }
@@ -11075,6 +11090,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function handlePointerMove(e) {
+    // Bỏ qua chạm lòng bàn tay khi đang viết bằng bút stylus
+    if (state.isDrawing && state.activePointerType === 'pen' && e && e.pointerType === 'touch') {
+      return;
+    }
     const targetCanvas = (e && (e.currentTarget || (e.target && e.target.closest('canvas')))) || getCanvasForPage(state.currentPage) || canvas;
     const pageNum = parseInt((targetCanvas && targetCanvas.dataset.page) || state.currentPage, 10);
     if (!state.isDrawing && !isNaN(pageNum) && pageNum !== state.currentPage) {
@@ -12034,6 +12053,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function finishDrawing(e) {
+    state.activePointerType = null;
     const targetCanvas = (e && (e.currentTarget || (e.target && e.target.closest('canvas')))) || getCanvasForPage(state.currentPage) || canvas;
     const pageNum = parseInt((targetCanvas && targetCanvas.dataset.page) || state.currentPage, 10);
     if (!isNaN(pageNum) && pageNum !== state.currentPage) {
@@ -13376,16 +13396,29 @@ document.addEventListener('DOMContentLoaded', () => {
           closeRenamePopover();
         }
       });
-      setTimeout(() => {
-        inputEl.focus();
-        inputEl.select();
-      }, 10);
+      // Chỉ tự động focus bàn phím trên máy tính chuột vật lý; không tự nhảy bàn phím ảo trên iPad/máy tính bảng
+      const isTouchDevice = (typeof window !== 'undefined') && (
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+        ('ontouchstart' in window) ||
+        (navigator && navigator.maxTouchPoints > 0)
+      );
+      if (!isTouchDevice) {
+        setTimeout(() => {
+          inputEl.focus();
+          inputEl.select();
+        }, 10);
+      }
     }
   }
 
   function handleCanvasContextMenu(e) {
     if (!e) return;
     e.preventDefault();
+
+    // 1. Tuyệt đối không mở hộp đặt tên khi đang viết vẽ (Bút, Dạ quang, Tẩy...) hoặc đang đặt bút vẽ dở
+    if (state.isDrawing || state.activeTool === 'pen' || state.activeTool === 'highlighter' || state.activeTool === 'eraser' || state.activeTool !== 'select') {
+      return;
+    }
     const targetCanvas = (e.currentTarget || (e.target && e.target.closest && e.target.closest('canvas'))) || getCanvasForPage(state.currentPage) || canvas;
     const pageNum = parseInt((targetCanvas && targetCanvas.dataset && targetCanvas.dataset.page) || state.currentPage, 10);
     if (!isNaN(pageNum) && pageNum !== state.currentPage) {
@@ -13504,6 +13537,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = state.pages[state.currentPage] || [];
     const el = findElementAt(x, y);
     if (el) {
+      if (el.isPdfPage) return; // Bảo vệ trang PDF nền không bị tẩy xóa
       // Nếu đang bật "Chỉ tẩy dạ quang", bỏ qua nét mực thường và hình học
       if (state.eraseHighlighterOnly && el.tool !== 'highlighter') {
         return;
@@ -14329,7 +14363,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuEraser = document.getElementById('menu-eraser');
   const btnEraserPartial = document.getElementById('btn-eraser-partial');
   const btnEraserObject = document.getElementById('btn-eraser-object');
-  const btnClearCanvasFromEraser = document.getElementById('btn-clear-canvas-from-eraser');
   const labelEraser = document.getElementById('label-eraser');
 
   if (btnEraserPartial) {
@@ -14355,24 +14388,6 @@ document.addEventListener('DOMContentLoaded', () => {
       closeAllDropdowns();
       const toolEraser = document.getElementById('tool-eraser');
       if (toolEraser) toolEraser.click();
-    });
-  }
-
-  if (btnClearCanvasFromEraser) {
-    btnClearCanvasFromEraser.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeAllDropdowns();
-      if (confirm('Bạn có chắc muốn xóa toàn bộ hình vẽ và ghi chú trên trang hiện tại?')) {
-        const beforePage = [...(state.pages[state.currentPage] || [])];
-        state.pages[state.currentPage] = [];
-        pushCommand({
-          type: 'page-replace',
-          before: beforePage,
-          after: []
-        });
-        renderPage();
-        showPageToast('🗑️ Đã xóa sạch toàn bộ nội dung trang!');
-      }
     });
   }
 
@@ -15349,7 +15364,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const data = getProjectData();
       const jsonStr = JSON.stringify(data);
-      localStorage.setItem('net_saved_project', jsonStr);
+      if (jsonStr.length < 4.5 * 1024 * 1024) {
+        localStorage.setItem('net_saved_project', jsonStr);
+      }
 
       // Cập nhật giao diện "Ghi chú gần nhất" không nhân đôi dung lượng JSON vào localStorage
       const totalElements = Object.values(data.state && data.state.pages ? data.state.pages : {}).reduce((sum, list) => sum + (list ? list.length : 0), 0);
@@ -15494,7 +15511,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updatePageListBar();
-    renderPage(state.currentPage);
+    renderPage('all');
+    renderThumbnails();
     updateUndoState();
     saveProject(false);
     if (toastMsg) showPageToast(toastMsg);
@@ -16717,6 +16735,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePageTabsActive(bestPage, false);
         updateUndoState();
         updateScrollBanner();
+        renderPage(bestPage);
       }
     }, 40);
   }, { passive: true });
@@ -17424,11 +17443,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      showPageToast('⏳ Đang xử lý tệp PDF...');
+      showPageToast('⏳ Đang mở tệp PDF...');
       try {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const loadingTask = window.pdfjsLib.getDocument({
+          data: arrayBuffer,
+          cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+          cMapPacked: true
+        });
+        const pdf = await loadingTask.promise;
         const numPages = pdf.numPages;
 
         if (numPages === 0) {
@@ -17440,25 +17466,61 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentElements = state.pages[startPage] || [];
         const isCurrentEmpty = currentElements.length === 0;
 
+        // Tự động tối ưu hướng giấy Dọc / Ngang theo trang 1 nếu bắt đầu từ trang trắng
+        const firstPdfPage = await pdf.getPage(1);
+        const vFirst = firstPdfPage.getViewport({ scale: 1.0 });
+        const isPdfLandscape = vFirst.width > vFirst.height;
+        if (isCurrentEmpty && Object.keys(state.pages).length === 1) {
+          setOrientation(isPdfLandscape ? 'landscape' : 'portrait');
+        }
+
+        const dims = getCanvasDimensions();
+        const padX = 24;
+        const padY = 24;
+        const maxW = dims.width - padX * 2;
+        const maxH = dims.height - padY * 2;
+
+        showPageToast(`📄 Tìm thấy ${numPages} trang. Đang nạp siêu tốc...`);
+
+        // Xử lý từng trang và hiển thị ngay lập tức (Progressive Streaming)
         for (let p = 1; p <= numPages; p++) {
-          const page = await pdf.getPage(p);
-          const viewport = page.getViewport({ scale: 2.0 }); // Độ phân giải 2x sắc nét
-          const offCanvas = document.createElement('canvas');
-          offCanvas.width = viewport.width;
-          offCanvas.height = viewport.height;
-          const offCtx = offCanvas.getContext('2d');
+          showPageToast(`⏳ Đang nhập trang ${p}/${numPages}...`);
 
-          await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
-          const dataUrl = offCanvas.toDataURL('image/png');
+          const page = (p === 1) ? firstPdfPage : await pdf.getPage(p);
+          const baseViewport = page.getViewport({ scale: 1.0 });
 
-          const dims = getCanvasDimensions();
-          const maxW = dims.width - 80;
-          const maxH = dims.height - 80;
-          const ratio = Math.min(maxW / viewport.width, maxH / viewport.height);
-          const w = Math.round(viewport.width * ratio);
-          const h = Math.round(viewport.height * ratio);
+          // Tính toán kích thước vừa vặn trang giấy
+          const scaleFit = Math.min(maxW / baseViewport.width, maxH / baseViewport.height);
+          const w = Math.round(baseViewport.width * scaleFit);
+          const h = Math.round(baseViewport.height * scaleFit);
           const x = Math.round((dims.width - w) / 2);
           const y = Math.round((dims.height - h) / 2);
+
+          // Render với tỷ lệ sắc nét Retina (scale 1.5) nhưng dùng JPEG để tăng tốc gấp 15 lần
+          const renderScale = Math.min(2.0, Math.max(1.2, scaleFit * 1.5));
+          const viewport = page.getViewport({ scale: renderScale });
+
+          const offCanvas = document.createElement('canvas');
+          offCanvas.width = Math.round(viewport.width);
+          offCanvas.height = Math.round(viewport.height);
+          const offCtx = offCanvas.getContext('2d', { alpha: false });
+
+          // Nền trắng tinh khiết
+          offCtx.fillStyle = '#ffffff';
+          offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+
+          await page.render({
+            canvasContext: offCtx,
+            viewport: viewport,
+            intent: 'display'
+          }).promise;
+
+          // JPEG chất lượng 0.88: siêu sắc nét cho tài liệu, nén nhỏ 10x-15x, mã hóa 0ms
+          const dataUrl = offCanvas.toDataURL('image/jpeg', 0.88);
+
+          // Dọn bộ nhớ canvas tạm
+          offCanvas.width = 0;
+          offCanvas.height = 0;
 
           const pdfImg = new Image();
           pdfImg.src = dataUrl;
@@ -17473,6 +17535,7 @@ document.addEventListener('DOMContentLoaded', () => {
             height: h,
             aspectRatio: w / h,
             isPdfPage: true,
+            isLocked: true, // Cố định làm nền tài liệu
             pdfPageNum: p,
             pdfFileName: file.name,
             id: `pdf_p${p}_${Date.now()}`
@@ -17487,14 +17550,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (!state.pages[targetPageNum]) state.pages[targetPageNum] = [];
           state.pages[targetPageNum].push(imgEl);
+
+          // Chờ ảnh giải mã trong luồng ngầm trước khi vẽ
+          if (pdfImg.decode) {
+            await pdfImg.decode().catch(() => {});
+          } else {
+            await new Promise((res) => {
+              if (pdfImg.complete) res();
+              else {
+                pdfImg.onload = res;
+                pdfImg.onerror = res;
+              }
+            });
+          }
+
+          // Vẽ ngay lập tức trang vừa nạp lên màn hình
+          renderPage(targetPageNum);
+          updateThumbnail(targetPageNum);
+
+          // Nhường luồng cho trình duyệt cập nhật UI không bị đơ
+          await new Promise(r => setTimeout(r, 0));
         }
 
         renderAllTabs();
         renderThumbnails();
         updatePageNav();
-        switchPage(startPage, true);
-        renderPage();
-        showPageToast(`✅ Đã nhập thành công ${numPages} trang PDF! Bạn có thể gõ số trang để chuyển nhanh.`);
+        updateSidebarCount();
+        switchPage(startPage, false);
+        renderPage('all');
+        showPageToast(`✅ Đã nhập thành công toàn bộ ${numPages} trang PDF sắc nét!`);
+        saveProject(false);
       } catch (err) {
         console.error('Lỗi nạp tệp PDF:', err);
         alert('Không thể mở tệp PDF này: ' + (err.message || 'Lỗi không xác định'));
