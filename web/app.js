@@ -16299,7 +16299,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function createNewPage(autoScroll = true) {
-    const newPageNum = Object.keys(state.pages).length + 1;
+    const pageKeys = Object.keys(state.pages).map(Number);
+    const newPageNum = (pageKeys.length > 0 ? Math.max(...pageKeys) : 0) + 1;
     state.pages[newPageNum] = [];
     state.undoStacks[newPageNum] = [];
     state.redoStacks[newPageNum] = [];
@@ -17462,6 +17463,12 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
+        // Kiểm tra xem toàn bộ sổ tay có đang hoàn toàn trống hay không
+        const isDocCompletelyEmpty = Object.values(state.pages).every(list => !list || list.length === 0);
+        if (isDocCompletelyEmpty) {
+          doResetToNew();
+        }
+
         const startPage = state.currentPage;
         const currentElements = state.pages[startPage] || [];
         const isCurrentEmpty = currentElements.length === 0;
@@ -17481,6 +17488,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const maxH = dims.height - padY * 2;
 
         showPageToast(`📄 Tìm thấy ${numPages} trang. Đang nạp siêu tốc...`);
+
+        let currentTargetPage = startPage;
 
         // Xử lý từng trang và hiển thị ngay lập tức (Progressive Streaming)
         for (let p = 1; p <= numPages; p++) {
@@ -17542,11 +17551,23 @@ document.addEventListener('DOMContentLoaded', () => {
           };
 
           let targetPageNum;
-          if (p === 1 && isCurrentEmpty) {
-            targetPageNum = startPage;
+          if (p === 1) {
+            if (isCurrentEmpty) {
+              targetPageNum = startPage;
+            } else {
+              targetPageNum = createNewPage(false);
+            }
           } else {
-            targetPageNum = createNewPage(false);
+            // Kiểm tra xem trang kế tiếp đã tồn tại và đang hoàn toàn trống không (tránh nhảy cóc bỏ trắng trang 2)
+            const nextCandidate = currentTargetPage + 1;
+            if (state.pages[nextCandidate] && state.pages[nextCandidate].length === 0) {
+              targetPageNum = nextCandidate;
+              ensurePageInDOM(targetPageNum);
+            } else {
+              targetPageNum = createNewPage(false);
+            }
           }
+          currentTargetPage = targetPageNum;
 
           if (!state.pages[targetPageNum]) state.pages[targetPageNum] = [];
           state.pages[targetPageNum].push(imgEl);

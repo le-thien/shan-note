@@ -2,6 +2,18 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Sửa Lỗi Nhập PDF Bị Trắng Trang 2 - Phân Bổ Trang PDF Liền Mạch Tuyệt Đối (v71)] - 05/11/2026
+
+- **1. Khắc Phục Triệt Để Hiện Tượng Nhảy Cóc Bỏ Trắng Trang 2 (`web/app.js`):**
+  - **Nguyên nhân:** Khởi tạo mặc định của ứng dụng có sẵn 2 trang trống (`pages: { 1: [], 2: [] }`). Khi nhập tệp PDF: Trang 1 của PDF nạp vào Trang 1, nhưng khi nạp Trang 2 của PDF, mã nguồn cũ gọi `createNewPage(false)` tính `Object.keys(state.pages).length + 1 = 3`, khiến Trang 2 của PDF bị đẩy sang **Trang 3** và bỏ quên **Trang 2 hoàn toàn trống trắng**.
+  - **Cách khắc phục:**
+    + Trước khi nạp PDF, nếu toàn bộ sổ tay đang là trang trắng tinh (`isDocCompletelyEmpty`), hệ thống tự động gọi `doResetToNew()` để dọn dẹp các trang trắng thừa về đúng 1 trang bắt đầu.
+    + Bổ sung logic phân bổ trang thông minh: Với từng trang PDF kế tiếp, kiểm tra nếu trang `currentTargetPage + 1` đã có sẵn và đang trống (`state.pages[nextCandidate].length === 0`), lập tức sử dụng trang đó thay vì sinh trang mới nhảy cóc.
+    + Nâng cấp `createNewPage` tính số thứ tự trang bằng `Math.max(...pageKeys) + 1` an toàn 100%.
+    + Đảm bảo Trang 1 của PDF nằm ở Trang 1, Trang 2 của PDF nằm ở Trang 2, Trang 3 của PDF nằm ở Trang 3... không còn bất kỳ trang nào bị trắng hay lệch số thứ tự.
+- **2. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v71` và đồng bộ mã phiên bản script `?v=20261105_2048` trong `web/index.html`.
+
 ## [Khắc Phục Hiện Tượng Nhảy Bàn Phím Ảo & Hộp Đặt Tên Đối Tượng Khi Đang Viết (v70)] - 05/11/2026
 
 - **1. Chặn Hộp Đặt Tên Khi Đang Viết Vẽ (`web/app.js`):**

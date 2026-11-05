@@ -7,6 +7,9 @@
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Sửa Lỗi Nhập PDF Bị Trắng Trang 2 - Phân Bổ Trang PDF Liền Mạch Tuyệt Đối (v71):**
+    + *Khắc Phục Lỗi Nhảy Cóc Bỏ Trắng Trang 2:* Tìm ra chính xác nguyên nhân: sổ tay khởi tạo sẵn 2 trang rỗng (`pages: { 1: [], 2: [] }`), khi nạp PDF trang 1 vào Trang 1, lệnh tạo trang kế tiếp nhảy cóc sang Trang 3 khiến Trang 2 bị bỏ quên trắng tinh. Đã tự động dọn sạch trang rỗng thừa trước khi nạp và bổ sung cơ chế kiểm tra tận dụng trang trống có sẵn (`state.pages[nextCandidate]`).
+    + *Thứ Tự Trang Chuẩn Xác 100%:* Nâng cấp `createNewPage` tính số thứ tự trang bằng `Math.max(...pageKeys) + 1`. Bảo đảm Trang 1 PDF vào Trang 1, Trang 2 PDF vào Trang 2, Trang 3 PDF vào Trang 3... hoàn toàn liền mạch, không còn bất kỳ trang nào bị trắng.
   - **Khắc Phục Hiện Tượng Nhảy Bàn Phím Ảo & Hộp Đặt Tên Đối Tượng Khi Đang Viết (v70):**
     + *Chặn Triệt Để Popup Đặt Tên Khi Đang Viết:* Chặn hoàn toàn sự kiện `contextmenu` (chuột phải hoặc chạm giữ) khi người dùng đang ở công cụ Bút viết (`pen`), Bút dạ quang (`highlighter`), Tẩy (`eraser`) hoặc khi ngòi bút đang chuyển động vẽ dở (`state.isDrawing`). Hộp thoại đặt tên đối tượng chỉ được kích hoạt khi chủ động ở chế độ **Chọn đối tượng** (`select`).
     + *Chống Nhảy Bàn Phím Ảo Trên Thiết Bị Cảm Ứng (iPad, Máy tính bảng):* Không tự động gọi `inputEl.focus()` khi mở hộp đặt tên trên màn hình cảm ứng, cho phép người dùng thoải mái bấm chọn phím tắt chữ cái (`A`, `B`, `C`...) hoặc kiểu nét đứt mà không bị bàn phím ảo che khuất màn hình; bàn phím ảo chỉ bật lên khi người dùng chủ động chạm vào ô văn bản.
