@@ -2,6 +2,88 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Tối Ưu Bố Cục LCD Casio fx-580VN X - Hiển Thị Toàn Bộ Hệ Số a, b, c & Số Đang Bấm Trực Tiếp (v80)] - 07/11/2026
+
+- **1. Thiết Kế Lại Bố Cục Co Giãn Cho Màn Hình Nhập Hệ Số (`web/style.css`, `web/fx580.js`):**
+  - Thêm các lớp CSS chuyên biệt `.eqn-poly-screen`, `.eqn-poly-header`, `.eqn-poly-grid`, `.eqn-poly-cell`, `.eqn-poly-input-bar`, `.eqn-simul-screen` sử dụng biến tỉ lệ `var(--lcd-scale, 1)`.
+  - Triệt tiêu hoàn toàn lỗi tràn chiều cao khiến hàng tiêu đề `ax²+bx+c=0` bị sụp chiều cao (0px) và thanh nhập `c=` bị cắt chữ ở cạnh đáy màn hình LCD.
+  - Cả 3 hàng hiển thị đồng thời, cân đối, chuẩn xác theo giao diện LCD Casio fx-580VN X ClassWiz thật:
+    1. Tiêu đề phương trình / bất phương trình / tỉ số ở trên cùng.
+    2. Dãy ô ma trận các hệ số $a, b, c$ ở giữa với viền kẻ kép hai bên.
+    3. Thanh nhập liệu $a=$, $b=$, $c=$ ở đáy màn hình với con trỏ nhấp nháy.
+
+- **2. Đồng Bộ Số Đang Nhập Ngay Trong Ô Ma Trận Đang Chọn (`web/fx580.js`):**
+  - Khi người dùng đang bấm phím nhập số hoặc biểu thức vào hệ số đang chọn (ô $a$, $b$, hoặc $c$), giá trị đang nhập lập tức cập nhật đồng thời ở cả **ô ma trận phía trên** lẫn **dòng nhập liệu phía dưới**.
+  - Không còn hiện tượng ô đang chọn vẫn hiện số `0` cũ trong khi người dùng đang bấm số mới.
+  - Hỗ trợ phím điều hướng `LEFT`, `RIGHT`, `UP`, `DOWN` trong chế độ Bất phương trình (`INEQ`) và Tỉ lệ thức (`RATIO`).
+
+- **3. Nâng Cấp Cache & Bộ Kiểm Thử (`web/sw.js`, `web/index.html`, `scratch/test_fx580_eqn_display.js`):**
+  - Viết bộ kiểm thử JXA `scratch/test_fx580_eqn_display.js` kiểm tra 25 trường hợp nhập hệ số trong Phương trình đa thức bậc 2, Bất phương trình và Tỉ lệ thức (đạt 25/25 tiêu chí).
+  - Nâng cache Service Worker lên `net-app-v80` và cập nhật mã phiên bản script `?v=20261107_1455`.
+
+## [Bổ Sung Bài Hướng Dẫn Số 10: "Vẽ Đường Tròn Nội Tiếp Tam Giác" (v79)] - 07/11/2026
+
+- **1. Bổ Sung Bài Học Số 10 "10. Vẽ đường tròn nội tiếp tam giác" (`web/tutorials.js`, `web/index.html`):**
+  - Thêm bài số **10. Vẽ đường tròn nội tiếp tam giác** (`incircle-triangle`, liên kết trực tiếp với công cụ `incircle` khi bấm **✍️ Thực hành ngay trên giấy**) vào menu **Hướng dẫn ▾** và cột danh sách bài học trong cửa sổ trình phát video.
+  - Minh họa trực quan 4 bước dựng đường tròn nội tiếp tam giác $ABC$ bằng Compa, Ê-ke & Thước kèm giọng đọc tiếng Việt tự nhiên (`ttsText`):
+    1. **Bước 1:** Cho tam giác $ABC$, cần tìm tâm đường tròn tiếp xúc với cả 3 cạnh.
+    2. **Bước 2:** Dựng hai tia phân giác trong của góc $B$ và góc $C$ cắt nhau tại tâm đường tròn nội tiếp $I$.
+    3. **Bước 3:** Dùng thước ê-ke hạ đường vuông góc $IH$ từ tâm $I$ xuống cạnh $BC$ tại tiếp điểm $H$ để xác định bán kính $r = IH$.
+    4. **Bước 4:** Đặt mũi nhọn compa tại tâm $I$, mở đầu chì đến đúng tiếp điểm $H$ và quay đường tròn nội tiếp tiếp xúc vừa khít với cả ba cạnh $AB, BC, CA$.
+  - Kết nối nút chuyển nhanh (`#btn-tutorial-alt-method`) giữa **Bài 9 (Đường tròn ngoại tiếp)** và **Bài 10 (Đường tròn nội tiếp)**.
+
+- **2. Nâng Cấp Cache & Kiểm Thử (`web/sw.js`, `scratch/test_tutorials.js`):**
+  - Cập nhật bộ kiểm thử `scratch/test_tutorials.js` kiểm tra toàn bộ 10 bài hướng dẫn (40 bước hoạt ảnh và thuyết minh giọng nói tiếng Việt).
+  - Nâng cache Service Worker lên `net-app-v79` và cập nhật query string `?v=20261107_1355`.
+
+## [Thêm Video "Vẽ Vuông Góc Từ 1 Điểm Đến 1 Đường Bằng Ê-ke" & Nâng Cấp Giọng Đọc Tiếng Việt Tự Nhiên (v78)] - 07/11/2026
+
+- **1. Bổ Sung Bài Hướng Dẫn "1. Vẽ vuông góc từ 1 điểm đến 1 đường bằng ê-ke" (`web/tutorials.js`, `web/index.html`, `web/style.css`):**
+  - Thêm bài học `perp-point-line-eke` lên vị trí số 1 trong menu **Hướng dẫn ▾** (ngay trước bài `2. Vẽ vuông góc từ 1 điểm đến 1 đường bằng compa`), nâng tổng số bài hướng dẫn lên 9 bài:
+    1. **Vẽ vuông góc từ 1 điểm đến 1 đường bằng ê-ke** (`perp-point-line-eke`)
+    2. **Vẽ vuông góc từ 1 điểm đến 1 đường bằng compa** (`perp-point-line`)
+    3. **Vẽ đường phân giác bằng compa** (`bisector-compass`)
+    4. **Vẽ đường phân giác bằng thước thẳng** (`bisector-ruler`)
+    5. **Vẽ tiếp tuyến từ 1 điểm đến đường tròn** (`tangent-single`)
+    6. **Vẽ hai tiếp tuyến cắt nhau** (`two-tangents`)
+    7. **Vẽ đường trung trực của đoạn thẳng** (`perp-bisector`)
+    8. **Vẽ đường song song qua 1 điểm bằng ê-ke** (`parallel-line`)
+    9. **Vẽ đường tròn ngoại tiếp tam giác** (`circumcircle-triangle`)
+  - Minh họa chi tiết 4 bước vẽ bằng thước Ê-ke: đặt cạnh góc vuông của ê-ke áp sát đường thẳng $d$, trượt nhẹ ê-ke dọc theo $d$ đến khi cạnh góc vuông đứng đi qua điểm $M$, rồi dùng bút chì kẻ đường vuông góc $MH \perp d$ và ký hiệu góc vuông tại chân đường cao $H$.
+  - Thêm nút chuyển nhanh **🔄 Xem cách vẽ bằng Compa / Ê-ke** (`#btn-tutorial-alt-method`) ngay trên thanh tiêu đề cửa sổ hướng dẫn.
+
+- **2. Nâng Cấp Giọng Đọc Tiếng Việt Tự Nhiên, Truyền Cảm & Không Ngắt Quãng (`web/tutorials.js`):**
+  - Thiết kế kịch bản phát âm tiếng Việt tự nhiên (`step.ttsText`) riêng biệt với phụ đề hiển thị (`step.voice`) cho toàn bộ 36 bước của 9 bài học, giúp máy đọc tự nhiên các ký hiệu hình học (`"đường thẳng đê"`, `"điểm mờ"`, `"điểm hát"`, `"tia ô ích"`, `"tia ô y"`, `"bán kính ô tê"`, `"tiếp điểm tê một, tê hai"`...) như lời cô giáo giảng bài trên lớp.
+  - Chia lời giảng thành từng câu có nhịp nghỉ lấy hơi tự nhiên (`splitIntoNaturalPhrases` + nghỉ `180ms` giữa các câu), điều chỉnh tốc độ đọc ấm áp (`0.94x`) và ưu tiên chọn giọng đọc tiếng Việt tự nhiên nhất trên thiết bị (`Natural`, `Online`, `Enhanced`, `Linh`, `Google Tiếng Việt`).
+  - Đồng bộ vòng lặp hoạt ảnh (`animationTick`) với trạng thái giọng đọc (`playerState.isSpeaking`): đảm bảo mỗi bước luôn đợi giọng thuyết minh đọc xong trọn vẹn mới chuyển sang bước tiếp theo, khắc phục triệt để hiện tượng bị ngắt lời giữa câu.
+
+- **3. Nâng Cấp Cache & Kiểm Thử (`web/sw.js`, `scratch/test_tutorials.js`):**
+  - Cập nhật bộ kiểm thử `scratch/test_tutorials.js` kiểm tra toàn bộ 9 bài hướng dẫn, kịch bản `ttsText` tiếng Việt tự nhiên và nút chuyển đổi nhanh giữa Ê-ke / Compa.
+  - Nâng cache Service Worker lên `net-app-v78` và cập nhật query string `?v=20261107_1340`.
+
+## [Bổ Sung Tác Vụ Hướng Dẫn (Video Hướng Dẫn Dựng Hình Có Minh Họa Lời Nói Tiếng Việt) (v77)] - 07/11/2026
+
+- **1. Bổ Sung Nút `[ 🎬 Hướng dẫn ▾ ]` Bên Phải Nút `[ 📈 Đồ thị ]` (`web/index.html`, `web/style.css`):**
+  - Đặt nút **Hướng dẫn ▾** (`#dropdown-geo-tutorials`, `#btn-group-tutorials`) ngay bên phải nút **Đồ thị** trên thanh công cụ chính theo đúng yêu cầu.
+  - Menu thả xuống hiển thị danh sách 8 bài hướng dẫn dựng hình:
+    1. **Vẽ vuông góc từ 1 điểm đến 1 đường** (`perp-point-line`)
+    2. **Vẽ đường phân giác bằng compa** (`bisector-compass`)
+    3. **Vẽ đường phân giác bằng thước thẳng** (`bisector-ruler`)
+    4. **Vẽ tiếp tuyến từ 1 điểm đến đường tròn** (`tangent-single`)
+    5. **Vẽ hai tiếp tuyến cắt nhau** (`two-tangents`)
+    6. **Vẽ đường trung trực của đoạn thẳng** (`perp-bisector`)
+    7. **Vẽ đường song song qua 1 điểm** (`parallel-line`)
+    8. **Vẽ đường tròn ngoại tiếp tam giác** (`circumcircle-triangle`)
+
+- **2. Trình Phát Video Minh Họa Dụng Cụ Học Tập & Thuyết Minh Giọng Nói (`web/tutorials.js`):**
+  - Xây dựng bộ dựng hình hoạt ảnh 60FPS trực tiếp trên HTML5 Canvas (`#tutorial-video-canvas`) mô phỏng chân thực **Compa 2 chân quay cung tròn**, **Thước thẳng có vạch chia milimet**, **Ê-ke vuông** và **Bút chì** vẽ từng bước.
+  - Tích hợp **thuyết minh bằng lời nói tiếng Việt** (`window.speechSynthesis`, ngôn ngữ `vi-VN`) tự động đọc lời giảng đồng bộ với từng bước vẽ trên màn hình, kèm khung phụ đề tiếng Việt rõ ràng.
+  - Hỗ trợ đầy đủ các nút điều khiển: **🔊 Lời nói: Bật/Tắt**, **⏮ Bước trước**, **⏸ Tạm dừng / ▶ Phát tiếp**, **Bước tiếp ⏭**, **🔄 Xem lại**, và nút **✍️ Thực hành ngay trên giấy** (tự động kích hoạt công cụ dựng hình tương ứng).
+
+- **3. Nâng Cấp Cache & Kiểm Thử (`web/sw.js`, `scratch/test_tutorials.js`):**
+  - Thêm bộ kiểm thử `scratch/test_tutorials.js` kiểm tra toàn bộ 8 bài hướng dẫn, thứ tự bài học, hoạt ảnh từng bước và thuyết minh giọng nói tiếng Việt.
+  - Nâng cache Service Worker lên `net-app-v77` và cập nhật query string `?v=20261107_1200`.
+
 ## [Sửa Lỗi Tiếp Tuyến Trong Video, Hiển Thị Tiếp Điểm & Biến Động Dây Chuyền Cho Bán Kính / Đường Dựng (v76)] - 07/11/2026
 
 - **1. Sửa Triệt Để 4 Lỗi Phát Hiện Từ Video Quay Màn Hình (`web/app.js`):**

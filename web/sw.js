@@ -1,10 +1,11 @@
 // Service Worker cho ứng dụng Nét (Hỗ trợ chạy Offline & Cài đặt PWA)
-const CACHE_NAME = 'net-app-v76';
+const CACHE_NAME = 'net-app-v80';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './tutorials.js',
   './graph_widget.js',
   './hhkg3d.js',
   './fx580.js',

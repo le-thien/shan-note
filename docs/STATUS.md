@@ -7,6 +7,40 @@
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Tối Ưu Bố Cục LCD Casio fx-580VN X - Hiển Thị Toàn Bộ Hệ Số a, b, c & Số Đang Bấm Trực Tiếp (v80):**
+    + *Khắc Phục Hiện Tượng Tràn Khung & Ẩn Tiêu Đề Trên LCD:* Tinh chỉnh cấu trúc giao diện màn hình nhập hệ số Phương trình (`EQN`), Bất phương trình (`INEQ`), Tỉ số (`RATIO`) và Hệ phương trình (`Simul`) bằng các lớp CSS co giãn linh hoạt (`.eqn-poly-screen`, `.eqn-poly-header`, `.eqn-poly-grid`, `.eqn-poly-cell`, `.eqn-poly-input-bar`, `.eqn-simul-screen`) với tỷ lệ kích thước theo `calc(... * var(--lcd-scale, 1))`.
+    + *Hiển Thị Trọn Vẹn Cả 3 Hàng Dữ Liệu:* 
+      1. Hàng 1 (Tiêu đề phương trình `ax²+bx+c=0`, `ax²+bx+c > 0`, `A:B = X:D`): Luôn hiển thị sắc nét ở đỉnh màn hình với đường kẻ ngang phân tách tinh tế.
+      2. Hàng 2 (Các ô ma trận hệ số $a, b, c$): Hiển thị cân đối, viền nét gọn gàng, ô đang chọn được tô nền đảo màu đen chữ trắng nổi bật.
+      3. Hàng 3 (Thanh nhập liệu dưới đáy màn hình LCD `a=`, `b=`, `c=`): Hiển thị đầy đủ 100% không gian, triệt tiêu hoàn toàn hiện tượng bị đẩy xuống đáy hoặc bị cắt chữ số.
+    + *Đồng Bộ Số Đang Bấm Vào Ô Ma Trận & Thanh Nhập Liệu:* Khi người dùng đang bấm các chữ số hoặc biểu thức vào $a, b, c$ (ví dụ bấm `12`), giá trị này xuất hiện đồng thời ngay bên trong ô ma trận đang chọn $c$ lẫn trên thanh nhập liệu dưới đáy `c= 12 |` kèm con trỏ nhấp nháy, giúp người dùng quan sát dễ dàng, không còn tình trạng ô $c$ vẫn hiển thị `0` trong khi gõ.
+    + *Hỗ Trợ Điều Hướng Bằng Phím Mũi Tên Cho Bất Phương Trình & Tỉ Lệ Thức:* Bổ sung các phím mũi tên `LEFT`, `RIGHT`, `UP`, `DOWN` để duyệt qua lại giữa các hệ số $a, b, c$ mà không làm mất giá trị đã nhập.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v80` và cập nhật query string `?v=20261107_1455` trong `web/index.html`.
+  - **Bổ Sung Bài Hướng Dẫn Số 10: "Vẽ Đường Tròn Nội Tiếp Tam Giác" (`incircle-triangle` - v79):**
+    + *Hoàn Thiện Bộ 10 Bài Hướng Dẫn Dựng Hình Có Giọng Đọc Tiếng Việt Tự Nhiên:* Thêm bài số **10. Vẽ đường tròn nội tiếp tam giác** (`incircle-triangle`, gắn với công cụ `incircle` trong menu **Dựng hình ▾**) ngay sau bài **9. Vẽ đường tròn ngoại tiếp tam giác**, kèm nút chuyển đổi nhanh qua lại giữa Bài 9 (Đường tròn ngoại tiếp) và Bài 10 (Đường tròn nội tiếp).
+    + *Hoạt Ảnh 4 Bước Chuẩn Sách Giáo Khoa:* (1) Cho tam giác $ABC$; (2) Dựng hai tia phân giác trong của góc $B$ và góc $C$ cắt nhau tại tâm nội tiếp $I$; (3) Dùng thước ê-ke hạ đường vuông góc $IH \perp BC$ từ tâm $I$ xuống cạnh $BC$ tại tiếp điểm $H$ để xác định bán kính $r = IH$; (4) Đặt compa tại tâm $I$, mở bán kính $IH$ và quay đường tròn nội tiếp tiếp xúc vừa khít với cả 3 cạnh $AB, BC, CA$.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v79` và cập nhật query string `?v=20261107_1355` trong `web/index.html`.
+  - **Thêm Video "Vẽ Vuông Góc Từ 1 Điểm Đến 1 Đường Bằng Ê-ke" & Nâng Cấp Giọng Đọc Tiếng Việt Tự Nhiên (v78):**
+    + *Bổ Sung Bài Học Số 1 "Vẽ vuông góc từ 1 điểm đến 1 đường bằng ê-ke" (`perp-point-line-eke`):* Minh họa trực quan 4 bước chuẩn sách giáo khoa: (1) Cho đường thẳng $d$ và điểm $M$ nằm ngoài $d$; (2) Đặt một cạnh góc vuông của thước ê-ke nằm sát trùng khít dọc theo đường thẳng $d$; (3) Giữ cạnh đáy áp sát vào $d$, trượt nhẹ thước ê-ke dọc theo đường thẳng $d$ cho đến khi cạnh góc vuông thứ hai chạm đúng vào điểm $M$; (4) Dùng bút chì kẻ dọc theo cạnh góc vuông của ê-ke từ $M$ xuống cắt $d$ tại $H$ và đánh dấu góc vuông tại $H$.
+    + *Nút Chuyển Nhanh Giữa 2 Cách Dựng (`#btn-tutorial-alt-method`):* Khi đang xem bài **Vẽ vuông góc bằng ê-ke**, có nút **🔄 Xem cách vẽ bằng Compa** (và ngược lại) ngay trên thanh tiêu đề để học sinh dễ dàng đối chiếu cả hai phương pháp.
+    + *Nâng Cấp Giọng Đọc Tiếng Việt Tự Nhiên Hơn (`ttsText` + Phrasing + Voice Sync):*
+      - Tách riêng phần **phụ đề toán học hiển thị trên màn hình** (`step.voice`) và **kịch bản phát âm tiếng Việt tự nhiên** (`step.ttsText`), giúp giọng đọc phát âm chuẩn tên các điểm và đường thẳng bằng tiếng Việt tự nhiên (ví dụ: `"đường thẳng đê"`, `"điểm mờ"`, `"điểm hát"`, `"tâm ô"`, `"tia ô ích"`, `"tia ô y"`, `"đoạn ô pê"`, `"tiếp điểm tê một, tê hai"`) thay vì đánh vần chữ cái tiếng Anh khô cứng.
+      - Chia lời giảng thành từng câu ngắn có nhịp nghỉ lấy hơi tự nhiên (`180ms`) giữa các câu, ưu tiên chọn giọng đọc tiếng Việt chất lượng cao (`Natural` / `Online` / `Premium` / `Enhanced` / `Linh` / `Google Tiếng Việt`) với tốc độ vừa phải (`0.94x`).
+      - Đồng bộ hóa chuyển bước hoạt ảnh với trạng thái giọng đọc (`playerState.isSpeaking`): Trình phát video luôn đợi giọng đọc hoàn thành trọn vẹn câu thuyết minh của bước hiện tại rồi mới chuyển sang bước kế tiếp, không bao giờ ngắt lời giữa chừng.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v78` và cập nhật query string `?v=20261107_1340` trong `web/index.html`.
+  - **Bổ Sung Tác Vụ Hướng Dẫn (Video Hướng Dẫn Dựng Hình Có Minh Họa Lời Nói Tiếng Việt - v77):**
+    + *Vị Trí Nút `[ 🎬 Hướng dẫn ▾ ]` Ngay Bên Phải `[ 📈 Đồ thị ]`:* Thêm nút thả xuống **Hướng dẫn ▾** ngay bên phải nút **Đồ thị** trên thanh công cụ chính (`web/index.html`).
+    + *Danh Sách 8 Video Hướng Dẫn Dựng Hình Trực Quan (60FPS Compa, Thước Thẳng, Ê-ke):*
+      1. Vẽ đường vuông góc từ 1 điểm đến 1 đường thẳng
+      2. Vẽ đường phân giác bằng compa
+      3. Vẽ đường phân giác bằng thước thẳng (2 lề song song)
+      4. Vẽ tiếp tuyến từ 1 điểm đến đường tròn
+      5. Vẽ hai tiếp tuyến cắt nhau
+      6. Vẽ đường trung trực của đoạn thẳng
+      7. Vẽ đường song song qua 1 điểm
+      8. Vẽ đường tròn ngoại tiếp tam giác
+    + *Minh Họa Bằng Lời Nói Tiếng Việt & Phụ Đề Đồng Bộ:* Tích hợp giọng đọc thuyết minh tiếng Việt (`Web Speech API vi-VN`) đọc rõ từng bước kết hợp hoạt ảnh compa quay cung tròn, thước thẳng đặt kẻ đường và phụ đề trực quan; hỗ trợ nút **Bật/Tắt lời nói**, **Phát/Tạm dừng**, **Bước trước/Bước tiếp**, **Xem lại** và nút **✍️ Thực hành ngay trên giấy**.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v77` và cập nhật query string `?v=20261107_1200` trong `web/index.html`.
   - **Sửa Toàn Bộ Lỗi Tiếp Tuyến Trong Video, Hiển Thị Tiếp Điểm & Biến Động Dây Chuyền Cho Bán Kính / Đường Dựng (v76):**
     + *Khắc Phục 4 Lỗi Từ Video Quay Màn Hình:*
       1. Khi kéo di chuyển điểm ngoài $P$, tiếp tuyến (`tangent` / `two-tangents`) tự động xoay và cập nhật theo $P$ trong thời gian thực (không còn bị tách rời khỏi điểm $P$).

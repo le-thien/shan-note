@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Nét">
-  <link rel="stylesheet" href="style.css?v=20261106_1850">
+  <link rel="stylesheet" href="style.css?v=20261107_1455">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&family=Caveat:wght@600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -931,6 +931,66 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="20" x2="21" y2="20"/><line x1="3" y1="4" x2="3" y2="20"/><path d="m6 16 5-8 4 6 5-10"/></svg>
             <span>Đồ thị</span>
           </button>
+
+          <!-- Nút Hướng dẫn ▾ (Video hướng dẫn dựng hình có minh họa bằng lời nói) -->
+          <div class="geo-group-dropdown" id="dropdown-geo-tutorials">
+            <button class="geo-group-btn" id="btn-group-tutorials" title="Video hướng dẫn dựng hình trực quan có minh họa bằng lời nói tiếng Việt">
+              <span class="geo-group-icon" id="icon-group-tutorials">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"/>
+                  <polygon points="10 8.5 16 12 10 15.5 10 8.5" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="geo-group-label" id="label-group-tutorials">Hướng dẫn</span>
+              <svg class="tool-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="geo-dropdown-menu tutorial-dropdown-menu" id="menu-group-tutorials">
+              <div class="hhkg-menu-group-title">
+                <span>🎬 Video Hướng dẫn (Có lời giảng)</span>
+              </div>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="perp-point-line-eke">
+                <span class="tutorial-num-badge">1</span>
+                <span>Vẽ vuông góc từ 1 điểm đến 1 đường bằng ê-ke</span>
+              </button>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="perp-point-line">
+                <span class="tutorial-num-badge">2</span>
+                <span>Vẽ vuông góc từ 1 điểm đến 1 đường bằng compa</span>
+              </button>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="bisector-compass">
+                <span class="tutorial-num-badge">3</span>
+                <span>Vẽ đường phân giác bằng compa</span>
+              </button>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="bisector-ruler">
+                <span class="tutorial-num-badge">4</span>
+                <span>Vẽ đường phân giác bằng thước thẳng</span>
+              </button>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="tangent-single">
+                <span class="tutorial-num-badge">5</span>
+                <span>Vẽ tiếp tuyến từ 1 điểm đến đường tròn</span>
+              </button>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="two-tangents">
+                <span class="tutorial-num-badge">6</span>
+                <span>Vẽ hai tiếp tuyến cắt nhau</span>
+              </button>
+              <div class="toolbar-menu-divider"></div>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="perp-bisector">
+                <span class="tutorial-num-badge">7</span>
+                <span>Vẽ đường trung trực của đoạn thẳng</span>
+              </button>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="parallel-line">
+                <span class="tutorial-num-badge">8</span>
+                <span>Vẽ đường song song qua 1 điểm bằng ê-ke</span>
+              </button>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="circumcircle-triangle">
+                <span class="tutorial-num-badge">9</span>
+                <span>Vẽ đường tròn ngoại tiếp tam giác</span>
+              </button>
+              <button type="button" class="geo-dropdown-item tutorial-dropdown-item" data-tutorial-id="incircle-triangle">
+                <span class="tutorial-num-badge">10</span>
+                <span>Vẽ đường tròn nội tiếp tam giác</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1797,6 +1857,61 @@
     </div>
   </div>
 
+  <!-- ========================================================= -->
+  <!-- CỬA SỐ VIDEO HƯỚNG DẪN DỰNG HÌNH (CÓ THUYẾT MINH LỜI NÓI) -->
+  <!-- ========================================================= -->
+  <div id="tutorial-video-modal" class="tutorial-modal-backdrop" style="display: none;">
+    <div class="tutorial-modal-card">
+      <div class="tutorial-modal-header">
+        <div class="tutorial-modal-header-left">
+          <span class="tutorial-modal-badge" id="tutorial-modal-badge">Ê-ke & Bút chì</span>
+          <h3 class="tutorial-modal-title" id="tutorial-modal-title">1. Vẽ vuông góc từ 1 điểm đến 1 đường bằng ê-ke</h3>
+        </div>
+        <div class="tutorial-modal-header-right">
+          <button type="button" class="tutorial-ctrl-btn" id="btn-tutorial-alt-method" style="display: none;" title="Chuyển nhanh giữa cách vẽ bằng Ê-ke và cách vẽ bằng Compa">🔄 Xem cách vẽ bằng Compa</button>
+          <button type="button" class="tutorial-ctrl-btn active" id="btn-tutorial-voice-toggle" title="Bật/Tắt thuyết minh giọng nói tiếng Việt">🔊 Lời nói: Bật</button>
+          <button type="button" class="tutorial-close-btn" id="btn-close-tutorial-modal" title="Đóng cửa sổ hướng dẫn">✕</button>
+        </div>
+      </div>
+
+      <div class="tutorial-modal-body">
+        <!-- Cột chọn bài học nhanh bên trái -->
+        <div class="tutorial-sidebar-list" id="tutorial-sidebar-list"></div>
+
+        <!-- Khung màn hình video minh họa & phụ đề lời nói bên phải -->
+        <div class="tutorial-stage-area">
+          <div class="tutorial-step-header">
+            <span class="tutorial-step-title" id="tutorial-step-title">Bước 1</span>
+            <div class="tutorial-steps-pills" id="tutorial-steps-pills"></div>
+          </div>
+
+          <div class="tutorial-canvas-wrap">
+            <canvas id="tutorial-video-canvas" width="620" height="330"></canvas>
+            <div class="tutorial-progress-track">
+              <div class="tutorial-progress-fill" id="tutorial-progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Khung phụ đề lời giảng tiếng Việt đồng bộ -->
+          <div class="tutorial-voice-box">
+            <p class="tutorial-voice-subtitle" id="tutorial-voice-subtitle">🗣️ Đang tải lời giảng...</p>
+          </div>
+
+          <!-- Thanh điều khiển phát video -->
+          <div class="tutorial-controls-bar">
+            <div class="tutorial-controls-left">
+              <button type="button" class="tutorial-ctrl-btn" id="btn-tutorial-prev-step" title="Quay lại bước trước">⏮ Bước trước</button>
+              <button type="button" class="tutorial-ctrl-btn tutorial-btn-primary" id="btn-tutorial-play-pause" title="Phát hoặc tạm dừng video">⏸ Tạm dừng</button>
+              <button type="button" class="tutorial-ctrl-btn" id="btn-tutorial-next-step" title="Chuyển sang bước tiếp theo">Bước tiếp ⏭</button>
+              <button type="button" class="tutorial-ctrl-btn" id="btn-tutorial-replay" title="Xem lại từ Bước 1">🔄 Xem lại</button>
+            </div>
+            <button type="button" class="tutorial-ctrl-btn tutorial-btn-try" id="btn-tutorial-try-tool" title="Đóng video và bật ngay công cụ dựng hình này trên trang giấy">✍️ Thực hành ngay trên giấy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Thư viện xử lý PDF cục bộ trong trình duyệt (Mozilla PDF.js) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- Thư viện nhận dạng ký tự cục bộ -->
@@ -1804,14 +1919,16 @@
   <!-- Module Xoay Hình học Không gian 3D 360° -->
   <script src="hhkg3d.js?v=20261102_1955"></script>
   <!-- Module Máy tính Casio fx-580VN X -->
-  <script src="fx580.js?v=20261107_1015"></script>
+  <script src="fx580.js?v=20261107_1455"></script>
   <!-- Module Đồ thị hàm số & 3D Solid of Revolution -->
   <script src="graph_widget.js?v=20261102_1955"></script>
-  <script src="app.js?v=20261107_1015"></script>
+  <!-- Module Video Hướng dẫn Dựng hình có minh họa lời nói -->
+  <script src="tutorials.js?v=20261107_1355"></script>
+  <script src="app.js?v=20261107_1455"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261107_1015').catch(function() {});
+        navigator.serviceWorker.register('./sw.js?v=20261107_1455').catch(function() {});
       });
     }
   </script>

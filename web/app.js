@@ -14892,7 +14892,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPage();
   }
 
-  // Quản lý các nhóm menu xổ xuống của thanh hình học (Hình, Dựng hình, HHKG)
+  // Quản lý các nhóm menu xổ xuống của thanh hình học (Hình, Dựng hình, HHKG, Hướng dẫn)
   const geoGroupButtons = document.querySelectorAll('.geo-group-btn');
   geoGroupButtons.forEach(groupBtn => {
     groupBtn.addEventListener('click', (e) => {
@@ -14901,6 +14901,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const parentDropdown = groupBtn.closest('.geo-group-dropdown');
       if (!parentDropdown) return;
       const menu = parentDropdown.querySelector('.geo-dropdown-menu');
+      if (groupBtn.id === 'btn-group-tutorials') {
+        toggleDropdownMenu(groupBtn, menu);
+        return;
+      }
       const isChevron = !!e.target.closest('.tool-chevron');
       const isAlreadyActive = groupBtn.classList.contains('active') && state.activeTool === 'geo';
 

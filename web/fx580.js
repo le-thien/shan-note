@@ -4572,8 +4572,9 @@ class CasioApp {
       return String(val);
     };
 
-    const activeVal = this.eqn.buffer !== '' ? this.display.formatToNaturalHtml(this.eqn.buffer) : formatCoeffDisplay(this.eqn.coeffs[curIdx] || 0);
-    const cursorHtml = this.eqn.buffer !== '' ? '<span class="cursor"></span>' : '';
+    const hasBuffer = this.eqn.buffer !== '';
+    const activeVal = hasBuffer ? this.display.formatToNaturalHtml(this.eqn.buffer) : formatCoeffDisplay(this.eqn.coeffs[curIdx] || 0);
+    const cursorHtml = '<span class="cursor"></span>';
 
     this.display.setIndicator('i', false);
     const totalCoeffs = this.eqn.coeffs.length;
@@ -4591,59 +4592,65 @@ class CasioApp {
         for (let c = 0; c < n; c++) {
           const idx = r * cols + c;
           const isSel = idx === curIdx;
-          const val = formatCoeffDisplay(this.eqn.coeffs[idx] || 0);
+          const val = (isSel && hasBuffer) ? activeVal : formatCoeffDisplay(this.eqn.coeffs[idx] || 0);
           const op = (c < n - 1) ? '+' : '=';
           const selStyle = isSel 
             ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;border-radius:1px;padding:0 3px;' 
             : 'padding:0 2px;';
 
           rowTerms += `
-            <div style="display:flex;align-items:center;margin-right:12px;">
-              <span style="min-width:14px;text-align:right;${selStyle}">${val}</span>
+            <div style="display:flex;align-items:center;margin-right:calc(8px * var(--lcd-scale, 1));">
+              <span style="min-width:calc(12px * var(--lcd-scale, 1));text-align:right;${selStyle}">${val}</span>
               <span style="margin-left:1px;">${vars[c]}</span>
-              <span style="margin-left:6px;">${op}</span>
+              <span style="margin-left:calc(4px * var(--lcd-scale, 1));">${op}</span>
             </div>
           `;
         }
         // Constant term
         const constIdx = r * cols + n;
         const isConstSel = constIdx === curIdx;
-        const constVal = formatCoeffDisplay(this.eqn.coeffs[constIdx] || 0);
+        const constVal = (isConstSel && hasBuffer) ? activeVal : formatCoeffDisplay(this.eqn.coeffs[constIdx] || 0);
         const constSelStyle = isConstSel 
           ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;border-radius:1px;padding:0 3px;' 
           : 'padding:0 2px;';
 
         rowTerms += `
           <div style="display:flex;align-items:center;">
-            <span style="min-width:14px;text-align:right;${constSelStyle}">${constVal}</span>
+            <span style="min-width:calc(12px * var(--lcd-scale, 1));text-align:right;${constSelStyle}">${constVal}</span>
           </div>
         `;
 
         rowsHtml += `
-          <div style="display:flex;align-items:center;height:20px;">
+          <div class="eqn-simul-row">
             ${rowTerms}
           </div>
         `;
       }
 
       // Curly brace SVG with authentic path
-      const braceH = n === 2 ? 40 : (n === 3 ? 56 : 72);
+      const braceH = n === 2 ? 28 : (n === 3 ? 34 : 38);
       const braceSvg = `
-        <svg width="10" height="${braceH}" viewBox="0 0 10 40" fill="none" stroke="var(--lcd-dark)" stroke-width="2.2" stroke-linecap="round" style="margin-right:6px;flex-shrink:0;">
+        <svg width="8" height="${braceH}" viewBox="0 0 10 40" fill="none" stroke="var(--lcd-dark)" stroke-width="2.2" stroke-linecap="round" style="margin-right:calc(4px * var(--lcd-scale, 1));flex-shrink:0;height:calc(${braceH}px * var(--lcd-scale, 1));width:calc(8px * var(--lcd-scale, 1));">
           <path d="M8 2 C4 2, 2 6, 2 12 C2 18, 1 20, 0 20 C1 20, 2 22, 2 28 C2 34, 4 38, 8 38" />
         </svg>
       `;
 
+      const simulRowIdx = Math.floor(curIdx / cols) + 1;
+      const simulColIdx = curIdx % cols;
+      const simulCoeffLabels = ['a', 'b', 'c', 'd', 'e'];
+      const activeSimulLabel = `${simulCoeffLabels[simulColIdx]}${simulRowIdx}`;
+
       this.display.renderCustom(`
-        <div style="padding:4px 8px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;">
-          <div style="display:flex;align-items:center;margin-top:2px;">
+        <div class="eqn-simul-screen">
+          <div class="eqn-simul-body">
             ${braceSvg}
-            <div style="display:flex;flex-direction:column;font-size:14px;font-weight:500;line-height:1.2;">
+            <div class="eqn-simul-rows">
               ${rowsHtml}
             </div>
           </div>
-          <div style="text-align:right;font-size:18px;font-weight:bold;padding-right:8px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-            ${activeVal}${cursorHtml}
+          <div class="eqn-simul-input-bar">
+            <span class="eqn-poly-input-label">${activeSimulLabel}=</span>
+            <span class="eqn-poly-input-val">${activeVal}${cursorHtml}</span>
           </div>
         </div>
       `);
@@ -4653,32 +4660,32 @@ class CasioApp {
     // Polynomial Equation Layout
     const polyLabels = ['a', 'b', 'c', 'd', 'e'];
     let headerText = '';
-    if (this.eqn.size === 2) headerText = 'a x² + b x + c =  0';
-    else if (this.eqn.size === 3) headerText = 'a x³ + b x² + c x + d =  0';
-    else headerText = 'a x⁴ + b x³ + c x² + d x + e =  0';
+    if (this.eqn.size === 2) headerText = 'ax²+bx+c=0';
+    else if (this.eqn.size === 3) headerText = 'ax³+bx²+cx+d=0';
+    else headerText = 'ax⁴+bx³+cx²+dx+e=0';
 
     let cells = '';
     for (let i = 0; i <= this.eqn.size; i++) {
       const isSel = i === curIdx;
-      const val = formatCoeffDisplay(this.eqn.coeffs[i] || 0);
+      const val = (isSel && hasBuffer) ? activeVal : formatCoeffDisplay(this.eqn.coeffs[i] || 0);
       cells += `
-        <div style="flex:1;text-align:center;border:1px solid rgba(18,24,17,0.3);margin:0 2px;padding:2px 0;${isSel ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;' : ''}">
-          <div style="font-size:9px;">${polyLabels[i]}</div>
-          <div style="font-size:11px;min-height:24px;display:flex;align-items:center;justify-content:center;">${val}</div>
+        <div class="eqn-poly-cell${isSel ? ' selected' : ''}">
+          <div class="eqn-poly-cell-label">${polyLabels[i]}</div>
+          <div class="eqn-poly-cell-val">${val}</div>
         </div>
       `;
     }
 
     const activeLabel = polyLabels[curIdx];
     this.display.renderCustom(`
-      <div style="padding:2px 4px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;">
-        <div style="font-size:10px;font-weight:bold;border-bottom:1px solid rgba(18,24,17,0.25);padding-bottom:1px;white-space:nowrap;overflow:hidden;">${headerText}</div>
-        <div style="display:flex;margin:2px 0;align-items:center;border-left:2px solid var(--lcd-dark);border-right:2px solid var(--lcd-dark);padding:0 2px;">
+      <div class="eqn-poly-screen">
+        <div class="eqn-poly-header">${headerText}</div>
+        <div class="eqn-poly-grid">
           ${cells}
         </div>
-        <div style="font-size:12px;font-weight:bold;border-top:1px solid rgba(18,24,17,0.2);padding-top:1px;display:flex;justify-content:space-between;align-items:center;min-height:28px;">
-          <span>${activeLabel}=</span>
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:85%;text-align:right;display:inline-flex;align-items:center;">${activeVal}${cursorHtml}</span>
+        <div class="eqn-poly-input-bar">
+          <span class="eqn-poly-input-label">${activeLabel}=</span>
+          <span class="eqn-poly-input-val">${activeVal}${cursorHtml}</span>
         </div>
       </div>
     `);
@@ -5021,6 +5028,24 @@ class CasioApp {
         }
         return;
       }
+      if (key === 'LEFT' || key === 'UP') {
+        if (this.ineq.buffer !== '') {
+          this.ineq.coeffs[this.ineq.activeIdx] = this.evalCoeffBuffer(this.ineq.buffer);
+          this.ineq.buffer = '';
+        }
+        if (this.ineq.activeIdx > 0) this.ineq.activeIdx--;
+        this.renderIneqInput();
+        return;
+      }
+      if (key === 'RIGHT' || key === 'DOWN') {
+        if (this.ineq.buffer !== '') {
+          this.ineq.coeffs[this.ineq.activeIdx] = this.evalCoeffBuffer(this.ineq.buffer);
+          this.ineq.buffer = '';
+        }
+        if (this.ineq.activeIdx < 2) this.ineq.activeIdx++;
+        this.renderIneqInput();
+        return;
+      }
       if (key === 'EQUALS') {
         if (this.ineq.buffer !== '') {
           this.ineq.coeffs[this.ineq.activeIdx] = this.evalCoeffBuffer(this.ineq.buffer);
@@ -5075,28 +5100,30 @@ class CasioApp {
       return String(val);
     };
 
+    const hasBuffer = this.ineq.buffer !== '';
+    const curVal = hasBuffer ? this.display.formatToNaturalHtml(this.ineq.buffer) : formatCoeffDisplay(this.ineq.coeffs[this.ineq.activeIdx] || 0);
+
     let cellsHtml = '';
     for (let i = 0; i < 3; i++) {
       const isAct = i === this.ineq.activeIdx;
-      const val = formatCoeffDisplay(this.ineq.coeffs[i] || 0);
+      const val = (isAct && hasBuffer) ? curVal : formatCoeffDisplay(this.ineq.coeffs[i] || 0);
       cellsHtml += `
-        <div style="flex:1;text-align:center;border:1px solid rgba(18,24,17,0.3);margin:0 2px;padding:2px 0;${isAct ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;' : ''}">
-          <div style="font-size:9px;">${lbls[i]}</div>
-          <div style="font-size:11px;min-height:24px;display:flex;align-items:center;justify-content:center;">${val}</div>
+        <div class="eqn-poly-cell${isAct ? ' selected' : ''}">
+          <div class="eqn-poly-cell-label">${lbls[i]}</div>
+          <div class="eqn-poly-cell-val">${val}</div>
         </div>
       `;
     }
-    const curVal = this.ineq.buffer !== '' ? this.display.formatToNaturalHtml(this.ineq.buffer) : formatCoeffDisplay(this.ineq.coeffs[this.ineq.activeIdx] || 0);
 
     this.display.renderCustom(`
-      <div style="padding:2px 4px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;">
-        <div style="font-size:10px;font-weight:bold;border-bottom:1px solid rgba(18,24,17,0.25);padding-bottom:1px;">ax²+bx+c ${signs[this.ineq.type - 1]}</div>
-        <div style="display:flex;margin:2px 0;align-items:center;border-left:2px solid var(--lcd-dark);border-right:2px solid var(--lcd-dark);padding:0 2px;">
+      <div class="eqn-poly-screen">
+        <div class="eqn-poly-header">ax²+bx+c ${signs[this.ineq.type - 1]}</div>
+        <div class="eqn-poly-grid">
           ${cellsHtml}
         </div>
-        <div style="font-size:12px;font-weight:bold;border-top:1px solid rgba(18,24,17,0.2);padding-top:1px;display:flex;justify-content:space-between;align-items:center;min-height:28px;">
-          <span>${lbls[this.ineq.activeIdx]}=</span>
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:85%;text-align:right;display:inline-flex;align-items:center;">${curVal}<span class="cursor"></span></span>
+        <div class="eqn-poly-input-bar">
+          <span class="eqn-poly-input-label">${lbls[this.ineq.activeIdx]}=</span>
+          <span class="eqn-poly-input-val">${curVal}<span class="cursor"></span></span>
         </div>
       </div>
     `);
@@ -5139,6 +5166,20 @@ class CasioApp {
       } else if (key === 'DEL') {
         this.ratio.buffer = this.ratio.buffer.slice(0, -1);
         this.renderRatioInput();
+      } else if (key === 'LEFT' || key === 'UP') {
+        if (this.ratio.buffer !== '') {
+          this.ratio.vals[this.ratio.activeIdx] = this.evalCoeffBuffer(this.ratio.buffer);
+          this.ratio.buffer = '';
+        }
+        if (this.ratio.activeIdx > 0) this.ratio.activeIdx--;
+        this.renderRatioInput();
+      } else if (key === 'RIGHT' || key === 'DOWN') {
+        if (this.ratio.buffer !== '') {
+          this.ratio.vals[this.ratio.activeIdx] = this.evalCoeffBuffer(this.ratio.buffer);
+          this.ratio.buffer = '';
+        }
+        if (this.ratio.activeIdx < 2) this.ratio.activeIdx++;
+        this.renderRatioInput();
       } else if (key === 'EQUALS') {
         if (this.ratio.buffer !== '') {
           this.ratio.vals[this.ratio.activeIdx] = this.evalCoeffBuffer(this.ratio.buffer);
@@ -5172,28 +5213,29 @@ class CasioApp {
   renderRatioInput() {
     const lbls = this.ratio.type === 1 ? ['A', 'B', 'D'] : ['A', 'B', 'C'];
     const title = this.ratio.type === 1 ? 'A:B = X:D' : 'A:B = C:X';
+    const hasBuffer = this.ratio.buffer !== '';
+    const curVal = hasBuffer ? this.display.formatToNaturalHtml(this.ratio.buffer) : String(this.ratio.vals[this.ratio.activeIdx] || 0);
     let cellsHtml = '';
     for (let i = 0; i < 3; i++) {
       const isAct = i === this.ratio.activeIdx;
-      const val = this.ratio.vals[i] || 0;
+      const val = (isAct && hasBuffer) ? curVal : (this.ratio.vals[i] || 0);
       cellsHtml += `
-        <div style="flex:1;text-align:center;border:1px solid rgba(18,24,17,0.3);margin:0 2px;padding:2px 0;${isAct ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;' : ''}">
-          <div style="font-size:9px;">${lbls[i]}</div>
-          <div style="font-size:11px;">${val}</div>
+        <div class="eqn-poly-cell${isAct ? ' selected' : ''}">
+          <div class="eqn-poly-cell-label">${lbls[i]}</div>
+          <div class="eqn-poly-cell-val">${val}</div>
         </div>
       `;
     }
-    const curVal = this.ratio.buffer !== '' ? this.ratio.buffer : String(this.ratio.vals[this.ratio.activeIdx] || 0);
 
     this.display.renderCustom(`
-      <div style="padding:2px 4px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;">
-        <div style="font-size:10px;font-weight:bold;border-bottom:1px solid rgba(18,24,17,0.25);padding-bottom:1px;">${title}</div>
-        <div style="display:flex;margin:2px 0;align-items:center;border-left:2px solid var(--lcd-dark);border-right:2px solid var(--lcd-dark);padding:0 2px;">
+      <div class="eqn-poly-screen">
+        <div class="eqn-poly-header">${title}</div>
+        <div class="eqn-poly-grid">
           ${cellsHtml}
         </div>
-        <div style="font-size:12px;font-weight:bold;border-top:1px solid rgba(18,24,17,0.2);padding-top:1px;display:flex;justify-content:space-between;">
-          <span>${lbls[this.ratio.activeIdx]}=</span>
-          <span>${curVal}<span class="cursor"></span></span>
+        <div class="eqn-poly-input-bar">
+          <span class="eqn-poly-input-label">${lbls[this.ratio.activeIdx]}=</span>
+          <span class="eqn-poly-input-val">${curVal}<span class="cursor"></span></span>
         </div>
       </div>
     `);
