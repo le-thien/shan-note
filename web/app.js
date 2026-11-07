@@ -916,52 +916,57 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
+  function isSecondaryBoundHandle(el, h) {
+    if (!el || !h) return false;
+    if (el.shape === 'line') {
+      if (h.id === 'start' && el.startBinding) return true;
+      if (h.id === 'end' && el.endBinding) return true;
+    }
+    if (el.shape === 'tangent' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'perpendicular-bisector' || el.shape === 'bisector') {
+      if (el.binding) return true;
+    }
+    return false;
+  }
+
   // Tìm điểm nút điều khiển dưới con trỏ với bán kính rộng (28px - 34px) và luôn ưu tiên nút gần nhất
   function findHandleAt(x, y, maxDistance = 28) {
     let best = null;
-    let minDist = maxDistance;
+    let bestScore = Infinity;
 
-    // 1. Ưu tiên cao nhất: Các nút điều khiển của phần tử đang được chọn (bán kính rộng tới 34px)
-    if (state.selectedElement) {
-      const handles = getControlHandles(state.selectedElement);
+    function checkElementHandles(el, limitDist, bonus = 0) {
+      if (!el) return;
+      const handles = getControlHandles(el);
       for (const h of handles) {
         const d = Math.hypot(h.x - x, h.y - y);
-        if (d <= maxDistance + 6 && d < minDist) {
-          minDist = d;
-          best = { handle: h, element: state.selectedElement, distance: d };
+        if (d <= limitDist) {
+          const penalty = isSecondaryBoundHandle(el, h) ? 14 : 0;
+          const score = d + penalty - bonus;
+          if (score < bestScore) {
+            bestScore = score;
+            best = { handle: h, element: el, distance: d };
+          }
         }
       }
-      if (best) return best;
+    }
+
+    // 1. Các nút điều khiển của phần tử đang được chọn
+    if (state.selectedElement) {
+      checkElementHandles(state.selectedElement, maxDistance + 6, 2);
     }
 
     // 2. Nếu có danh sách nhiều đối tượng đang chọn
     if (state.selectedElements && state.selectedElements.length > 0) {
       for (const el of state.selectedElements) {
-        const handles = getControlHandles(el);
-        for (const h of handles) {
-          const d = Math.hypot(h.x - x, h.y - y);
-          if (d <= maxDistance + 4 && d < minDist) {
-            minDist = d;
-            best = { handle: h, element: el, distance: d };
-          }
-        }
+        checkElementHandles(el, maxDistance + 4, 2);
       }
-      if (best) return best;
     }
 
-    // 3. Tìm trong tất cả các hình vẽ trên trang (ưu tiên hình vẽ gần nhất)
+    // 3. Tìm trong tất cả các hình vẽ trên trang (ưu tiên nút gốc / chủ thể điều khiển)
     const list = state.pages[state.currentPage] || [];
     for (let i = list.length - 1; i >= 0; i--) {
       const el = list[i];
       if (el.type === 'geo' || el.type === 'image' || el.type === 'graph-widget') {
-        const handles = getControlHandles(el);
-        for (const h of handles) {
-          const d = Math.hypot(h.x - x, h.y - y);
-          if (d <= maxDistance && d < minDist) {
-            minDist = d;
-            best = { handle: h, element: el, distance: d };
-          }
-        }
+        checkElementHandles(el, maxDistance, 0);
       }
     }
     return best;
@@ -972,40 +977,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = state.pages[state.currentPage] || [];
     let best = null;
     let minDist = maxDist;
+    const depSet = currentEl ? new Set(getDependentElements(currentEl)) : new Set();
 
-    function testPt(px, py, label) {
+    function testPt(px, py, label, targetEl, vIndex, pointKey) {
       const d = Math.hypot(point.x - px, point.y - py);
       if (d < minDist) {
         minDist = d;
-        best = { x: px, y: py, label: label };
+        best = { x: px, y: py, label: label, element: targetEl, vIndex, pointKey };
       }
     }
 
     for (let i = list.length - 1; i >= 0; i--) {
       const el = list[i];
       if (el.type !== 'geo') continue;
+      if (depSet.has(el)) continue;
 
       if (el.shape === 'point') {
-        if (el !== currentEl) testPt(el.start.x, el.start.y, 'Điểm');
-      } else if (el.shape === 'line') {
-        if (el !== currentEl || currentHandle.id !== 'start') testPt(el.start.x, el.start.y, 'Đầu mút');
-        if (el !== currentEl || currentHandle.id !== 'end') testPt(el.end.x, el.end.y, 'Đầu mút');
+        if (el !== currentEl) testPt(el.start.x, el.start.y, 'Điểm', el, undefined, 'start');
+      } else if (el.shape === 'line' || el.shape === 'tangent') {
+        if (el.tangentPoint && el !== currentEl) testPt(el.tangentPoint.x, el.tangentPoint.y, 'Tiếp điểm T', el, undefined, 'tangentPoint');
+        if (el !== currentEl || (currentHandle && currentHandle.id !== 'start')) testPt(el.start.x, el.start.y, 'Đầu mút', el, undefined, 'start');
+        if (el !== currentEl || (currentHandle && currentHandle.id !== 'end')) testPt(el.end.x, el.end.y, 'Đầu mút', el, undefined, 'end');
       } else if (el.shape === 'triangle' || el.shape === 'right-triangle' || el.shape === 'isosceles-triangle' || el.shape === 'rectangle' || el.shape === 'square' || el.shape === 'parallelogram' || el.shape === 'rhombus' || isSolidShape(el.shape)) {
         if (el.points) {
           el.points.forEach((p, idx) => {
-            if (el !== currentEl || currentHandle.index !== idx) {
-              testPt(p.x, p.y, p.name ? `Đỉnh ${p.name}` : `Đỉnh ${idx + 1}`);
+            if (el !== currentEl || !currentHandle || currentHandle.index !== idx) {
+              testPt(p.x, p.y, p.name ? `Đỉnh ${p.name}` : `Đỉnh ${idx + 1}`, el, idx, undefined);
             }
           });
         }
       } else if (el.shape === 'circle' || el.shape === 'inscribed-triangle' || el.shape === 'two-tangents' || el.shape === 'ellipse') {
-        if (el !== currentEl) testPt(el.start.x, el.start.y, 'Tâm O');
+        if (el !== currentEl) {
+          testPt(el.start.x, el.start.y, 'Tâm O', el, undefined, 'start');
+          if (el.tangentPoint1) testPt(el.tangentPoint1.x, el.tangentPoint1.y, 'Tiếp điểm T1', el, undefined, 'tangentPoint1');
+          if (el.tangentPoint2) testPt(el.tangentPoint2.x, el.tangentPoint2.y, 'Tiếp điểm T2', el, undefined, 'tangentPoint2');
+        }
       }
     }
 
     const circSnap = checkCircleSnap(point, currentEl);
-    if (circSnap && (!best || Math.hypot(point.x - circSnap.x, point.y - circSnap.y) < minDist)) {
-      return { x: circSnap.x, y: circSnap.y, label: 'Chu vi đường tròn', isCircle: true };
+    if (circSnap && !depSet.has(circSnap.circle) && (!best || Math.hypot(point.x - circSnap.x, point.y - circSnap.y) < minDist)) {
+      return { x: circSnap.x, y: circSnap.y, label: 'Chu vi đường tròn', isCircle: true, circle: circSnap.circle, angle: circSnap.angle };
     }
 
     return best;
@@ -1018,7 +1030,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     for (const item of list) {
       if (item === ignoreEl) continue;
-      if (item.type === 'geo' && (item.shape === 'circle' || item.shape === 'inscribed-triangle' || item.shape === 'tangent' || item.shape === 'two-tangents')) {
+      if (item.type === 'geo' && (item.shape === 'circle' || item.shape === 'inscribed-triangle' || item.shape === 'two-tangents')) {
         const r = item.radius || Math.hypot(item.end.x - item.start.x, item.end.y - item.start.y);
         const d = Math.hypot(point.x - item.start.x, point.y - item.start.y);
 
@@ -2824,6 +2836,14 @@ document.addEventListener('DOMContentLoaded', () => {
         el.tangentPoint.x += dx;
         el.tangentPoint.y += dy;
       }
+      if (el.tangentPoint1) {
+        el.tangentPoint1.x += dx;
+        el.tangentPoint1.y += dy;
+      }
+      if (el.tangentPoint2) {
+        el.tangentPoint2.x += dx;
+        el.tangentPoint2.y += dy;
+      }
       if (el.center) {
         el.center.x += dx;
         el.center.y += dy;
@@ -2917,6 +2937,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.foot) rotPt(el.foot);
       if (el.center) rotPt(el.center);
       if (el.tangentPoint) rotPt(el.tangentPoint);
+      if (el.tangentPoint1) rotPt(el.tangentPoint1);
+      if (el.tangentPoint2) rotPt(el.tangentPoint2);
       if (el.secondPoint) rotPt(el.secondPoint);
       if (el.p1) rotPt(el.p1);
       if (el.p2) rotPt(el.p2);
@@ -2955,7 +2977,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.binding) {
         if (el.binding.pointRef) rotPt(el.binding.pointRef);
         if (typeof el.binding.angle === 'number') el.binding.angle += rad;
-        if (typeof el.binding.offset === 'number') el.binding.offset += rad;
+        if (typeof el.binding.offset === 'number') {
+          el.binding.offset += rad;
+        } else if (el.binding.offset && typeof el.binding.offset === 'object') {
+          const ox = el.binding.offset.dx || 0;
+          const oy = el.binding.offset.dy || 0;
+          el.binding.offset = { dx: ox * cos - oy * sin, dy: ox * sin + oy * cos };
+        }
       }
       if (el.startBinding && typeof el.startBinding.angle === 'number') {
         el.startBinding.angle += rad;
@@ -2986,6 +3014,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     }
+  }
+
+  // Trích xuất tọa độ một điểm đặc biệt trên đối tượng (Điểm rời, Tâm O, Tiếp điểm T, Đỉnh đa giác, Chân vuông góc, Trung điểm, Đầu mút...)
+  function resolveElementPoint(el, vIndex, pointKey) {
+    if (!el) return null;
+    if (pointKey === 'tangentPoint' && el.tangentPoint) {
+      return { x: el.tangentPoint.x, y: el.tangentPoint.y };
+    }
+    if (pointKey === 'tangentPoint1' && el.tangentPoint1) {
+      return { x: el.tangentPoint1.x, y: el.tangentPoint1.y };
+    }
+    if (pointKey === 'tangentPoint2' && el.tangentPoint2) {
+      return { x: el.tangentPoint2.x, y: el.tangentPoint2.y };
+    }
+    if (pointKey === 'foot' && el.foot) {
+      return { x: el.foot.x, y: el.foot.y };
+    }
+    if (pointKey === 'midpoint' && el.midpoint) {
+      return { x: el.midpoint.x, y: el.midpoint.y };
+    }
+    if (pointKey === 'center' && (el.center || el.start)) {
+      const c = el.center || el.start;
+      return { x: c.x, y: c.y };
+    }
+    if (pointKey === 'start' && el.start) {
+      return { x: el.start.x, y: el.start.y };
+    }
+    if (pointKey === 'end' && el.end) {
+      return { x: el.end.x, y: el.end.y };
+    }
+    if (vIndex !== undefined && vIndex !== null && vIndex >= 0) {
+      if (el.points && el.points[vIndex]) {
+        return { x: el.points[vIndex].x, y: el.points[vIndex].y };
+      }
+      if (el.angles && el.angles[vIndex] !== undefined && el.start && el.end) {
+        const r = el.radius || Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
+        return {
+          x: el.start.x + r * Math.cos(el.angles[vIndex]),
+          y: el.start.y + r * Math.sin(el.angles[vIndex])
+        };
+      }
+    }
+    if (el.shape === 'point' && el.start) {
+      return { x: el.start.x, y: el.start.y };
+    }
+    if (el.tangentPoint && el.shape === 'tangent' && !pointKey) {
+      return { x: el.tangentPoint.x, y: el.tangentPoint.y };
+    }
+    if (el.start) {
+      return { x: el.start.x, y: el.start.y };
+    }
+    if (el.x !== undefined && el.y !== undefined) {
+      return { x: el.x, y: el.y };
+    }
+    return null;
   }
 
   // Cập nhật lại hình học cho 1 hình con khi hình sinh ra nó bị biến động (kéo đỉnh, đổi bán kính, kéo đầu mút...)
@@ -3035,24 +3118,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const ptA = findElementById(b.ptAId);
       const ptB = findElementById(b.ptBId);
       if (ptA && ptB) {
-        let aX = ptA.start ? ptA.start.x : ptA.x;
-        let aY = ptA.start ? ptA.start.y : ptA.y;
-        if (ptA.points && b.vAIndex !== undefined && ptA.points[b.vAIndex]) {
-          aX = ptA.points[b.vAIndex].x;
-          aY = ptA.points[b.vAIndex].y;
+        const pA = resolveElementPoint(ptA, b.vAIndex, b.pointKeyA);
+        const pB = resolveElementPoint(ptB, b.vBIndex, b.pointKeyB);
+        if (pA && pB) {
+          child.start.x = (pA.x + pB.x) / 2;
+          child.start.y = (pA.y + pB.y) / 2;
+          child.end.x = child.start.x;
+          child.end.y = child.start.y;
+          child.p1 = { x: pA.x, y: pA.y };
+          child.p2 = { x: pB.x, y: pB.y };
         }
-        let bX = ptB.start ? ptB.start.x : ptB.x;
-        let bY = ptB.start ? ptB.start.y : ptB.y;
-        if (ptB.points && b.vBIndex !== undefined && ptB.points[b.vBIndex]) {
-          bX = ptB.points[b.vBIndex].x;
-          bY = ptB.points[b.vBIndex].y;
-        }
-        child.start.x = (aX + bX) / 2;
-        child.start.y = (aY + bY) / 2;
-        child.end.x = child.start.x;
-        child.end.y = child.start.y;
-        child.p1 = { x: aX, y: aY };
-        child.p2 = { x: bX, y: bY };
       }
     }
 
@@ -3138,26 +3213,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const halfLen = currentTanLength / 2;
 
         if (b.onCircle) {
-          const ang = b.angle !== undefined ? b.angle : 0;
+          let ang = b.angle !== undefined ? b.angle : 0;
+          if (b.pointElId) {
+            const ptEl = findElementById(b.pointElId);
+            const pt = resolveElementPoint(ptEl, b.pointVertexIndex, b.pointKey);
+            if (pt) {
+              ang = Math.atan2(pt.y - O.y, pt.x - O.x);
+              b.angle = ang;
+            }
+          }
           const T = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
           child.tangentPoint = T;
           const uPerp = { x: -Math.sin(ang), y: Math.cos(ang) };
           child.start = { x: T.x - halfLen * uPerp.x, y: T.y - halfLen * uPerp.y };
           child.end = { x: T.x + halfLen * uPerp.x, y: T.y + halfLen * uPerp.y };
-        } else if (b.offset) {
-          const pt = { x: O.x + b.offset.dx, y: O.y + b.offset.dy };
-          const d = Math.hypot(pt.x - O.x, pt.y - O.y);
-          if (d > R + 2) {
-            const ang = Math.atan2(pt.y - O.y, pt.x - O.x);
-            const beta = Math.acos(Math.max(-1, Math.min(1, R / d)));
-            const branchSign = (b.branch === 1) ? 1 : -1;
-            const T = { x: O.x + R * Math.cos(ang + branchSign * beta), y: O.y + R * Math.sin(ang + branchSign * beta) };
-            child.tangentPoint = T;
-            const vx = T.x - pt.x, vy = T.y - pt.y;
-            const len = Math.hypot(vx, vy) || 1;
-            const uTan = { x: vx / len, y: vy / len };
-            child.start = { x: pt.x - 20 * uTan.x, y: pt.y - 20 * uTan.y };
-            child.end = { x: T.x + 35 * uTan.x, y: T.y + 35 * uTan.y };
+        } else {
+          let pt = null;
+          if (b.pointElId) {
+            const ptEl = findElementById(b.pointElId);
+            pt = resolveElementPoint(ptEl, b.pointVertexIndex, b.pointKey);
+            if (pt) {
+              b.offset = { dx: pt.x - O.x, dy: pt.y - O.y };
+            }
+          }
+          if (!pt && b.offset) {
+            pt = { x: O.x + b.offset.dx, y: O.y + b.offset.dy };
+          }
+          if (pt) {
+            const d = Math.hypot(pt.x - O.x, pt.y - O.y);
+            if (d > R + 2) {
+              const ang = Math.atan2(pt.y - O.y, pt.x - O.x);
+              const beta = Math.acos(Math.max(-1, Math.min(1, R / d)));
+              const branchSign = (b.branch === 1) ? 1 : -1;
+              const T = { x: O.x + R * Math.cos(ang + branchSign * beta), y: O.y + R * Math.sin(ang + branchSign * beta) };
+              child.tangentPoint = T;
+              const vx = T.x - pt.x, vy = T.y - pt.y;
+              const len = Math.hypot(vx, vy) || 1;
+              const uTan = { x: vx / len, y: vy / len };
+              child.start = { x: pt.x, y: pt.y };
+              child.end = { x: T.x + 45 * uTan.x, y: T.y + 45 * uTan.y };
+            }
           }
         }
       }
@@ -3171,10 +3266,25 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (b.pointElId) {
         const ptEl = findElementById(b.pointElId);
-        if (ptEl) {
-          const pt = ptEl.start || ptEl;
+        const pt = resolveElementPoint(ptEl, b.pointVertexIndex, b.pointKey);
+        if (pt) {
           child.end = { x: pt.x, y: pt.y };
         }
+      }
+      if (child.start && child.end) {
+        const d = Math.hypot(child.end.x - child.start.x, child.end.y - child.start.y);
+        const radius = child.radius || Math.max(30, Math.min(120, d * 0.45));
+        const effD = Math.max(radius + 1, d);
+        const angle = Math.atan2(child.end.y - child.start.y, child.end.x - child.start.x);
+        const beta = Math.acos(Math.max(-1, Math.min(1, radius / effD)));
+        child.tangentPoint1 = {
+          x: child.start.x + radius * Math.cos(angle - beta),
+          y: child.start.y + radius * Math.sin(angle - beta)
+        };
+        child.tangentPoint2 = {
+          x: child.start.x + radius * Math.cos(angle + beta),
+          y: child.start.y + radius * Math.sin(angle + beta)
+        };
       }
     }
 
@@ -3183,7 +3293,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let A = null, B = null;
       const baseEl = b.parentId ? findElementById(b.parentId) : parentEl;
       if (baseEl) {
-        if (baseEl.shape === 'line' || baseEl.shape === 'perpendicular' || baseEl.shape === 'parallel') {
+        if (baseEl.shape === 'line' || baseEl.shape === 'perpendicular' || baseEl.shape === 'parallel' || baseEl.shape === 'tangent' || baseEl.shape === 'perpendicular-bisector') {
           A = baseEl.start; B = baseEl.end;
         } else if (baseEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
           A = baseEl.points[b.v1Index]; B = baseEl.points[b.v2Index];
@@ -3196,7 +3306,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let P = b.pointRef || child.start;
         if (b.pointElId) {
           const ptEl = findElementById(b.pointElId);
-          if (ptEl) P = ptEl.start || ptEl;
+          const resolvedP = resolveElementPoint(ptEl, b.pointVertexIndex, b.pointKey);
+          if (resolvedP) P = resolvedP;
         }
         const t = (P.x - A.x) * uBase.x + (P.y - A.y) * uBase.y;
         const H = { x: A.x + t * uBase.x, y: A.y + t * uBase.y };
@@ -3218,27 +3329,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4b. Đường trung trực (Perpendicular Bisector)
     else if (b.type === 'perpendicular_bisector') {
       let A = null, B = null;
-      if (b.ptAId && b.ptBId) {
-        const ptAEl = findElementById(b.ptAId);
-        const ptBEl = findElementById(b.ptBId);
+      if (b.ptAId || b.ptBId) {
+        const ptAEl = b.ptAId ? findElementById(b.ptAId) : null;
+        const ptBEl = b.ptBId ? findElementById(b.ptBId) : null;
         if (ptAEl) {
-          if (b.vAIndex !== undefined && ptAEl.points && ptAEl.points[b.vAIndex]) {
-            A = ptAEl.points[b.vAIndex];
-          } else {
-            A = (ptAEl.start) ? ptAEl.start : ptAEl;
-          }
+          A = resolveElementPoint(ptAEl, b.vAIndex, b.pointKeyA);
+        } else if (child.segStart) {
+          A = child.segStart;
         }
         if (ptBEl) {
-          if (b.vBIndex !== undefined && ptBEl.points && ptBEl.points[b.vBIndex]) {
-            B = ptBEl.points[b.vBIndex];
-          } else {
-            B = (ptBEl.start) ? ptBEl.start : ptBEl;
-          }
+          B = resolveElementPoint(ptBEl, b.vBIndex, b.pointKeyB);
+        } else if (child.segEnd) {
+          B = child.segEnd;
         }
       } else {
         const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
         if (pEl) {
-          if (pEl.shape === 'line' || pEl.shape === 'perpendicular' || pEl.shape === 'parallel' || pEl.shape === 'perpendicular-bisector') {
+          if (pEl.shape === 'line' || pEl.shape === 'perpendicular' || pEl.shape === 'parallel' || pEl.shape === 'tangent' || pEl.shape === 'perpendicular-bisector') {
             A = pEl.start; B = pEl.end;
           } else if (pEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
             A = pEl.points[b.v1Index]; B = pEl.points[b.v2Index];
@@ -3270,7 +3377,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let A = null, B = null;
       const baseEl = b.parentId ? findElementById(b.parentId) : (parentEl.shape !== 'point' ? parentEl : null);
       if (baseEl) {
-        if (baseEl.shape === 'line' || baseEl.shape === 'perpendicular' || baseEl.shape === 'parallel') {
+        if (baseEl.shape === 'line' || baseEl.shape === 'perpendicular' || baseEl.shape === 'parallel' || baseEl.shape === 'tangent' || baseEl.shape === 'perpendicular-bisector') {
           A = baseEl.start;
           B = baseEl.end;
         } else if (baseEl.points && b.v1Index !== undefined && b.v2Index !== undefined) {
@@ -3283,15 +3390,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let P = null;
       if (b.pointElId) {
         const ptEl = findElementById(b.pointElId);
-        if (ptEl) {
-          if (b.pointVertexIndex !== undefined && ptEl.points && ptEl.points[b.pointVertexIndex]) {
-            P = ptEl.points[b.pointVertexIndex];
-          } else if (ptEl.start) {
-            P = ptEl.start;
-          } else if (ptEl.x !== undefined && ptEl.y !== undefined) {
-            P = ptEl;
-          }
-        }
+        P = resolveElementPoint(ptEl, b.pointVertexIndex, b.pointKey);
       }
       if (!P && b.pointRef) {
         P = b.pointRef;
@@ -3336,8 +3435,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const pt1El = findElementById(b.pt1Id);
         const pt2El = findElementById(b.pt2Id);
         if (pt1El && pt2El) {
-          A = pt1El.start || pt1El;
-          B = pt2El.start || pt2El;
+          A = resolveElementPoint(pt1El, b.v1Index, b.pointKey1);
+          B = resolveElementPoint(pt2El, b.v2Index, b.pointKey2);
         }
       }
       if (A && B) {
@@ -3355,8 +3454,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const pt1El = findElementById(b.pt1Id);
         const pt2El = findElementById(b.pt2Id);
         if (pt1El && pt2El) {
-          A = pt1El.start || pt1El;
-          B = pt2El.start || pt2El;
+          A = resolveElementPoint(pt1El, b.v1Index, b.pointKey1);
+          B = resolveElementPoint(pt2El, b.v2Index, b.pointKey2);
         }
       }
       if (A && B) {
@@ -3373,7 +3472,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let P1 = null, A = null, B = null;
       if (b.ptId) {
         const ptEl = findElementById(b.ptId);
-        if (ptEl) P1 = ptEl.start || ptEl;
+        if (ptEl) P1 = resolveElementPoint(ptEl, b.ptVIndex, b.ptKey);
       }
       if (b.axisId) {
         const axisEl = findElementById(b.axisId);
@@ -3428,9 +3527,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const el1 = findElementById(b.pt1Id);
         const el2 = findElementById(b.pt2Id);
         const el3 = findElementById(b.pt3Id);
-        if (el1) p1 = el1.start || el1;
-        if (el2) p2 = el2.start || el2;
-        if (el3) p3 = el3.start || el3;
+        if (el1) p1 = resolveElementPoint(el1, b.v1Index, b.pointKey1);
+        if (el2) p2 = resolveElementPoint(el2, b.v2Index, b.pointKey2);
+        if (el3) p3 = resolveElementPoint(el3, b.v3Index, b.pointKey3);
       }
       if (p1 && p2 && p3) {
         const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y, x3 = p3.x, y3 = p3.y;
@@ -3468,9 +3567,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const el1 = findElementById(b.pt1Id);
         const el2 = findElementById(b.pt2Id);
         const el3 = findElementById(b.pt3Id);
-        if (el1) p1 = el1.start || el1;
-        if (el2) p2 = el2.start || el2;
-        if (el3) p3 = el3.start || el3;
+        if (el1) p1 = resolveElementPoint(el1, b.v1Index, b.pointKey1);
+        if (el2) p2 = resolveElementPoint(el2, b.v2Index, b.pointKey2);
+        if (el3) p3 = resolveElementPoint(el3, b.v3Index, b.pointKey3);
       }
       if (p1 && p2 && p3) {
         const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y, x3 = p3.x, y3 = p3.y;
@@ -3731,10 +3830,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
       }
     } else if (b.type === 'point') {
-      if (pEl.shape === 'point') {
-        child[endpointKey] = { x: pEl.start.x, y: pEl.start.y };
-      } else if (pEl.points && b.vIndex !== undefined && pEl.points[b.vIndex]) {
-        child[endpointKey] = { x: pEl.points[b.vIndex].x, y: pEl.points[b.vIndex].y };
+      const pt = resolveElementPoint(pEl, b.vIndex, b.pointKey);
+      if (pt) {
+        child[endpointKey] = { x: pt.x, y: pt.y };
       }
     }
   }
@@ -5712,6 +5810,20 @@ document.addEventListener('DOMContentLoaded', () => {
         context.lineTo(T.x + tanU.x * s, T.y + tanU.y * s);
         context.stroke();
       }
+
+      // Hiển thị chấm tròn tiếp điểm T rõ ràng trên đường tròn
+      if (geo.tangentPoint) {
+        context.save();
+        context.setLineDash([]);
+        context.beginPath();
+        context.arc(geo.tangentPoint.x, geo.tangentPoint.y, 4, 0, Math.PI * 2);
+        context.fillStyle = geo.color || state.color || '#184e3a';
+        context.fill();
+        context.lineWidth = 1.5;
+        context.strokeStyle = '#ffffff';
+        context.stroke();
+        context.restore();
+      }
     } else if (shape === 'point') {
       if (geo.isMidpoint) {
         // Chấm trung điểm thanh mảnh, kích thước nét mảnh bằng nét của đoạn thẳng (không có vạch gạch chéo)
@@ -5768,14 +5880,30 @@ document.addEventListener('DOMContentLoaded', () => {
         x: start.x + radius * Math.cos(angle + beta),
         y: start.y + radius * Math.sin(angle + beta)
       };
+      geo.tangentPoint1 = t1;
+      geo.tangentPoint2 = t2;
 
-      // 2 đoạn tiếp tuyến MT1 và MT2 (không tô màu điểm)
+      // 2 đoạn tiếp tuyến MT1 và MT2
       context.beginPath();
       context.moveTo(end.x, end.y);
       context.lineTo(t1.x, t1.y);
       context.moveTo(end.x, end.y);
       context.lineTo(t2.x, t2.y);
       context.stroke();
+
+      // Hiển thị 2 chấm tròn tiếp điểm T1 và T2 rõ ràng trên đường tròn
+      context.save();
+      context.setLineDash([]);
+      for (const tp of [t1, t2]) {
+        context.beginPath();
+        context.arc(tp.x, tp.y, 4, 0, Math.PI * 2);
+        context.fillStyle = geo.color || state.color || '#184e3a';
+        context.fill();
+        context.lineWidth = 1.5;
+        context.strokeStyle = '#ffffff';
+        context.stroke();
+      }
+      context.restore();
     } else if (shape === 'perpendicular') {
       // Đường thẳng vuông góc đi qua điểm đã chọn
       context.beginPath();
@@ -6092,7 +6220,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const el = list[i];
       if (el.type !== 'geo') continue;
 
-      if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'bisector' || el.shape === 'perpendicular-bisector') {
+      if (el.shape === 'line' || el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent' || el.shape === 'bisector' || el.shape === 'perpendicular-bisector') {
         checkEdge(el, el.start, el.end, 'main', { isLine: true });
       } else if (isSolidShape(el.shape) && el.edges && el.points) {
         el.edges.forEach((edge, eIdx) => {
@@ -6134,18 +6262,22 @@ document.addEventListener('DOMContentLoaded', () => {
     return best;
   }
 
-  // Tìm đỉnh hoặc điểm đã có gần (x, y) nhất
+  // Tìm đỉnh hoặc điểm đã có gần (x, y) nhất (ưu tiên Điểm rời, Tâm O, Tiếp điểm T, Đỉnh hình trước Đầu mút đoạn thẳng)
   function findPointAt(x, y, maxDist = 18) {
     const list = state.pages[state.currentPage] || [];
     let best = null;
-    let minDist = maxDist;
+    let bestScore = Infinity;
 
-    function checkPt(pt, name, el, extra = {}) {
+    function checkPt(pt, name, el, extra = {}, priority = 1) {
       if (!pt) return;
       const d = Math.hypot(x - pt.x, y - pt.y);
-      if (d < minDist) {
-        minDist = d;
-        best = { x: pt.x, y: pt.y, name: name, element: el, ...extra };
+      if (d < maxDist) {
+        // Ưu tiên: priority = 0 (Điểm rời, Tâm O, Tiếp điểm T, Đỉnh đa giác, Chân vuông góc, Trung điểm) > priority = 1 (Đầu mút đoạn thẳng)
+        const score = d + priority * 6;
+        if (score < bestScore) {
+          bestScore = score;
+          best = { x: pt.x, y: pt.y, name: name, element: el, ...extra };
+        }
       }
     }
 
@@ -6154,19 +6286,35 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.type !== 'geo') continue;
 
       if (el.shape === 'circle' || el.shape === 'inscribed-triangle' || el.shape === 'two-tangents' || el.shape === 'ellipse') {
-        checkPt(el.start, 'Tâm O', el);
+        checkPt(el.start, 'Tâm O', el, { pointKey: 'start' }, 0);
       }
       if (el.shape === 'point') {
-        checkPt(el.start, 'Điểm', el);
+        checkPt(el.start, el.name ? `Điểm ${el.name}` : 'Điểm', el, { pointKey: 'start' }, 0);
       }
       if (el.tangentPoint) {
-        checkPt(el.tangentPoint, 'Tiếp điểm T', el);
+        checkPt(el.tangentPoint, 'Tiếp điểm T', el, { pointKey: 'tangentPoint' }, 0);
+      }
+      if (el.tangentPoint1) {
+        checkPt(el.tangentPoint1, 'Tiếp điểm T1', el, { pointKey: 'tangentPoint1' }, 0);
+      }
+      if (el.tangentPoint2) {
+        checkPt(el.tangentPoint2, 'Tiếp điểm T2', el, { pointKey: 'tangentPoint2' }, 0);
+      }
+      if (el.foot) {
+        checkPt(el.foot, 'Chân vuông góc H', el, { pointKey: 'foot' }, 0);
+      }
+      if (el.midpoint) {
+        checkPt(el.midpoint, 'Trung điểm M', el, { pointKey: 'midpoint' }, 0);
       }
       if (el.points) {
-        el.points.forEach((p, idx) => checkPt(p, p.name ? `Đỉnh ${p.name}` : `Đỉnh ${idx + 1}`, el, { vIndex: idx }));
+        el.points.forEach((p, idx) => checkPt(p, p.name ? `Đỉnh ${p.name}` : `Đỉnh ${idx + 1}`, el, { vIndex: idx }, 0));
       }
-      if (el.start && el.shape !== 'circle' && el.shape !== 'ellipse') checkPt(el.start, 'Điểm đầu', el);
-      if (el.end && el.shape !== 'circle' && el.shape !== 'ellipse') checkPt(el.end, 'Điểm cuối', el);
+      if (el.start && el.shape !== 'circle' && el.shape !== 'ellipse' && el.shape !== 'point' && el.shape !== 'inscribed-triangle' && el.shape !== 'two-tangents') {
+        checkPt(el.start, 'Điểm đầu', el, { pointKey: 'start' }, 1);
+      }
+      if (el.end && el.shape !== 'circle' && el.shape !== 'ellipse' && el.shape !== 'point' && el.shape !== 'inscribed-triangle') {
+        checkPt(el.end, el.shape === 'two-tangents' ? 'Điểm giao tiếp tuyến' : 'Điểm cuối', el, { pointKey: 'end' }, el.shape === 'two-tangents' ? 0 : 1);
+      }
     }
     return best;
   }
@@ -6317,6 +6465,8 @@ document.addEventListener('DOMContentLoaded', () => {
         type: 'circle_tangent',
         parentId: circleEl.id,
         pointElId: ptEl ? ptEl.id : null,
+        pointVertexIndex: (point && (point.vertexIndex !== undefined || point.vIndex !== undefined)) ? (point.vertexIndex !== undefined ? point.vertexIndex : point.vIndex) : undefined,
+        pointKey: (point && point.pointKey) ? point.pointKey : undefined,
         onCircle: true,
         angle: ang
       } : null;
@@ -6353,7 +6503,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const vx1 = T1.x - px, vy1 = T1.y - py;
     const len1 = Math.hypot(vx1, vy1) || 1;
     const uTan1 = { x: vx1 / len1, y: vy1 / len1 };
-    const p1_1 = { x: px - 25 * uTan1.x, y: py - 25 * uTan1.y };
+    const p1_1 = { x: px, y: py };
     const p2_1 = { x: T1.x + 45 * uTan1.x, y: T1.y + 45 * uTan1.y };
 
     // Nhánh 1: ang + beta
@@ -6361,7 +6511,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const vx2 = T2.x - px, vy2 = T2.y - py;
     const len2 = Math.hypot(vx2, vy2) || 1;
     const uTan2 = { x: vx2 / len2, y: vy2 / len2 };
-    const p1_2 = { x: px - 25 * uTan2.x, y: py - 25 * uTan2.y };
+    const p1_2 = { x: px, y: py };
     const p2_2 = { x: T2.x + 45 * uTan2.x, y: T2.y + 45 * uTan2.y };
 
     state.pendingOptions = {
@@ -6421,6 +6571,8 @@ document.addEventListener('DOMContentLoaded', () => {
         type: 'circle_tangent',
         parentId: circleEl.id,
         pointElId: ptEl ? ptEl.id : null,
+        pointVertexIndex: (point && (point.vertexIndex !== undefined || point.vIndex !== undefined)) ? (point.vertexIndex !== undefined ? point.vertexIndex : point.vIndex) : undefined,
+        pointKey: (point && point.pointKey) ? point.pointKey : undefined,
         onCircle: false,
         branch: opt.branch,
         offset: { dx: px - O.x, dy: py - O.y }
@@ -6475,16 +6627,32 @@ document.addEventListener('DOMContentLoaded', () => {
     if (circleEl) ensureElementId(circleEl);
     if (ptEl) ensureElementId(ptEl);
 
+    const effD = Math.max(R + 1, d);
+    const angle = Math.atan2(py - O.y, px - O.x);
+    const beta = Math.acos(Math.max(-1, Math.min(1, R / effD)));
+    const t1 = {
+      x: O.x + R * Math.cos(angle - beta),
+      y: O.y + R * Math.sin(angle - beta)
+    };
+    const t2 = {
+      x: O.x + R * Math.cos(angle + beta),
+      y: O.y + R * Math.sin(angle + beta)
+    };
+
     const newGeo = {
       type: 'geo',
       shape: 'two-tangents',
       binding: circleEl ? {
         type: 'two_tangents',
         parentId: circleEl.id,
-        pointElId: ptEl ? ptEl.id : null
+        pointElId: ptEl ? ptEl.id : null,
+        pointVertexIndex: (point && (point.vertexIndex !== undefined || point.vIndex !== undefined)) ? (point.vertexIndex !== undefined ? point.vertexIndex : point.vIndex) : undefined,
+        pointKey: (point && point.pointKey) ? point.pointKey : undefined
       } : null,
       start: { x: O.x, y: O.y },
       end: { x: px, y: py },
+      tangentPoint1: t1,
+      tangentPoint2: t2,
       radius: R,
       color: state.color,
       width: state.strokeWidth,
@@ -7119,7 +7287,9 @@ document.addEventListener('DOMContentLoaded', () => {
       bindingInfo = {
         type: 'perpendicular',
         parentId: parent.id,
-        pointElId: ptEl ? ptEl.id : null,
+        pointElId: finalPtEl ? finalPtEl.id : null,
+        pointVertexIndex: (point && (point.vertexIndex !== undefined || point.vIndex !== undefined)) ? (point.vertexIndex !== undefined ? point.vertexIndex : point.vIndex) : undefined,
+        pointKey: (point && point.pointKey) ? point.pointKey : undefined,
         edgeId: edge ? edge.edgeId : null,
         v1Index: edge ? edge.v1Index : null,
         v2Index: edge ? edge.v2Index : null,
@@ -7141,7 +7311,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     ensureElementId(newGeo);
-    const parentsToLink = [parent, ptEl].filter(Boolean);
+    const parentsToLink = [parent, finalPtEl].filter(Boolean);
     if (parentsToLink.length > 0) {
       linkGroupMulti(parentsToLink, newGeo);
     }
@@ -7201,6 +7371,7 @@ document.addEventListener('DOMContentLoaded', () => {
         parentId: parent.id,
         pointElId: finalPtEl ? finalPtEl.id : null,
         pointVertexIndex: (point && (point.vertexIndex !== undefined || point.vIndex !== undefined)) ? (point.vertexIndex !== undefined ? point.vertexIndex : point.vIndex) : undefined,
+        pointKey: (point && point.pointKey) ? point.pointKey : undefined,
         edgeId: edge ? edge.edgeId : null,
         v1Index: edge ? edge.v1Index : null,
         v2Index: edge ? edge.v2Index : null,
@@ -8684,18 +8855,26 @@ document.addEventListener('DOMContentLoaded', () => {
     let hitPoint = null;
     const directPointEl = findElementAt(point.x, point.y);
     if (directPointEl && directPointEl.type === 'geo' && directPointEl.shape === 'point') {
-      hitPoint = { x: directPointEl.start.x, y: directPointEl.start.y, element: directPointEl };
+      hitPoint = { x: directPointEl.start.x, y: directPointEl.start.y, element: directPointEl, pointKey: 'start' };
     }
     if (!hitPoint) {
       const v = findPointAt(point.x, point.y, 26);
       if (v) {
-        hitPoint = { x: v.x, y: v.y, element: v.element, vertexIndex: (v.vIndex !== undefined ? v.vIndex : v.vertexIndex) };
+        hitPoint = {
+          x: v.x,
+          y: v.y,
+          element: v.element,
+          vertexIndex: (v.vIndex !== undefined ? v.vIndex : v.vertexIndex),
+          vIndex: (v.vIndex !== undefined ? v.vIndex : v.vertexIndex),
+          pointKey: v.pointKey
+        };
       }
     }
     if (!hitPoint) {
       const h = findHandleAt(point.x, point.y, 28);
       if (h && h.handle) {
-        hitPoint = { x: h.handle.x, y: h.handle.y, element: h.element };
+        const pKey = (h.handle.id === 'center' || h.handle.id === 'start' || h.handle.id === 'point') ? 'start' : (h.handle.id === 'end' || h.handle.id === 'ext_point' ? 'end' : undefined);
+        hitPoint = { x: h.handle.x, y: h.handle.y, element: h.element, vertexIndex: h.handle.index, vIndex: h.handle.index, pointKey: pKey };
       }
     }
 
@@ -8720,28 +8899,25 @@ document.addEventListener('DOMContentLoaded', () => {
         let bindingInfo = null;
         let parentEl = null;
 
-        let idx1 = -1;
-        if (el1 && el1.points) {
+        let idx1 = (pt1.vIndex !== undefined) ? pt1.vIndex : (pt1.vertexIndex !== undefined ? pt1.vertexIndex : -1);
+        if (idx1 === -1 && el1 && el1.points) {
           for (let i = 0; i < el1.points.length; i++) {
             if (Math.hypot(el1.points[i].x - pt1.x, el1.points[i].y - pt1.y) < 16) { idx1 = i; break; }
           }
         }
-        let idx2 = -1;
-        if (el2 && el2.points) {
+        let idx2 = (pt2.vIndex !== undefined) ? pt2.vIndex : (pt2.vertexIndex !== undefined ? pt2.vertexIndex : -1);
+        if (idx2 === -1 && el2 && el2.points) {
           for (let i = 0; i < el2.points.length; i++) {
             if (Math.hypot(el2.points[i].x - pt2.x, el2.points[i].y - pt2.y) < 16) { idx2 = i; break; }
           }
         }
+        const keyA = pt1.pointKey;
+        const keyB = pt2.pointKey;
 
         if (el1 && el2 && el1 === el2 && el1.points && idx1 !== -1 && idx2 !== -1) {
           ensureElementId(el1);
           bindingInfo = { type: 'perpendicular_bisector', parentId: el1.id, v1Index: idx1, v2Index: idx2 };
           parentEl = el1;
-        } else if (el1 && el2 && el1.shape === 'point' && el2.shape === 'point') {
-          ensureElementId(el1);
-          ensureElementId(el2);
-          bindingInfo = { type: 'perpendicular_bisector', ptAId: el1.id, ptBId: el2.id };
-          parentEl = [el1, el2];
         } else if (el1 || el2) {
           if (el1) ensureElementId(el1);
           if (el2) ensureElementId(el2);
@@ -8749,15 +8925,17 @@ document.addEventListener('DOMContentLoaded', () => {
             type: 'perpendicular_bisector',
             ptAId: el1 ? el1.id : null,
             vAIndex: idx1 !== -1 ? idx1 : undefined,
+            pointKeyA: keyA,
             ptBId: el2 ? el2.id : null,
-            vBIndex: idx2 !== -1 ? idx2 : undefined
+            vBIndex: idx2 !== -1 ? idx2 : undefined,
+            pointKeyB: keyB
           };
           parentEl = [el1, el2].filter(Boolean);
         }
 
         // Tự động nối đoạn thẳng nếu là 2 điểm chưa có đoạn thẳng nối trực tiếp
         let segLine = null;
-        if (!el1 || !el2 || el1 !== el2) {
+        if (!el1 || !el2 || el1 !== el2 || keyA !== keyB) {
           segLine = {
             type: 'geo',
             shape: 'line',
@@ -8766,8 +8944,8 @@ document.addEventListener('DOMContentLoaded', () => {
             color: state.color,
             width: state.strokeWidth,
             dash: 'solid',
-            startBinding: el1 ? (idx1 !== -1 ? { type: 'point', elementId: el1.id, vIndex: idx1 } : { type: 'point', elementId: el1.id }) : null,
-            endBinding: el2 ? (idx2 !== -1 ? { type: 'point', elementId: el2.id, vIndex: idx2 } : { type: 'point', elementId: el2.id }) : null
+            startBinding: el1 ? { type: 'point', elementId: el1.id, vIndex: idx1 !== -1 ? idx1 : undefined, pointKey: keyA } : null,
+            endBinding: el2 ? { type: 'point', elementId: el2.id, vIndex: idx2 !== -1 ? idx2 : undefined, pointKey: keyB } : null
           };
           ensureElementId(segLine);
           pushNewElement(segLine);
@@ -8798,7 +8976,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const directEl = findElementAt(point.x, point.y);
-      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel') && !hitPoint) {
+      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel' || directEl.shape === 'tangent') && !hitPoint) {
+        ensureElementId(directEl);
         constructPerpendicularBisector(directEl.start, directEl.end, { type: 'perpendicular_bisector', parentId: directEl.id }, directEl);
         state.pendingConstruction = null;
         state.construction = { point: null, circle: null, line: null, edges: [] };
@@ -9259,7 +9438,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.activeGeo === 'perpendicular-bisector') {
       const vertex = findPointAt(point.x, point.y, 25);
       const directEl = findElementAt(point.x, point.y);
-      const clickedPt = vertex || { x: point.x, y: point.y };
+      const clickedPt = vertex || (directEl && directEl.shape === 'point' ? { x: directEl.start.x, y: directEl.start.y, element: directEl, pointKey: 'start' } : { x: point.x, y: point.y });
       const clickedEl = vertex ? vertex.element : (directEl && directEl.shape === 'point' ? directEl : null);
 
       // Nếu đã có Điểm 1 -> bắt buộc nhấp lần này là Điểm 2!
@@ -9273,15 +9452,38 @@ document.addEventListener('DOMContentLoaded', () => {
         let bindingInfo = null;
         let parentEl = null;
 
-        if (el1 && el2 && el1.shape === 'point' && el2.shape === 'point') {
+        let idx1 = (pt1.vIndex !== undefined) ? pt1.vIndex : (pt1.vertexIndex !== undefined ? pt1.vertexIndex : -1);
+        if (idx1 === -1 && el1 && el1.points) {
+          for (let i = 0; i < el1.points.length; i++) {
+            if (Math.hypot(el1.points[i].x - pt1.x, el1.points[i].y - pt1.y) < 16) { idx1 = i; break; }
+          }
+        }
+        let idx2 = (pt2.vIndex !== undefined) ? pt2.vIndex : (pt2.vertexIndex !== undefined ? pt2.vertexIndex : -1);
+        if (idx2 === -1 && el2 && el2.points) {
+          for (let i = 0; i < el2.points.length; i++) {
+            if (Math.hypot(el2.points[i].x - pt2.x, el2.points[i].y - pt2.y) < 16) { idx2 = i; break; }
+          }
+        }
+        const keyA = pt1.pointKey;
+        const keyB = pt2.pointKey;
+
+        if (el1 && el2 && el1 === el2 && el1.points && idx1 !== -1 && idx2 !== -1) {
           ensureElementId(el1);
-          ensureElementId(el2);
-          bindingInfo = { type: 'perpendicular_bisector', ptAId: el1.id, ptBId: el2.id };
-          parentEl = [el1, el2];
-        } else if (el1) {
+          bindingInfo = { type: 'perpendicular_bisector', parentId: el1.id, v1Index: idx1, v2Index: idx2 };
           parentEl = el1;
-        } else if (el2) {
-          parentEl = el2;
+        } else if (el1 || el2) {
+          if (el1) ensureElementId(el1);
+          if (el2) ensureElementId(el2);
+          bindingInfo = {
+            type: 'perpendicular_bisector',
+            ptAId: el1 ? el1.id : null,
+            vAIndex: idx1 !== -1 ? idx1 : undefined,
+            pointKeyA: keyA,
+            ptBId: el2 ? el2.id : null,
+            vBIndex: idx2 !== -1 ? idx2 : undefined,
+            pointKeyB: keyB
+          };
+          parentEl = [el1, el2].filter(Boolean);
         }
 
         constructPerpendicularBisector(pt1, pt2, bindingInfo, parentEl);
@@ -9299,7 +9501,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel') && !vertex) {
+      if (directEl && directEl.type === 'geo' && (directEl.shape === 'line' || directEl.shape === 'perpendicular' || directEl.shape === 'parallel' || directEl.shape === 'tangent') && !vertex) {
+        ensureElementId(directEl);
         constructPerpendicularBisector(directEl.start, directEl.end, { type: 'perpendicular_bisector', parentId: directEl.id }, directEl);
         state.construction = { point: null, circle: null, line: null, edges: [] };
         state.constructionHoverPoint = null;
@@ -9777,21 +9980,34 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     } else if (state.activeGeo === 'midpoint') {
       // 1. Tìm điểm hoặc đỉnh mà người dùng vừa nhấp vào (bán kính nhận diện 28px)
-      const hitHandle = findHandleAt(point.x, point.y, 28);
       const hitVertex = findPointAt(point.x, point.y, 25);
+      const hitHandle = findHandleAt(point.x, point.y, 28);
       const hitPointEl = findElementAt(point.x, point.y);
 
       let clickedPt = null;
       let clickedEl = null;
 
-      if (hitHandle && hitHandle.element && hitHandle.element.type === 'geo') {
-        clickedPt = { x: hitHandle.handle.x, y: hitHandle.handle.y };
-        clickedEl = hitHandle.element;
-      } else if (hitVertex) {
-        clickedPt = { x: hitVertex.x, y: hitVertex.y };
+      if (hitVertex) {
+        clickedPt = {
+          x: hitVertex.x,
+          y: hitVertex.y,
+          vIndex: hitVertex.vIndex,
+          vertexIndex: hitVertex.vIndex,
+          pointKey: hitVertex.pointKey
+        };
         clickedEl = hitVertex.element || hitVertex;
+      } else if (hitHandle && hitHandle.element && hitHandle.element.type === 'geo') {
+        const pKey = (hitHandle.handle.id === 'center' || hitHandle.handle.id === 'start' || hitHandle.handle.id === 'point') ? 'start' : (hitHandle.handle.id === 'end' || hitHandle.handle.id === 'ext_point' ? 'end' : undefined);
+        clickedPt = {
+          x: hitHandle.handle.x,
+          y: hitHandle.handle.y,
+          vIndex: hitHandle.handle.index,
+          vertexIndex: hitHandle.handle.index,
+          pointKey: pKey
+        };
+        clickedEl = hitHandle.element;
       } else if (hitPointEl && hitPointEl.type === 'geo' && hitPointEl.shape === 'point') {
-        clickedPt = { x: hitPointEl.start.x, y: hitPointEl.start.y };
+        clickedPt = { x: hitPointEl.start.x, y: hitPointEl.start.y, pointKey: 'start' };
         clickedEl = hitPointEl;
       } else {
         clickedPt = { x: point.x, y: point.y };
@@ -9823,26 +10039,33 @@ document.addEventListener('DOMContentLoaded', () => {
         let bindingInfo = null;
         let parentEl = null;
 
-        if (el1 && el2 && el1 === el2 && el1.points && el1.points.length === 3) {
+        if (el1 && el2 && el1 === el2 && el1.points && el1.points.length >= 3) {
           ensureElementId(el1);
-          let idx1 = -1, idx2 = -1;
-          for (let i = 0; i < 3; i++) {
-            if (Math.hypot(el1.points[i].x - pt1.x, el1.points[i].y - pt1.y) < 14) idx1 = i;
-            if (Math.hypot(el1.points[i].x - pt2.x, el1.points[i].y - pt2.y) < 14) idx2 = i;
+          let idx1 = pt1.vIndex !== undefined ? pt1.vIndex : -1;
+          let idx2 = pt2.vIndex !== undefined ? pt2.vIndex : -1;
+          if (idx1 === -1 || idx2 === -1) {
+            for (let i = 0; i < el1.points.length; i++) {
+              if (idx1 === -1 && Math.hypot(el1.points[i].x - pt1.x, el1.points[i].y - pt1.y) < 14) idx1 = i;
+              if (idx2 === -1 && Math.hypot(el1.points[i].x - pt2.x, el1.points[i].y - pt2.y) < 14) idx2 = i;
+            }
           }
           if (idx1 !== -1 && idx2 !== -1) {
             bindingInfo = { type: 'midpoint_triangle_edge', parentId: el1.id, v1Index: idx1, v2Index: idx2 };
             parentEl = el1;
           }
-        } else if (el1 && el2 && el1.shape === 'point' && el2.shape === 'point') {
-          ensureElementId(el1);
-          ensureElementId(el2);
-          bindingInfo = { type: 'midpoint_points', ptAId: el1.id, ptBId: el2.id };
-          parentEl = [el1, el2];
-        } else if (el1) {
-          parentEl = el1;
-        } else if (el2) {
-          parentEl = el2;
+        } else if (el1 || el2) {
+          if (el1) ensureElementId(el1);
+          if (el2) ensureElementId(el2);
+          bindingInfo = {
+            type: 'midpoint_points',
+            ptAId: el1 ? el1.id : null,
+            vAIndex: pt1.vIndex !== undefined ? pt1.vIndex : pt1.vertexIndex,
+            pointKeyA: pt1.pointKey,
+            ptBId: el2 ? el2.id : null,
+            vBIndex: pt2.vIndex !== undefined ? pt2.vIndex : pt2.vertexIndex,
+            pointKeyB: pt2.pointKey
+          };
+          parentEl = [el1, el2].filter(Boolean);
         }
 
         triggerMidpointWithHighlight(pt1, pt2, bindingInfo, parentEl);
@@ -11023,7 +11246,7 @@ document.addEventListener('DOMContentLoaded', () => {
           state.geoStartSnapEl = ptSnap.element;
           if (ptSnap.element) {
             ensureElementId(ptSnap.element);
-            state.geoStartSnapBinding = { type: 'point', elementId: ptSnap.element.id, vIndex: ptSnap.vIndex };
+            state.geoStartSnapBinding = { type: 'point', elementId: ptSnap.element.id, vIndex: ptSnap.vIndex, pointKey: ptSnap.pointKey };
           }
           state.hoverSnapPoint = { x: ptSnap.x, y: ptSnap.y };
         } else {
@@ -11241,6 +11464,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (h.id === 'start') el.start = target;
         else el.end = target;
+        const bKey = (h.id === 'start') ? 'startBinding' : 'endBinding';
+        if (snap && snap.element) {
+          ensureElementId(snap.element);
+          el[bKey] = { type: 'point', elementId: snap.element.id, vIndex: snap.vIndex, pointKey: snap.pointKey };
+        } else if (snap && snap.isCircle && snap.circle) {
+          ensureElementId(snap.circle);
+          el[bKey] = { type: 'point_on_circle', parentId: snap.circle.id, angle: snap.angle };
+        } else {
+          delete el[bKey];
+        }
         state.hoverSnapPoint = snap ? { x: snap.x, y: snap.y, label: snap.label } : null;
       } else if (el.shape === 'triangle' || el.shape === 'right-triangle' || el.shape === 'isosceles-triangle') {
         const snap = findSnapTargetForHandle(point, el, h, 24);
@@ -11378,6 +11611,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (el.shape === 'circle') {
         if (h.id === 'radius') {
           el.end = { x: point.x, y: point.y };
+          if (el.radius !== undefined) {
+            el.radius = Math.max(5, Math.hypot(point.x - el.start.x, point.y - el.start.y));
+          }
         } else if (h.id === 'center') {
           const dx = point.x - el.start.x;
           const dy = point.y - el.start.y;
@@ -11387,6 +11623,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (h.id === 'ext_point') {
           // Di chuyển điểm ngoài M (tiếp tuyến xoay theo M)
           el.end = { x: point.x, y: point.y };
+          const cx = el.start.x, cy = el.start.y;
+          const r = el.radius || Math.max(18, Math.hypot(el.end.x - cx, el.end.y - cy) * 0.48);
+          const d = Math.hypot(el.end.x - cx, el.end.y - cy);
+          if (d > r + 1) {
+            const baseAngle = Math.atan2(el.end.y - cy, el.end.x - cx);
+            const alpha = Math.acos(Math.min(1, Math.max(-1, r / d)));
+            const a1 = baseAngle + alpha;
+            const a2 = baseAngle - alpha;
+            el.tangentPoint1 = { x: cx + r * Math.cos(a1), y: cy + r * Math.sin(a1) };
+            el.tangentPoint2 = { x: cx + r * Math.cos(a2), y: cy + r * Math.sin(a2) };
+          }
+          if (el.binding && el.binding.type === 'two_tangents') {
+            el.binding.offset = { dx: el.end.x - cx, dy: el.end.y - cy };
+            if (el.binding.pointElId) {
+              const ptEl = findElementById(el.binding.pointElId);
+              if (ptEl && ptEl.shape === 'point') {
+                ptEl.start = { x: el.end.x, y: el.end.y };
+                ptEl.end = { x: el.end.x, y: el.end.y };
+                updateDependentBindings(ptEl);
+              }
+            }
+          }
         } else if (h.id === 'center') {
           // Di chuyển cả đường tròn và các tiếp tuyến
           const dx = point.x - el.start.x;
@@ -11418,6 +11676,30 @@ document.addEventListener('DOMContentLoaded', () => {
           };
           if (angleDegreesInput) angleDegreesInput.value = deg;
           if (angleInputContainer) angleInputContainer.style.display = 'inline-flex';
+        }
+      } else if (el.shape === 'tangent' && h.id === 'start' && el.binding && el.binding.type === 'circle_tangent' && !el.binding.onCircle) {
+        const snap = findSnapTargetForHandle(point, el, h, 20);
+        const targetPt = snap ? { x: snap.x, y: snap.y } : { x: point.x, y: point.y };
+        state.hoverSnapPoint = snap ? { x: snap.x, y: snap.y, label: snap.label } : null;
+        const circle = findElementById(el.binding.parentId);
+        if (circle && circle.start) {
+          el.binding.offset = { dx: targetPt.x - circle.start.x, dy: targetPt.y - circle.start.y };
+          if (el.binding.pointElId) {
+            const ptEl = findElementById(el.binding.pointElId);
+            if (ptEl) {
+              if (ptEl.shape === 'point') {
+                ptEl.start = { x: targetPt.x, y: targetPt.y };
+                ptEl.end = { x: targetPt.x, y: targetPt.y };
+              } else if (ptEl.points && el.binding.pointVertexIndex !== undefined && ptEl.points[el.binding.pointVertexIndex]) {
+                ptEl.points[el.binding.pointVertexIndex].x = targetPt.x;
+                ptEl.points[el.binding.pointVertexIndex].y = targetPt.y;
+              }
+              updateDependentBindings(ptEl);
+            }
+          }
+          updateSingleBinding(el, circle);
+        } else {
+          el.start = { x: targetPt.x, y: targetPt.y };
         }
       } else if (el.shape === 'perpendicular' || el.shape === 'parallel' || el.shape === 'tangent' || el.shape === 'perpendicular-bisector') {
         const dx = el.end.x - el.start.x;
@@ -12294,7 +12576,7 @@ document.addEventListener('DOMContentLoaded', () => {
           endSnapEl = ptSnap.element;
           if (ptSnap.element) {
             ensureElementId(ptSnap.element);
-            endSnapBinding = { type: 'point', elementId: ptSnap.element.id, vIndex: ptSnap.vIndex };
+            endSnapBinding = { type: 'point', elementId: ptSnap.element.id, vIndex: ptSnap.vIndex, pointKey: ptSnap.pointKey };
           }
         } else {
           const snap = checkCircleSnap(point);
@@ -12421,8 +12703,18 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (state.activeGeo === 'inscribed-triangle') {
         newGeo.angles = [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
       } else if (state.activeGeo === 'two-tangents') {
-        const d = Math.hypot(finalEnd.x - state.geoStartPoint.x, finalEnd.y - state.geoStartPoint.y);
-        newGeo.radius = Math.max(35, Math.min(130, d * 0.45));
+        const cx = state.geoStartPoint.x, cy = state.geoStartPoint.y;
+        const d = Math.hypot(finalEnd.x - cx, finalEnd.y - cy);
+        const r = Math.max(35, Math.min(130, d * 0.45));
+        newGeo.radius = r;
+        if (d > r + 1) {
+          const baseAngle = Math.atan2(finalEnd.y - cy, finalEnd.x - cx);
+          const alpha = Math.acos(Math.min(1, Math.max(-1, r / d)));
+          const a1 = baseAngle + alpha;
+          const a2 = baseAngle - alpha;
+          newGeo.tangentPoint1 = { x: cx + r * Math.cos(a1), y: cy + r * Math.sin(a1) };
+          newGeo.tangentPoint2 = { x: cx + r * Math.cos(a2), y: cy + r * Math.sin(a2) };
+        }
       } else if (isSolidShape(state.activeGeo)) {
         const solidData = computeSolidShapeData(state.activeGeo, state.geoStartPoint, finalEnd);
         newGeo.points = solidData.points;
@@ -17662,6 +17954,9 @@ document.addEventListener('DOMContentLoaded', () => {
       findHandleAt,
       findElementAt,
       findEdgeAt,
+      findPointAt,
+      resolveElementPoint,
+      drawGeometricShape,
       findSnapTargetForHandle,
       pushCommand,
       undo,

@@ -2,6 +2,92 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Sửa Lỗi Tiếp Tuyến Trong Video, Hiển Thị Tiếp Điểm & Biến Động Dây Chuyền Cho Bán Kính / Đường Dựng (v76)] - 07/11/2026
+
+- **1. Sửa Triệt Để 4 Lỗi Phát Hiện Từ Video Quay Màn Hình (`web/app.js`):**
+  - **Tiếp tuyến biến động theo điểm ngoài $P$ (`updateSingleBinding`):** Khi điểm ngoài $P$ (`pointElId`) di chuyển, `circle_tangent` và `two_tangents` tự động đọc tọa độ mới của $P$ thông qua `resolveElementPoint`, tính lại tiếp điểm $T$ và hướng tiếp tuyến sao cho luôn tiếp xúc với đường tròn ($OT \perp PT$).
+  - **Bỏ đoạn nhô 25px ở đầu tiếp tuyến (`constructTangent`, `finalizeChosenTangent`, `updateSingleBinding`):** Tiếp tuyến kẻ từ điểm ngoài $P$ bắt đầu đúng tại $P$, không còn tạo điểm mút giả cách $P$ 25px gây bắt nhầm khi dựng trung trực hoặc trung điểm.
+  - **Sửa `checkCircleSnap` và `findEdgeAt`:** Bỏ `item.shape === 'tangent'` khỏi `checkCircleSnap` và bổ sung `tangent` vào `findEdgeAt` để nhận diện đúng đoạn tiếp tuyến.
+  - **Chống tự bắt dính ngược vào hình con (`findSnapTargetForHandle`, `findHandleAt`):** Loại trừ `getDependentElements(currentEl)` khi kéo điểm/đỉnh và ưu tiên nút điều khiển gốc (như `Tâm O`, `Điểm P`) hơn đầu mút phụ thuộc.
+
+- **2. Hiển Thị Tiếp Điểm Trên Đường Tròn Khi Vẽ Tiếp Tuyến (`drawGeometricShape`, `findPointAt`):**
+  - Vẽ chấm tròn tiếp điểm $T$ (`r = 4`, viền trắng `1.5px`) tại `geo.tangentPoint` (đối với `tangent`) và `geo.tangentPoint1`, `geo.tangentPoint2` (đối với `two-tangents`).
+  - Bổ sung nhận diện ưu tiên `Tiếp điểm T` (`pointKey: 'tangentPoint'`), `Tiếp điểm T1`, `Tiếp điểm T2` và `Tâm O` (`pointKey: 'start'`) trong `findPointAt` và `findSnapTargetForHandle`.
+
+- **3. Vẽ Bán Kính Từ Tâm Đến Tiếp Điểm Tự Động Dịch Chuyển & Biến Động Dây Chuyền (`resolveElementPoint`, `updateSingleStartEndBinding`):**
+  - Bổ sung hàm `resolveElementPoint(el, vIndex, pointKey)` để phân giải chính xác tọa độ của `start` (Tâm $O$), `tangentPoint` (Tiếp điểm $T$), `tangentPoint1`, `tangentPoint2`, `foot`, `midpoint`, đỉnh đa giác hoặc điểm rời.
+  - Khi vẽ đoạn thẳng (bán kính $OT$) từ tâm $O$ đến tiếp điểm $T$, hai đầu đoạn thẳng tự động lưu `startBinding` (`pointKey: 'start'`) và `endBinding` (`pointKey: 'tangentPoint'`). Khi điểm ngoài $P$ hoặc đường tròn $(O)$ dịch chuyển, tiếp tuyến, tiếp điểm $T$, bán kính $OT$ và mọi đường trung trực / trung điểm dựng trên $OT, TP$ đều tự động biến đổi đồng bộ theo thời gian thực.
+
+- **4. Nâng Cấp Cache & Kiểm Thử (`web/sw.js`, `web/index.html`, `scratch/test_tangent_radius_dynamic.js`):**
+  - Thêm bộ kiểm thử tự động `scratch/test_tangent_radius_dynamic.js` kiểm chứng toàn bộ quy trình: dựng tiếp tuyến từ $P$, hiển thị tiếp điểm $T$, nối bán kính $OT$, dựng đường trung trực trên $OT$ và $TP$, kéo $P$ và kéo tâm $O$.
+  - Nâng cache Service Worker lên `net-app-v76` và cập nhật query string `?v=20261107_1015` trong `web/index.html`.
+
+## [Phục Hồi Nguyên Trạng 100% Chức Năng Dựng Hình (Construction Tools) (v75)] - 06/11/2026
+
+- **1. Phục Hồi Toàn Bộ Các Tính Năng Trong Menu Dựng Hình (`web/app.js`):**
+  - Khôi phục nguyên vẹn 100% cơ chế gộp nhóm tự động (`linkGroup`, `linkGroupMulti`, `groupId`) và tịnh tiến đồng bộ (`translateElement`) đối với tất cả 13 công cụ trong menu **Dựng hình ▾**:
+    + **Trung điểm** (`midpoint`)
+    + **Đường trung trực** (`perpendicular-bisector`)
+    + **Đối xứng điểm** (`point-symmetry`)
+    + **Đối xứng trục** (`axis-symmetry`)
+    + **Đường tròn ngoại tiếp** (`circumcircle`)
+    + **Đường tròn nội tiếp** (`incircle`)
+    + **Giao điểm** (`intersection`)
+    + **Phân giác** (`bisector`)
+    + **Vuông góc** (`perpendicular`)
+    + **Song song** (`parallel`)
+    + **Tiếp tuyến** (`tangent`)
+    + **2 tiếp tuyến** (`two-tangents`)
+    + **Chọn góc** (`angle`)
+  - Đảm bảo khi người dùng dựng hình, các điểm dựng, đường vuông góc, phân giác, tiếp tuyến và đường tròn luôn gắn kết chặt chẽ với đối tượng cơ sở và di chuyển đồng bộ, trơn tru.
+
+- **2. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v75` và cập nhật query string `?v=20261106_1930` trong `web/index.html`.
+
+## [Tối Ưu Bố Cục Màn Hình Phạm Vi Bảng (Table Range) - Thấy Rõ Đầy Đủ Bước (Step) (v74)] - 06/11/2026
+
+- **1. Khắc Phục Lỗi Cắt Khuất Dòng Bước (Step) (`web/style.css` & `web/fx580.js`):**
+  - **Nguyên nhân:** Trước đây dòng chữ đặt cỡ `12px` với `line-height: 1.6` cùng lề đệm lớn, tổng chiều cao vượt quá diện tích màn hình LCD nên dòng `Kết thúc?` bị cắt xén nửa dưới và dòng `Bước?` (Step) bị đẩy hoàn toàn ra ngoài không thể nhìn thấy.
+  - **Cách khắc phục:**
+    + Bổ sung lớp CSS chuyên biệt `.table-range-screen`, `.table-range-title`, `.table-range-rows`, `.table-range-row`, `.table-range-val` tự động co giãn theo tỷ lệ màn hình (`--lcd-scale`).
+    + Căn chỉnh cỡ chữ `calc(10.5px * var(--lcd-scale, 1))` và khoảng cách dòng `line-height: calc(13px * var(--lcd-scale, 1))` vừa vặn hoàn hảo.
+    + Tiêu đề `Phạm vi bảng`, dòng `Bắt đầu?`, `Kết thúc?` và `Bước?` (Step) đều hiển thị đồng thời, trọn vẹn và ngay ngắn trên màn hình LCD.
+- **2. Hỗ Trợ Nhập Phân Số Cho Bước Nhảy (Step):**
+  - Cho phép người dùng bấm phím phân số `⌟` hoặc `/` khi nhập Bắt đầu, Kết thúc hoặc Bước nhảy (ví dụ `1/2` hoặc `1⌟2`).
+  - Hàm `commitTableParam` tự động đánh giá biểu thức thành $0.5$ và sinh bảng lưới giá trị chính xác.
+- **3. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v74` và cập nhật query string `?v=20261106_1856` trong `web/index.html`.
+
+## [Hiển Thị Phân Số Đẹp Mắt Chuẩn Casio ClassWiz 2 Tầng Thanh Ngang Đậm Nét (v73)] - 06/11/2026
+
+- **1. Thiết Kế Phân Số 2 Tầng Đích Thực Chuẩn Casio Natural-V.P.A.M. (`web/style.css`):**
+  - Nâng cấp các lớp CSS `.casio-frac`, `.frac-num`, `.frac-den`: tử số ở tầng trên, mẫu số ở tầng dưới, thanh gạch ngang phân số sắc nét `border-bottom: 2px solid currentColor` với độ rộng tối thiểu `min-width: 14px`.
+  - Sử dụng `currentColor` để thanh phân số tự thích ứng hoàn hảo giữa nền sáng chữ đen (trạng thái bình thường) và nền đen chữ trắng (trạng thái chọn ô ma trận hệ số).
+  - Cân chỉnh khoảng cách đệm `padding: 0 3px 1.5px 3px` và `padding: 1.5px 3px 0 3px` giúp các chữ số không bị dính vào vạch ngang, tạo cảm giác thanh thoát như trên màn hình LCD thực tế của Casio fx-580VN X.
+- **2. Đồng Bộ Hiển Thị Phân Số 2 Tầng Trên Toàn Bộ Màn Hình LCD (`web/fx580.js`):**
+  - **Tự động chuyển đổi dạng gõ phân số:** Chuyển đổi các biểu thức chứa gạch chéo `/` hoặc ký hiệu góc `⌟` (như `3/4`, `3⌟4` hay `3/`) sang template phân số 2 tầng `\frac{3}{4}` trước khi hiển thị.
+  - **Bảng ma trận hệ số (`renderEqnInputScreen`, `renderIneqInput`):** Các hệ số phân số hiển thị dạng phân số đứng đẹp mắt ngay trong từng ô ma trận hệ số ($a, b, c, d$).
+  - **Dòng nhập liệu đáy LCD (`a=`, `b=`,...):** Cả khi đang gõ biểu thức lẫn khi hoàn tất, phân số đều dựng thành dạng 2 tầng kèm con trỏ nhấp nháy.
+  - **Màn hình nghiệm & Cực trị:** Nghiệm phân số $x_1, x_2$, tọa độ đỉnh Parabol $x, y$ và cực đại/cực tiểu bậc 3 đều hiển thị phân số tối giản 2 tầng.
+- **3. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v73` và đồng bộ mã phiên bản script `?v=20261106_1850` trong `web/index.html`.
+
+## [Nhập Biểu Thức Toán Học Cho Hệ Số Trong Giải Phương Trình (Casio fx-580VN X - v72)] - 06/11/2026
+
+- **1. Hỗ Trợ Bấm Biểu Thức Toán Học Cho Hệ Số $a, b, c$ (`web/fx580.js`):**
+  - Mở rộng bộ đón phím trong chế độ nhập hệ số phương trình (`EQN_INPUT`, `INEQ_INPUT`, `RATIO_INPUT`): cho phép bấm trực tiếp các phím căn bậc hai `√(` (`sqrt`), căn bậc ba `∛(` (`SHIFT + sqrt`), bình phương `²` (`sqr`), lũy thừa `^(` (`pow`), phân số `⌟` (`frac`), chia `:` / `÷` (`div`), nhân `×` (`mul`), cộng `+`, trừ `-`, đóng mở ngoặc `(`, `)`, số âm `(-)`.
+  - Phím `DEL` thông minh tự động xóa nguyên vẹn các thẻ token toán học nhiều ký tự (`√(` , `∛(`, `×10^(`, `Ans`).
+  - Phím `AC` xóa nhanh biểu thức đang soạn hoặc quay lại chọn bậc/dạng phương trình khi bộ đệm rỗng.
+- **2. Tự Động Đánh Giá Biểu Thức Hệ Số Chuẩn Xác (`evalCoeffBuffer` & `MathEngine.evaluate`):**
+  - Khi bấm `=`, hệ thống đánh giá giá trị toán học của biểu thức và gán chính xác vào hệ số (`coeffs[activeIdx]`).
+  - Hỗ trợ đầy đủ biểu thức ví dụ của người dùng: `(\sqrt(2))^2:4` hoặc `(√(2))²:4` hoặc `(√(2))^2/4` được tính ra chính xác $0.5$ (hoặc $1/2$), `√(16)` ra $4$, `-1/2` ra $-0.5$.
+  - Tự động đóng các dấu ngoặc đơn còn thiếu ở cuối biểu thức (Casio Auto-Close Parentheses) trước khi tính toán.
+- **3. Hiển Thị Màn Hình LCD Đạt Chuẩn Casio ClassWiz 100%:**
+  - Ô ma trận hiển thị số nguyên hoặc dạng phân số gọn gàng (`1⌟2`) tránh tràn khung giao diện.
+  - Dòng soạn thảo phía dưới (`a=`, `b=`, `c=`) hiển thị biểu thức đang gõ kèm con trỏ nhấp nháy chân thực.
+- **4. Nâng Cấp Cache & Service Worker:**
+  - Nâng cache Service Worker lên `net-app-v72` và đồng bộ mã phiên bản script `?v=20261106_1845` trong `web/index.html`.
+
 ## [Sửa Lỗi Nhập PDF Bị Trắng Trang 2 - Phân Bổ Trang PDF Liền Mạch Tuyệt Đối (v71)] - 05/11/2026
 
 - **1. Khắc Phục Triệt Để Hiện Tượng Nhảy Cóc Bỏ Trắng Trang 2 (`web/app.js`):**

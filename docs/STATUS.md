@@ -1,12 +1,43 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 04/11/2026
+**Cập nhật lần cuối:** 07/11/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Sửa Toàn Bộ Lỗi Tiếp Tuyến Trong Video, Hiển Thị Tiếp Điểm & Biến Động Dây Chuyền Cho Bán Kính / Đường Dựng (v76):**
+    + *Khắc Phục 4 Lỗi Từ Video Quay Màn Hình:*
+      1. Khi kéo di chuyển điểm ngoài $P$, tiếp tuyến (`tangent` / `two-tangents`) tự động xoay và cập nhật theo $P$ trong thời gian thực (không còn bị tách rời khỏi điểm $P$).
+      2. Tiếp tuyến vẽ từ điểm ngoài $P$ bắt đầu chuẩn xác ngay tại tọa độ $P$ (bỏ đoạn thừa 25px gây bắt nhầm `Điểm đầu` thay vì điểm $P$ hoặc tiếp điểm $T$ khi dựng đường trung trực / trung điểm).
+      3. Loại bỏ `item.shape === 'tangent'` khỏi `checkCircleSnap` (tránh coi nhầm đường tiếp tuyến là đường tròn tâm `start` bán kính `R`).
+      4. Loại trừ các phần tử con phụ thuộc (`getDependentElements(currentEl)`) trong `findSnapTargetForHandle`, giúp khi kéo điểm $P$ không bị hút ngược lại chính tiếp tuyến hoặc đoạn thẳng con của nó.
+    + *Hiển Thị Rõ Tiếp Điểm Khi Vẽ Tiếp Tuyến:* Khi dựng tiếp tuyến (`tangent`) hoặc 2 tiếp tuyến (`two-tangents`), hệ thống tự động hiển thị chấm tròn tiếp điểm $T$ (hoặc $T_1, T_2$) sắc nét ngay trên đường tròn và cho phép bắt dính chính xác vào `Tiếp điểm T` (`pointKey: 'tangentPoint'`).
+    + *Vẽ Bán Kính Từ Tâm Đến Tiếp Điểm Tự Động Dịch Chuyển & Biến Động Theo:* Khi kẻ đoạn thẳng nối từ tâm $O$ (`pointKey: 'start'`) đến tiếp điểm $T$ (`pointKey: 'tangentPoint'`) hoặc dựng thêm trung điểm / đường trung trực trên bán kính $OT$ và đoạn tiếp tuyến $TP$, nếu di chuyển điểm $P$ hoặc đường tròn $(O)$, cả tiếp tuyến, tiếp điểm $T$, bán kính $OT$ và các đường trung trực đều tự động dịch chuyển và biến đổi theo đúng tính chất hình học ($OT \perp PT$, $OT = R$).
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v76` và cập nhật query string `?v=20261107_1015` trong `web/index.html`.
+  - **Phục Hồi Nguyên Trạng 100% Chức Năng Dựng Hình (Construction Tools - v75):**
+    + *Phục Hồi Toàn Bộ 13 Tính Năng Menu Dựng Hình:* Khôi phục nguyên vẹn 100% cơ chế gộp nhóm tự động (`linkGroup`, `linkGroupMulti`, `groupId`) và tịnh tiến đồng bộ (`translateElement`) đối với tất cả 13 công cụ trong menu **Dựng hình ▾** (Trung điểm, Đường trung trực, Đối xứng điểm, Đối xứng trục, Đường tròn ngoại tiếp, Đường tròn nội tiếp, Giao điểm, Phân giác, Vuông góc, Song song, Tiếp tuyến, 2 tiếp tuyến, Chọn góc).
+    + *Tính Gắn Kết & Di Chuyển Đồng Bộ Tuyệt Đối:* Bảo đảm mọi điểm dựng, đường vuông góc, tiếp tuyến, phân giác và đường tròn sinh ra từ thao tác dựng hình luôn gắn kết chặt chẽ với đối tượng gốc, di chuyển cùng nhau một cách trơn tru, ổn định và chính xác.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v75` và cập nhật query string `?v=20261106_1930` trong `web/index.html`.
+  - **Tối Ưu Bố Cục Màn Hình Phạm Vi Bảng (Table Range) - Thấy Rõ Đầy Đủ Bước (Step) (v74):**
+    + *Khắc Phục Lỗi Tràn & Cắt Chữ:* Căn chỉnh lại cỡ chữ (`font-size: calc(10.5px * var(--lcd-scale, 1))`), chiều cao dòng (`line-height: calc(13px * var(--lcd-scale, 1))`) và khoảng cách đệm trong màn hình Phạm vi bảng (`TABLE_PARAMS`). Triệt tiêu hoàn toàn hiện tượng tràn khung khiến dòng `Kết thúc?` bị cắt đôi và dòng `Bước?` (Step) bị ẩn khỏi màn hình.
+    + *Hiển Thị Đồng Thời Cả 3 Thông Số Chuẩn Casio ClassWiz:* Tiêu đề gạch chân `Phạm vi bảng`, dòng 1 `Bắt đầu?`, dòng 2 `Kết thúc?`, dòng 3 `Bước?` đều hiển thị đồng thời, trọn vẹn và cân đối trên màn hình LCD.
+    + *Hỗ Trợ Nhập Bước Phân Số / Biểu Thức:* Người dùng có thể bấm phím phân số `⌟` hoặc `/` để nhập bước nhảy dạng phân số (ví dụ `1/2` hoặc `1⌟2`), máy tự động tính toán $0.5$ và sinh bảng giá trị chính xác.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v74` và cập nhật query string `?v=20261106_1856` trong `web/index.html`.
+  - **Hiển Thị Phân Số 2 Tầng Đẹp Mắt Chuẩn Casio ClassWiz Thanh Ngang Đậm Nét (Casio Natural-V.P.A.M. Fraction Display - v73):**
+    + *Giao Diện Phân Số 2 Tầng Đích Thực ($\frac{\text{tử}}{\text{mẫu}}$):* Thay thế hoàn toàn cách hiển thị phân số dạng phẳng đơn điệu (`3/4`) hoặc ký tự góc (`3⌟4`) bằng phân số đứng 2 tầng chân thực: Tử số nằm trên, gạch phân số nằm ngang cân đối và Mẫu số nằm dưới, chuẩn xác theo giao diện màn hình LCD Natural-V.P.A.M. của dòng máy tính Casio fx-580VN X ClassWiz thật.
+    + *Thanh Phân Số Rõ Ràng & Màu Sắc Chuẩn Xác:* Thanh phân số được thiết kế nét đậm `2px solid currentColor`, tự động tương thích với màu mực tối trên nền sáng lẫn chế độ đảo màu (ô đang chọn nền đen chữ trắng trong bảng ma trận hệ số). Khoảng cách đệm và chiều cao dòng được căn chỉnh hoàn hảo, triệt tiêu hiện tượng dính chữ hay lệch dòng.
+    + *Áp Dụng Đồng Bộ Trên Mọi Màn Hình fx-580VN X:*
+      - **Bảng ô ma trận hệ số:** Các hệ số phân số như $a, b, c$ hiển thị dạng phân số đứng đẹp mắt ngay trong ô ma trận mà không bị tràn viền.
+      - **Dòng nhập liệu dưới đáy màn hình LCD:** Cả khi người dùng đang gõ (như `3/4` hay `3/` kèm ô vuông mẫu số rỗng) lẫn khi hiển thị kết quả, phân số đều tự động chuyển đổi sang dạng 2 tầng trực quan.
+      - **Màn hình nghiệm & Tọa độ cực trị:** Nghiệm phương trình $x_1, x_2$, tọa độ đỉnh Parabol $x, y$ và cực trị hàm bậc 3 đều hiển thị phân số tối giản 2 tầng chuẩn mực.
+    + *Nâng cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v73` và cập nhật query string `?v=20261106_1850` trong `web/index.html`.
+  - **Nhập Biểu Thức Toán Học Cho Hệ Số Trong Giải Phương Trình (Casio fx-580VN X - v72):**
+    + *Cho Phép Bấm Căn Thức, Lũy Thừa, Phân Số, Phép Tính Cho Hệ Số:* Trong chế độ giải phương trình (`MENU 9 -> 2: Phương trình đa thức` bậc 2, 3, 4 cũng như Hệ phương trình `Simul` và Bất phương trình `INEQ`), người dùng có thể bấm trực tiếp các phím toán học như căn bậc hai `√(` (`sqrt`), căn bậc ba `∛(` (`SHIFT + sqrt`), bình phương `²` (`sqr`), lũy thừa `^(` (`pow`), phân số `⌟` (`frac`), dấu chia `:` hoặc `÷` (`div`), phép nhân `×` (`mul`), cộng `+`, trừ `-`, đóng mở ngoặc `(`, `)`, số âm `(-)`.
+    + *Ví Dụ Điển Hình Hoạt Động Hoàn Hảo:* Nhập hệ số $a = (\sqrt{2})^2 : 4$ hoặc $(√(2))²:4$ hoặc $(√(2))^2/4$ tự động tính đúng bằng $0.5$ (hoặc $1/2$); hệ số $b = \sqrt{16}$ tính ra $4$; hệ số $c = -1/2$ tính ra $-0.5$, và phương trình được giải với các hệ số chính xác tuyệt đối.
+    + *Tự Động Đóng Ngoặc Đơn (Casio Auto-Close Parentheses):* Nếu người dùng gõ thiếu dấu ngoặc đóng ở cuối biểu thức (như `√(2` hoặc `(3+4`), hệ thống tự động bù đủ dấu ngoặc trước khi tính toán, triệt tiêu lỗi cú pháp không đáng có.
+    + *Hiển Thị Ô Ma Trận & Dòng Nhập Liệu LCD Chuẩn Xác:* Trong các ô ma trận hệ số phía trên, giá trị được rút gọn thành số nguyên hoặc phân số (`1⌟2`) để không bao giờ bị tràn khung; dòng nhập phía dưới (`a=`, `b=`, `c=`) hiển thị biểu thức đang gõ cùng con trỏ nhấp nháy chân thực 100% như trên máy tính Casio thật.
   - **Sửa Lỗi Nhập PDF Bị Trắng Trang 2 - Phân Bổ Trang PDF Liền Mạch Tuyệt Đối (v71):**
     + *Khắc Phục Lỗi Nhảy Cóc Bỏ Trắng Trang 2:* Tìm ra chính xác nguyên nhân: sổ tay khởi tạo sẵn 2 trang rỗng (`pages: { 1: [], 2: [] }`), khi nạp PDF trang 1 vào Trang 1, lệnh tạo trang kế tiếp nhảy cóc sang Trang 3 khiến Trang 2 bị bỏ quên trắng tinh. Đã tự động dọn sạch trang rỗng thừa trước khi nạp và bổ sung cơ chế kiểm tra tận dụng trang trống có sẵn (`state.pages[nextCandidate]`).
     + *Thứ Tự Trang Chuẩn Xác 100%:* Nâng cấp `createNewPage` tính số thứ tự trang bằng `Math.max(...pageKeys) + 1`. Bảo đảm Trang 1 PDF vào Trang 1, Trang 2 PDF vào Trang 2, Trang 3 PDF vào Trang 3... hoàn toàn liền mạch, không còn bất kỳ trang nào bị trắng.

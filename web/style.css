@@ -3856,28 +3856,29 @@ kbd {
       flex-direction: column;
       align-items: center;
       vertical-align: middle;
-      margin: 0 2px;
-      font-size: 0.85em;
-      line-height: 1.1;
+      margin: 0 3px;
+      font-size: 0.9em;
+      line-height: 1;
+      font-family: inherit;
     }
     .frac-num {
-      border-bottom: 1.5px solid var(--lcd-dark);
-      padding: 0 2px 1px 2px;
+      border-bottom: 2px solid currentColor;
+      padding: 0 3px 1.5px 3px;
       text-align: center;
+      min-width: 14px;
       width: 100%;
-      min-height: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: inline-block;
+      line-height: 1.05;
+      box-sizing: border-box;
     }
     .frac-den {
-      padding: 1px 2px 0 2px;
+      padding: 1.5px 3px 0 3px;
       text-align: center;
+      min-width: 14px;
       width: 100%;
-      min-height: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: inline-block;
+      line-height: 1.05;
+      box-sizing: border-box;
     }
 
     /* ─── Mixed Fractions ─── */
@@ -4092,6 +4093,59 @@ kbd {
       padding: 1px 3px 2px 3px;
       z-index: 5;
       box-sizing: border-box;
+    }
+
+    /* Mode 8 Table Range Screen (Phạm vi bảng: Bắt đầu / Kết thúc / Bước) */
+    .table-range-screen {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      height: 100%;
+      box-sizing: border-box;
+      font-family: var(--font-lcd);
+      color: var(--lcd-dark);
+      padding: 1px 4px 2px 4px;
+      overflow: hidden;
+      user-select: none;
+    }
+    .table-range-title {
+      font-size: calc(10px * var(--lcd-scale, 1));
+      line-height: calc(11px * var(--lcd-scale, 1));
+      font-weight: bold;
+      border-bottom: calc(1px * var(--lcd-scale, 1)) solid var(--lcd-dark);
+      padding-bottom: 1px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+    }
+    .table-range-rows {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      flex: 1;
+      margin: 0;
+    }
+    .table-range-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1px 4px;
+      font-size: calc(10.5px * var(--lcd-scale, 1));
+      line-height: calc(13px * var(--lcd-scale, 1));
+      box-sizing: border-box;
+    }
+    .table-range-row.active {
+      background: rgba(18, 24, 17, 0.16);
+      font-weight: bold;
+    }
+    .table-range-val {
+      display: inline-flex;
+      align-items: center;
+      min-width: 14px;
+      justify-content: flex-end;
+    }
+    .table-range-row.active .table-range-val {
+      border-bottom: calc(1.5px * var(--lcd-scale, 1)) solid var(--lcd-dark);
+      padding: 0 1px;
     }
 
     /* Mode 6 STAT 1-Var Authentic Casio fx-580VN X Table Screen */

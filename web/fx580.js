@@ -548,9 +548,16 @@ class MathEngine {
         return `(${this.numericalSum(f, aVal, bVal)})`;
       });
 
+      sanitized = sanitized.replace(/²/g, '^2');
+      sanitized = sanitized.replace(/³/g, '^3');
+      sanitized = sanitized.replace(/⁴/g, '^4');
+      sanitized = sanitized.replace(/[:÷]/g, '/');
+      sanitized = sanitized.replace(/⌟/g, '/');
       sanitized = sanitized.replace(/×/g, '*');
-      sanitized = sanitized.replace(/÷/g, '/');
       sanitized = sanitized.replace(/[−–—]/g, '-');
+      sanitized = sanitized.replace(/\\sqrt\(/g, '√(');
+      sanitized = sanitized.replace(/([0-9.)])\s*(√|\\sqrt)/g, '$1*$2');
+      sanitized = sanitized.replace(/([0-9.)])\s*π/g, '$1*Math.PI');
       sanitized = sanitized.replace(/π/g, 'Math.PI');
       sanitized = sanitized.replace(/e(?![a-zA-Z0-9_])/g, 'Math.E');
 
@@ -721,12 +728,24 @@ class MathEngine {
         Math: Math
       };
 
+      // Auto-close any unclosed parentheses (Casio authentic behavior)
+      let openP = (sanitized.match(/\(/g) || []).length;
+      let closeP = (sanitized.match(/\)/g) || []).length;
+      while (openP > closeP) {
+        sanitized += ')';
+        closeP++;
+      }
+
       const keys = Object.keys(context);
       const values = Object.values(context);
       const func = new Function(...keys, `"use strict"; return (${sanitized});`);
-      const result = func(...values);
+      let result = func(...values);
 
       if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
+        const rounded = Math.round(result * 1e10) / 1e10;
+        if (Math.abs(result - rounded) < 1e-9) {
+          result = rounded;
+        }
         this.variables.PreAns = this.variables.Ans;
         this.variables.Ans = result;
       }
@@ -2121,6 +2140,10 @@ class CasioDisplay {
     if (!str) return '';
     let s = str;
 
+    // 0. Fractions with corner symbol or slash: 3⌟4 or 3/4 converted to natural template
+    s = s.replace(/(-?\d+)\s*[/⌟]\s*(\d+)/g, '\\frac{$1}{$2}');
+    s = s.replace(/(-?\d+)\s*[/⌟]$/, '\\frac{$1}{}');
+
     // 0. Operators
     s = s.replace(/\*/g, '×');
     s = s.replace(/\//g, '÷');
@@ -2298,16 +2321,16 @@ class CasioDisplay {
     if (val === undefined || val === null || val === '') return '';
     const str = String(val).trim();
 
-    // 1. Mixed fraction: "1 2/3" or "-1 2/3"
-    const mixedMatch = str.match(/^(-?)(\d+)\s+(\d+)\/(\d+)$/);
+    // 1. Mixed fraction: "1 2/3" or "-1 2/3" or "1 2⌟3"
+    const mixedMatch = str.match(/^(-?)(\d+)\s+(\d+)[/⌟](\d+)$/);
     if (mixedMatch) {
       const [_, sign, whole, num, den] = mixedMatch;
       const signHtml = sign ? '<span class="casio-sign">−</span>' : '';
       return `${signHtml}${whole}<span class="casio-frac"><span class="frac-num">${num}</span><span class="frac-den">${den}</span></span>`;
     }
 
-    // 2. Simple fraction: "5/3" or "-5/3"
-    const fracMatch = str.match(/^(-?)(\d+)\/(\d+)$/);
+    // 2. Simple fraction: "5/3" or "-5/3" or "5⌟3"
+    const fracMatch = str.match(/^(-?)(\d+)[/⌟](\d+)$/);
     if (fracMatch) {
       const [_, sign, num, den] = fracMatch;
       const signHtml = sign ? '<span class="casio-sign">−</span>' : '';
@@ -2830,12 +2853,12 @@ class CasioApp {
         }
       }
 
-      if (['0','1','2','3','4','5','6','7','8','9'].includes(e.key)) {
+      if (['0','1','2','3','4','5','6','7','8','9','.'].includes(e.key)) {
         this.playClickSound();
         this.handleKey(e.key);
-      } else if (['+','-','*','/','(',')'].includes(e.key)) {
+      } else if (['+','-','*','/','(',')',':','^'].includes(e.key)) {
         this.playClickSound();
-        const map = { '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '(': 'open_paren', ')': 'close_paren' };
+        const map = { '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '(': 'open_paren', ')': 'close_paren', ':': ':', '^': 'pow' };
         this.handleKey(map[e.key] || e.key);
       } else if (e.key === 'Enter' || e.key === '=') {
         e.preventDefault();
@@ -2993,6 +3016,7 @@ class CasioApp {
     else if (key === '-') key = 'sub';
     else if (key === '*' || key === '×') key = 'mul';
     else if (key === '/' || key === '÷') key = 'div';
+    else if (key === ':' || lk === 'colon') key = ':';
 
     // Ghi nhận lịch sử phím bấm Key Log
     if (!this.keyLog) this.keyLog = [];
@@ -4156,6 +4180,24 @@ class CasioApp {
     }
   }
 
+  evalCoeffBuffer(buf) {
+    if (!buf || typeof buf !== 'string') return 0;
+    let s = buf.trim();
+    if (!s) return 0;
+    const openP = (s.match(/\(/g) || []).length;
+    const closeP = (s.match(/\)/g) || []).length;
+    if (openP > closeP) {
+      s += ')'.repeat(openP - closeP);
+    }
+    const val = this.engine.evaluate(s);
+    if (typeof val === 'number' && !isNaN(val) && isFinite(val)) {
+      const rounded = Math.round(val * 1e10) / 1e10;
+      return Math.abs(val - rounded) < 1e-9 ? rounded : val;
+    }
+    const parsed = parseFloat(s);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
   handleEqnKey(key) {
     if (key === 'MENU') {
       if (this.state.shift) {
@@ -4212,21 +4254,175 @@ class CasioApp {
 
     // 3. Coefficient Matrix Input screen
     if (this.osState === 'EQN_INPUT') {
+      if (key === 'SHIFT') {
+        this.state.shift = !this.state.shift;
+        this.display.updateIndicators(this.state);
+        return;
+      }
+      if (key === 'ALPHA') {
+        this.state.alpha = !this.state.alpha;
+        this.display.updateIndicators(this.state);
+        return;
+      }
+
+      if (this.state.shift) {
+        this.state.shift = false;
+        this.display.updateIndicators(this.state);
+        if (key === 'sqrt') {
+          this.eqn.buffer += '∛(';
+          this.renderEqnInputScreen();
+          return;
+        }
+        if (key === 'sqr') {
+          this.eqn.buffer += '³';
+          this.renderEqnInputScreen();
+          return;
+        }
+        if (key === 'x10x') {
+          this.eqn.buffer += 'π';
+          this.renderEqnInputScreen();
+          return;
+        }
+        if (key === 'Ans') {
+          this.eqn.buffer += '%';
+          this.renderEqnInputScreen();
+          return;
+        }
+      }
+
+      if (this.state.alpha) {
+        this.state.alpha = false;
+        this.display.updateIndicators(this.state);
+        if (key === 'int_diff' || key === ':') {
+          this.eqn.buffer += ':';
+          this.renderEqnInputScreen();
+          return;
+        }
+        if (key === 'x10x') {
+          this.eqn.buffer += 'e';
+          this.renderEqnInputScreen();
+          return;
+        }
+        if (key === 'Ans') {
+          this.eqn.buffer += 'PreAns';
+          this.renderEqnInputScreen();
+          return;
+        }
+      }
+
       if (['0','1','2','3','4','5','6','7','8','9','.'].includes(key)) {
         this.eqn.buffer += key;
         this.renderEqnInputScreen();
         return;
       }
 
-      if (key === 'neg' || key === 'sub') {
-        if (this.eqn.buffer.startsWith('-')) this.eqn.buffer = this.eqn.buffer.slice(1);
-        else this.eqn.buffer = '-' + this.eqn.buffer;
+      if (key === 'sqrt') {
+        this.eqn.buffer += '√(';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'sqr') {
+        this.eqn.buffer += '²';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'pow') {
+        this.eqn.buffer += '^(';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'recip') {
+        this.eqn.buffer += '^(-1)';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'open_paren' || key === '(') {
+        this.eqn.buffer += '(';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'close_paren' || key === ')') {
+        this.eqn.buffer += ')';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'add' || key === '+') {
+        this.eqn.buffer += '+';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'sub' || key === '-') {
+        this.eqn.buffer += '-';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'mul' || key === '*' || key === '×') {
+        this.eqn.buffer += '×';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'div' || key === '/' || key === '÷') {
+        this.eqn.buffer += '÷';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === ':' || key === 'colon') {
+        this.eqn.buffer += ':';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'frac') {
+        this.eqn.buffer += '⌟';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'neg') {
+        if (this.eqn.buffer === '' || /[\+\-×÷:\(]$/.test(this.eqn.buffer)) {
+          this.eqn.buffer += '-';
+        } else {
+          this.eqn.buffer += '×(-1)';
+        }
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'Ans') {
+        this.eqn.buffer += 'Ans';
+        this.renderEqnInputScreen();
+        return;
+      }
+
+      if (key === 'x10x') {
+        this.eqn.buffer += '×10^(';
         this.renderEqnInputScreen();
         return;
       }
 
       if (key === 'DEL') {
-        this.eqn.buffer = this.eqn.buffer.slice(0, -1);
+        const tokens = ['×10^(', '^(-1)', '√(', '∛(', 'Ans', 'PreAns', '^('];
+        let deleted = false;
+        for (const tok of tokens) {
+          if (this.eqn.buffer.endsWith(tok)) {
+            this.eqn.buffer = this.eqn.buffer.slice(0, -tok.length);
+            deleted = true;
+            break;
+          }
+        }
+        if (!deleted) {
+          this.eqn.buffer = this.eqn.buffer.slice(0, -1);
+        }
         this.renderEqnInputScreen();
         return;
       }
@@ -4247,8 +4443,10 @@ class CasioApp {
 
       const commitBuffer = () => {
         if (this.eqn.buffer !== '') {
-          const v = parseFloat(this.eqn.buffer);
-          if (!isNaN(v)) this.eqn.coeffs[this.eqn.activeIdx] = v;
+          const v = this.evalCoeffBuffer(this.eqn.buffer);
+          if (typeof v === 'number' && !isNaN(v) && isFinite(v)) {
+            this.eqn.coeffs[this.eqn.activeIdx] = v;
+          }
           this.eqn.buffer = '';
         }
       };
@@ -4354,7 +4552,27 @@ class CasioApp {
   renderEqnInputScreen() {
     const isVi = this.display.language === 'VI';
     const curIdx = this.eqn.activeIdx;
-    const activeVal = this.eqn.buffer !== '' ? this.eqn.buffer : String(this.eqn.coeffs[curIdx] || 0);
+
+    const formatCoeffDisplay = (val) => {
+      if (val === undefined || val === null) return '0';
+      if (typeof val === 'number') {
+        if (Number.isInteger(val)) return String(val);
+        const frac = this.engine && this.engine.toFraction ? this.engine.toFraction(val, 1000) : null;
+        if (frac && frac.d > 1 && frac.d < 1000 && Math.abs(val - frac.n / frac.d) < 1e-9) {
+          const isNeg = frac.n < 0;
+          const absNum = Math.abs(frac.n);
+          const signHtml = isNeg ? '<span class="casio-sign" style="margin-right:1px;">−</span>' : '';
+          return `${signHtml}<span class="casio-frac"><span class="frac-num">${absNum}</span><span class="frac-den">${frac.d}</span></span>`;
+        }
+        return String(Number(val.toFixed(4)));
+      }
+      if (typeof val === 'string') {
+        return this.display.formatToNaturalHtml(val);
+      }
+      return String(val);
+    };
+
+    const activeVal = this.eqn.buffer !== '' ? this.display.formatToNaturalHtml(this.eqn.buffer) : formatCoeffDisplay(this.eqn.coeffs[curIdx] || 0);
     const cursorHtml = this.eqn.buffer !== '' ? '<span class="cursor"></span>' : '';
 
     this.display.setIndicator('i', false);
@@ -4373,7 +4591,7 @@ class CasioApp {
         for (let c = 0; c < n; c++) {
           const idx = r * cols + c;
           const isSel = idx === curIdx;
-          const val = (isSel && this.eqn.buffer !== '') ? this.eqn.buffer : (this.eqn.coeffs[idx] || 0);
+          const val = formatCoeffDisplay(this.eqn.coeffs[idx] || 0);
           const op = (c < n - 1) ? '+' : '=';
           const selStyle = isSel 
             ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;border-radius:1px;padding:0 3px;' 
@@ -4390,7 +4608,7 @@ class CasioApp {
         // Constant term
         const constIdx = r * cols + n;
         const isConstSel = constIdx === curIdx;
-        const constVal = (isConstSel && this.eqn.buffer !== '') ? this.eqn.buffer : (this.eqn.coeffs[constIdx] || 0);
+        const constVal = formatCoeffDisplay(this.eqn.coeffs[constIdx] || 0);
         const constSelStyle = isConstSel 
           ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;border-radius:1px;padding:0 3px;' 
           : 'padding:0 2px;';
@@ -4424,7 +4642,7 @@ class CasioApp {
               ${rowsHtml}
             </div>
           </div>
-          <div style="text-align:right;font-size:18px;font-weight:bold;padding-right:8px;margin-bottom:2px;">
+          <div style="text-align:right;font-size:18px;font-weight:bold;padding-right:8px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
             ${activeVal}${cursorHtml}
           </div>
         </div>
@@ -4442,11 +4660,11 @@ class CasioApp {
     let cells = '';
     for (let i = 0; i <= this.eqn.size; i++) {
       const isSel = i === curIdx;
-      const val = (isSel && this.eqn.buffer !== '') ? this.eqn.buffer : (this.eqn.coeffs[i] || 0);
+      const val = formatCoeffDisplay(this.eqn.coeffs[i] || 0);
       cells += `
         <div style="flex:1;text-align:center;border:1px solid rgba(18,24,17,0.3);margin:0 2px;padding:2px 0;${isSel ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;' : ''}">
           <div style="font-size:9px;">${polyLabels[i]}</div>
-          <div style="font-size:11px;">${val}</div>
+          <div style="font-size:11px;min-height:24px;display:flex;align-items:center;justify-content:center;">${val}</div>
         </div>
       `;
     }
@@ -4458,9 +4676,9 @@ class CasioApp {
         <div style="display:flex;margin:2px 0;align-items:center;border-left:2px solid var(--lcd-dark);border-right:2px solid var(--lcd-dark);padding:0 2px;">
           ${cells}
         </div>
-        <div style="font-size:12px;font-weight:bold;border-top:1px solid rgba(18,24,17,0.2);padding-top:1px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:12px;font-weight:bold;border-top:1px solid rgba(18,24,17,0.2);padding-top:1px;display:flex;justify-content:space-between;align-items:center;min-height:28px;">
           <span>${activeLabel}=</span>
-          <span>${activeVal}${cursorHtml}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:85%;text-align:right;display:inline-flex;align-items:center;">${activeVal}${cursorHtml}</span>
         </div>
       </div>
     `);
@@ -4676,7 +4894,12 @@ class CasioApp {
 
   formatFraction(val) {
     const f = this.engine.toFraction(val);
-    if (f && f.d !== 1 && Math.abs(f.d) < 1000) return `${f.n}/${f.d}`;
+    if (f && f.d !== 1 && Math.abs(f.d) < 1000) {
+      const isNeg = f.n < 0;
+      const absNum = Math.abs(f.n);
+      const signHtml = isNeg ? '<span class="casio-sign" style="margin-right:1px;">−</span>' : '';
+      return `${signHtml}<span class="casio-frac"><span class="frac-num">${absNum}</span><span class="frac-den">${f.d}</span></span>`;
+    }
     return String(Number(val.toFixed(5)));
   }
 
@@ -4727,19 +4950,80 @@ class CasioApp {
     }
 
     if (this.osState === 'INEQ_INPUT') {
+      if (key === 'SHIFT') {
+        this.state.shift = !this.state.shift;
+        this.display.updateIndicators(this.state);
+        return;
+      }
+      if (key === 'ALPHA') {
+        this.state.alpha = !this.state.alpha;
+        this.display.updateIndicators(this.state);
+        return;
+      }
+      if (this.state.shift) {
+        this.state.shift = false;
+        this.display.updateIndicators(this.state);
+        if (key === 'sqrt') { this.ineq.buffer += '∛('; this.renderIneqInput(); return; }
+        if (key === 'sqr') { this.ineq.buffer += '³'; this.renderIneqInput(); return; }
+        if (key === 'x10x') { this.ineq.buffer += 'π'; this.renderIneqInput(); return; }
+      }
+      if (this.state.alpha) {
+        this.state.alpha = false;
+        this.display.updateIndicators(this.state);
+        if (key === 'int_diff' || key === ':') { this.ineq.buffer += ':'; this.renderIneqInput(); return; }
+      }
+
       if (['0','1','2','3','4','5','6','7','8','9','.'].includes(key)) {
         this.ineq.buffer += key;
         this.renderIneqInput();
-      } else if (key === 'neg' || key === 'sub') {
-        if (this.ineq.buffer.startsWith('-')) this.ineq.buffer = this.ineq.buffer.slice(1);
-        else this.ineq.buffer = '-' + this.ineq.buffer;
+        return;
+      }
+      if (key === 'sqrt') { this.ineq.buffer += '√('; this.renderIneqInput(); return; }
+      if (key === 'sqr') { this.ineq.buffer += '²'; this.renderIneqInput(); return; }
+      if (key === 'pow') { this.ineq.buffer += '^('; this.renderIneqInput(); return; }
+      if (key === 'open_paren' || key === '(') { this.ineq.buffer += '('; this.renderIneqInput(); return; }
+      if (key === 'close_paren' || key === ')') { this.ineq.buffer += ')'; this.renderIneqInput(); return; }
+      if (key === 'add' || key === '+') { this.ineq.buffer += '+'; this.renderIneqInput(); return; }
+      if (key === 'sub' || key === '-') { this.ineq.buffer += '-'; this.renderIneqInput(); return; }
+      if (key === 'mul' || key === '*' || key === '×') { this.ineq.buffer += '×'; this.renderIneqInput(); return; }
+      if (key === 'div' || key === '/' || key === '÷') { this.ineq.buffer += '÷'; this.renderIneqInput(); return; }
+      if (key === ':' || key === 'colon') { this.ineq.buffer += ':'; this.renderIneqInput(); return; }
+      if (key === 'frac') { this.ineq.buffer += '⌟'; this.renderIneqInput(); return; }
+      if (key === 'neg') {
+        if (this.ineq.buffer === '' || /[\+\-×÷:\(]$/.test(this.ineq.buffer)) this.ineq.buffer += '-';
+        else this.ineq.buffer += '×(-1)';
         this.renderIneqInput();
-      } else if (key === 'DEL') {
-        this.ineq.buffer = this.ineq.buffer.slice(0, -1);
+        return;
+      }
+      if (key === 'DEL') {
+        const tokens = ['×10^(', '^(-1)', '√(', '∛(', 'Ans', 'PreAns', '^('];
+        let deleted = false;
+        for (const tok of tokens) {
+          if (this.ineq.buffer.endsWith(tok)) {
+            this.ineq.buffer = this.ineq.buffer.slice(0, -tok.length);
+            deleted = true;
+            break;
+          }
+        }
+        if (!deleted) {
+          this.ineq.buffer = this.ineq.buffer.slice(0, -1);
+        }
         this.renderIneqInput();
-      } else if (key === 'EQUALS') {
+        return;
+      }
+      if (key === 'AC') {
         if (this.ineq.buffer !== '') {
-          this.ineq.coeffs[this.ineq.activeIdx] = parseFloat(this.ineq.buffer) || 0;
+          this.ineq.buffer = '';
+          this.renderIneqInput();
+        } else {
+          this.osState = 'INEQ_DEG';
+          this.renderIneqDeg();
+        }
+        return;
+      }
+      if (key === 'EQUALS') {
+        if (this.ineq.buffer !== '') {
+          this.ineq.coeffs[this.ineq.activeIdx] = this.evalCoeffBuffer(this.ineq.buffer);
           this.ineq.buffer = '';
         }
         if (this.ineq.activeIdx < 2) {
@@ -4772,18 +5056,37 @@ class CasioApp {
   renderIneqInput() {
     const signs = ['> 0', '< 0', '≥ 0', '≤ 0'];
     const lbls = ['a', 'b', 'c'];
+    const formatCoeffDisplay = (val) => {
+      if (val === undefined || val === null) return '0';
+      if (typeof val === 'number') {
+        if (Number.isInteger(val)) return String(val);
+        const frac = this.engine && this.engine.toFraction ? this.engine.toFraction(val, 1000) : null;
+        if (frac && frac.d > 1 && frac.d < 1000 && Math.abs(val - frac.n / frac.d) < 1e-9) {
+          const isNeg = frac.n < 0;
+          const absNum = Math.abs(frac.n);
+          const signHtml = isNeg ? '<span class="casio-sign" style="margin-right:1px;">−</span>' : '';
+          return `${signHtml}<span class="casio-frac"><span class="frac-num">${absNum}</span><span class="frac-den">${frac.d}</span></span>`;
+        }
+        return String(Number(val.toFixed(4)));
+      }
+      if (typeof val === 'string') {
+        return this.display.formatToNaturalHtml(val);
+      }
+      return String(val);
+    };
+
     let cellsHtml = '';
     for (let i = 0; i < 3; i++) {
       const isAct = i === this.ineq.activeIdx;
-      const val = this.ineq.coeffs[i] || 0;
+      const val = formatCoeffDisplay(this.ineq.coeffs[i] || 0);
       cellsHtml += `
         <div style="flex:1;text-align:center;border:1px solid rgba(18,24,17,0.3);margin:0 2px;padding:2px 0;${isAct ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;' : ''}">
           <div style="font-size:9px;">${lbls[i]}</div>
-          <div style="font-size:11px;">${val}</div>
+          <div style="font-size:11px;min-height:24px;display:flex;align-items:center;justify-content:center;">${val}</div>
         </div>
       `;
     }
-    const curVal = this.ineq.buffer !== '' ? this.ineq.buffer : String(this.ineq.coeffs[this.ineq.activeIdx] || 0);
+    const curVal = this.ineq.buffer !== '' ? this.display.formatToNaturalHtml(this.ineq.buffer) : formatCoeffDisplay(this.ineq.coeffs[this.ineq.activeIdx] || 0);
 
     this.display.renderCustom(`
       <div style="padding:2px 4px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;">
@@ -4791,9 +5094,9 @@ class CasioApp {
         <div style="display:flex;margin:2px 0;align-items:center;border-left:2px solid var(--lcd-dark);border-right:2px solid var(--lcd-dark);padding:0 2px;">
           ${cellsHtml}
         </div>
-        <div style="font-size:12px;font-weight:bold;border-top:1px solid rgba(18,24,17,0.2);padding-top:1px;display:flex;justify-content:space-between;">
+        <div style="font-size:12px;font-weight:bold;border-top:1px solid rgba(18,24,17,0.2);padding-top:1px;display:flex;justify-content:space-between;align-items:center;min-height:28px;">
           <span>${lbls[this.ineq.activeIdx]}=</span>
-          <span>${curVal}<span class="cursor"></span></span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:85%;text-align:right;display:inline-flex;align-items:center;">${curVal}<span class="cursor"></span></span>
         </div>
       </div>
     `);
@@ -4838,7 +5141,7 @@ class CasioApp {
         this.renderRatioInput();
       } else if (key === 'EQUALS') {
         if (this.ratio.buffer !== '') {
-          this.ratio.vals[this.ratio.activeIdx] = parseFloat(this.ratio.buffer) || 0;
+          this.ratio.vals[this.ratio.activeIdx] = this.evalCoeffBuffer(this.ratio.buffer);
           this.ratio.buffer = '';
         }
         if (this.ratio.activeIdx < 2) {
@@ -5105,7 +5408,19 @@ class CasioApp {
         return;
       }
 
-      if (key === 'neg' || key === 'sub') {
+      if (key === 'frac') {
+        this.table.paramBuffers[curIdx] += '⌟';
+        this.renderTableParams();
+        return;
+      }
+
+      if (key === 'div' || key === '/' || key === '÷' || key === ':') {
+        this.table.paramBuffers[curIdx] += '/';
+        this.renderTableParams();
+        return;
+      }
+
+      if (key === 'neg' || key === 'sub' || key === '-') {
         let b = this.table.paramBuffers[curIdx];
         this.table.paramBuffers[curIdx] = b.startsWith('-') ? b.slice(1) : '-' + b;
         this.renderTableParams();
@@ -5235,8 +5550,8 @@ class CasioApp {
   commitTableParam(idx) {
     const buf = this.table.paramBuffers[idx];
     if (buf !== '') {
-      const val = parseFloat(buf);
-      if (!isNaN(val)) {
+      const val = this.evalCoeffBuffer ? this.evalCoeffBuffer(buf) : parseFloat(buf);
+      if (!isNaN(val) && isFinite(val)) {
         if (idx === 0) this.table.start = val;
         else if (idx === 1) this.table.end = val;
         else if (idx === 2) this.table.step = val;
@@ -5275,23 +5590,36 @@ class CasioApp {
     const vals = [this.table.start, this.table.end, this.table.step];
     const curIdx = this.table.paramIdx;
 
+    const formatParamVal = (v) => {
+      if (v === undefined || v === null || v === '') return '0';
+      if (typeof v === 'number') {
+        if (Number.isInteger(v)) return String(v);
+        const frac = this.engine && this.engine.toFraction ? this.engine.toFraction(v, 1000) : null;
+        if (frac && frac.d > 1 && frac.d < 1000 && Math.abs(v - frac.n / frac.d) < 1e-9) {
+          return `${frac.n}⌟${frac.d}`;
+        }
+        return String(Number(v.toFixed(4)));
+      }
+      return String(v);
+    };
+
     let rowsHtml = '';
     labels.forEach((lbl, i) => {
       const isAct = i === curIdx;
       const buf = this.table.paramBuffers[i];
-      const valStr = buf !== '' ? buf : String(vals[i]);
+      const valStr = buf !== '' ? buf : formatParamVal(vals[i]);
       rowsHtml += `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${isAct ? 'background:rgba(18,24,17,0.12);font-weight:bold;' : ''}">
+        <div class="table-range-row ${isAct ? 'active' : ''}" style="display:flex;justify-content:space-between;align-items:center;padding:1px 4px;font-size:calc(10.5px * var(--lcd-scale, 1));line-height:calc(13px * var(--lcd-scale, 1));box-sizing:border-box;${isAct ? 'background:rgba(18,24,17,0.15);font-weight:bold;' : ''}">
           <span>${lbl}</span>
-          <span style="${isAct ? 'border-bottom:1px solid var(--lcd-dark);padding:0 2px;' : ''}">${valStr}${isAct ? '<span class="cursor"></span>' : ''}</span>
+          <span class="table-range-val ${isAct ? 'active' : ''}" style="display:inline-flex;align-items:center;min-width:14px;justify-content:flex-end;${isAct ? 'border-bottom:calc(1.5px * var(--lcd-scale, 1)) solid var(--lcd-dark);padding:0 1px;' : ''}">${valStr}${isAct ? '<span class="cursor"></span>' : ''}</span>
         </div>
       `;
     });
 
     this.display.renderCustom(`
-      <div style="padding:4px 4px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;">
-        <div style="font-size:11px;font-weight:bold;border-bottom:1px solid var(--lcd-dark);padding-bottom:1px;">${title}</div>
-        <div style="font-size:12px;line-height:1.6;margin:4px 0;">
+      <div class="table-range-screen" style="padding:1px 4px 2px 4px;font-family:var(--font-lcd);color:var(--lcd-dark);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;">
+        <div class="table-range-title" style="font-size:calc(10px * var(--lcd-scale, 1));font-weight:bold;border-bottom:calc(1px * var(--lcd-scale, 1)) solid var(--lcd-dark);padding-bottom:1px;margin-bottom:2px;line-height:calc(11px * var(--lcd-scale, 1));white-space:nowrap;">${title}</div>
+        <div class="table-range-rows" style="display:flex;flex-direction:column;justify-content:space-evenly;flex:1;margin:0;">
           ${rowsHtml}
         </div>
       </div>
