@@ -4592,7 +4592,7 @@ class CasioApp {
         for (let c = 0; c < n; c++) {
           const idx = r * cols + c;
           const isSel = idx === curIdx;
-          const val = (isSel && hasBuffer) ? activeVal : formatCoeffDisplay(this.eqn.coeffs[idx] || 0);
+          const val = formatCoeffDisplay(this.eqn.coeffs[idx] || 0);
           const op = (c < n - 1) ? '+' : '=';
           const selStyle = isSel 
             ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;border-radius:1px;padding:0 3px;' 
@@ -4609,7 +4609,7 @@ class CasioApp {
         // Constant term
         const constIdx = r * cols + n;
         const isConstSel = constIdx === curIdx;
-        const constVal = (isConstSel && hasBuffer) ? activeVal : formatCoeffDisplay(this.eqn.coeffs[constIdx] || 0);
+        const constVal = formatCoeffDisplay(this.eqn.coeffs[constIdx] || 0);
         const constSelStyle = isConstSel 
           ? 'background:var(--lcd-dark);color:var(--lcd-bg);font-weight:bold;border-radius:1px;padding:0 3px;' 
           : 'padding:0 2px;';
@@ -4667,7 +4667,7 @@ class CasioApp {
     let cells = '';
     for (let i = 0; i <= this.eqn.size; i++) {
       const isSel = i === curIdx;
-      const val = (isSel && hasBuffer) ? activeVal : formatCoeffDisplay(this.eqn.coeffs[i] || 0);
+      const val = formatCoeffDisplay(this.eqn.coeffs[i] || 0);
       cells += `
         <div class="eqn-poly-cell${isSel ? ' selected' : ''}">
           <div class="eqn-poly-cell-label">${polyLabels[i]}</div>
@@ -5106,7 +5106,7 @@ class CasioApp {
     let cellsHtml = '';
     for (let i = 0; i < 3; i++) {
       const isAct = i === this.ineq.activeIdx;
-      const val = (isAct && hasBuffer) ? curVal : formatCoeffDisplay(this.ineq.coeffs[i] || 0);
+      const val = formatCoeffDisplay(this.ineq.coeffs[i] || 0);
       cellsHtml += `
         <div class="eqn-poly-cell${isAct ? ' selected' : ''}">
           <div class="eqn-poly-cell-label">${lbls[i]}</div>
@@ -5218,7 +5218,7 @@ class CasioApp {
     let cellsHtml = '';
     for (let i = 0; i < 3; i++) {
       const isAct = i === this.ratio.activeIdx;
-      const val = (isAct && hasBuffer) ? curVal : (this.ratio.vals[i] || 0);
+      const val = this.ratio.vals[i] || 0;
       cellsHtml += `
         <div class="eqn-poly-cell${isAct ? ' selected' : ''}">
           <div class="eqn-poly-cell-label">${lbls[i]}</div>

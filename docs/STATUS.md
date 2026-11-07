@@ -7,7 +7,11 @@
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
-  - **Tối Ưu Bố Cục LCD Casio fx-580VN X - Hiển Thị Toàn Bộ Hệ Số a, b, c & Số Đang Bấm Trực Tiếp (v80):**
+  - **Ưu Tiên Hiển Thị Thao Tác Bấm Trên Dòng Nhập Liệu LCD & Giữ Ô Ma Trận Gọn Gàng Chuẩn Casio ClassWiz (v81):**
+    + *Loại Bỏ Biểu Thức Bấm Dở Khỏi Ô Ma Trận Nhỏ:* Các ô ma trận phía trên ($a, b, c$) chỉ hiển thị giá trị số hoặc phân số đã lưu cố định, không còn nhét các biểu thức dở dang (như `(√2...`) vào ô ma trận hẹp gây tràn hoặc chật chội.
+    + *Tập Trung Toàn Bộ Thao Tác Bấm Vào Thanh Nhập Liệu Dưới Đáy (`a=`, `b=`, `c=`):* Mở rộng không gian thanh nhập liệu dưới đáy màn hình LCD (`min-height: calc(18px * var(--lcd-scale, 1))`, cỡ chữ `calc(13.5px * var(--lcd-scale, 1))`), hiển thị rõ ràng từng phím bấm căn thức `√(`, lũy thừa, phân số, đóng mở ngoặc cùng con trỏ nhấp nháy chân thực 100% như máy tính Casio fx-580VN X thật. Khi bấm `=`, biểu thức tự động tính toán ra giá trị và cập nhật vào ô ma trận.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v81` và cập nhật query string `?v=20261107_1505` trong `web/index.html`.
+  - **Tối Ưu Bố Cục LCD Casio fx-580VN X - Hiển Thị Toàn Bộ Hệ Số a, b, c & Bố Cục Không Tràn Viền (v80):**
     + *Khắc Phục Hiện Tượng Tràn Khung & Ẩn Tiêu Đề Trên LCD:* Tinh chỉnh cấu trúc giao diện màn hình nhập hệ số Phương trình (`EQN`), Bất phương trình (`INEQ`), Tỉ số (`RATIO`) và Hệ phương trình (`Simul`) bằng các lớp CSS co giãn linh hoạt (`.eqn-poly-screen`, `.eqn-poly-header`, `.eqn-poly-grid`, `.eqn-poly-cell`, `.eqn-poly-input-bar`, `.eqn-simul-screen`) với tỷ lệ kích thước theo `calc(... * var(--lcd-scale, 1))`.
     + *Hiển Thị Trọn Vẹn Cả 3 Hàng Dữ Liệu:* 
       1. Hàng 1 (Tiêu đề phương trình `ax²+bx+c=0`, `ax²+bx+c > 0`, `A:B = X:D`): Luôn hiển thị sắc nét ở đỉnh màn hình với đường kẻ ngang phân tách tinh tế.

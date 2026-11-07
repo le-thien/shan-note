@@ -2,6 +2,16 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Ưu Tiên Hiển Thị Thao Tác Bấm Trên Dòng Nhập Liệu LCD & Giữ Ô Ma Trận Gọn Gàng Chuẩn Casio ClassWiz (v81)] - 07/11/2026
+
+- **1. Giữ Ô Ma Trận Hệ Số Gọn Gàng Chuẩn Casio ClassWiz Thật (`web/fx580.js`):**
+  - Các ô ma trận phía trên ($a, b, c$) chỉ hiển thị giá trị số hoặc phân số đã lưu cố định, không chèn các biểu thức đang bấm dở (như `(√2...`) vào ô ma trận nhỏ hẹp.
+- **2. Tập Trung Toàn Bộ Thao Tác Bấm Vào Thanh Nhập Liệu Dưới Đáy (`web/style.css`, `web/fx580.js`):**
+  - Mở rộng chiều cao và cỡ chữ dòng nhập liệu dưới đáy màn hình LCD (`min-height: calc(18px * var(--lcd-scale, 1))`, font size `calc(13.5px * var(--lcd-scale, 1))`).
+  - Toàn bộ thao tác bấm phím căn thức, phân số, lũy thừa, dấu ngoặc hiển thị nổi bật, rõ ràng trên dòng `a= `, `b= `, `c= ` kèm con trỏ nhấp nháy.
+- **3. Nâng Cấp Cache & Kiểm Thử (`web/sw.js`, `web/index.html`, `scratch/test_fx580_eqn_display.js`):**
+  - Kiểm thử 25 kịch bản JXA đạt 100%. Nâng cache Service Worker lên `net-app-v81` và cập nhật query string `?v=20261107_1505`.
+
 ## [Tối Ưu Bố Cục LCD Casio fx-580VN X - Hiển Thị Toàn Bộ Hệ Số a, b, c & Số Đang Bấm Trực Tiếp (v80)] - 07/11/2026
 
 - **1. Thiết Kế Lại Bố Cục Co Giãn Cho Màn Hình Nhập Hệ Số (`web/style.css`, `web/fx580.js`):**

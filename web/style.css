@@ -4322,7 +4322,7 @@ kbd {
       text-align: center;
       border: max(1px, calc(1px * var(--lcd-scale, 1))) solid rgba(18, 24, 17, 0.35);
       margin: 0 calc(1.5px * var(--lcd-scale, 1));
-      padding: calc(1px * var(--lcd-scale, 1)) calc(1px * var(--lcd-scale, 1));
+      padding: calc(0.5px * var(--lcd-scale, 1)) calc(1px * var(--lcd-scale, 1));
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -4349,8 +4349,8 @@ kbd {
     }
     .eqn-poly-cell-val {
       font-size: calc(11px * var(--lcd-scale, 1));
-      line-height: calc(12.5px * var(--lcd-scale, 1));
-      min-height: calc(13px * var(--lcd-scale, 1));
+      line-height: calc(12px * var(--lcd-scale, 1));
+      min-height: calc(12px * var(--lcd-scale, 1));
       max-width: 100%;
       display: flex;
       align-items: center;
@@ -4360,12 +4360,12 @@ kbd {
       white-space: nowrap;
     }
     .eqn-poly-input-bar {
-      font-size: calc(11.5px * var(--lcd-scale, 1));
-      line-height: calc(13px * var(--lcd-scale, 1));
-      min-height: calc(14px * var(--lcd-scale, 1));
+      font-size: calc(13px * var(--lcd-scale, 1));
+      line-height: calc(15px * var(--lcd-scale, 1));
+      min-height: calc(17px * var(--lcd-scale, 1));
       font-weight: bold;
       border-top: max(1px, calc(1px * var(--lcd-scale, 1))) solid rgba(18, 24, 17, 0.3);
-      padding: calc(1px * var(--lcd-scale, 1)) calc(2px * var(--lcd-scale, 1)) 0 calc(2px * var(--lcd-scale, 1));
+      padding: calc(1.5px * var(--lcd-scale, 1)) calc(3px * var(--lcd-scale, 1)) 0 calc(3px * var(--lcd-scale, 1));
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -4373,18 +4373,20 @@ kbd {
       box-sizing: border-box;
     }
     .eqn-poly-input-label {
+      font-size: calc(12px * var(--lcd-scale, 1));
       flex-shrink: 0;
       margin-right: calc(4px * var(--lcd-scale, 1));
     }
     .eqn-poly-input-val {
-      overflow: hidden;
-      text-overflow: ellipsis;
+      overflow-x: auto;
+      overflow-y: hidden;
       white-space: nowrap;
-      max-width: 86%;
+      max-width: 88%;
       text-align: right;
       display: inline-flex;
       align-items: center;
       justify-content: flex-end;
+      font-size: calc(13.5px * var(--lcd-scale, 1));
     }
     .eqn-poly-screen .casio-frac,
     .eqn-simul-screen .casio-frac {
