@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     areaSelectPage: null,
     // Bộ nhớ đệm cho Cắt / Sao chép / Dán đối tượng
     clipboardElements: [],
+    isCutAction: false,
     // Trạng thái bật hiển thị tay cầm xoay bên ngoài hình (mặc định tắt, cần mới chọn)
     showRotationHandle: false,
     // Chỉ báo mũi tên nhọn khi hover trúng điểm hình học
@@ -1645,6 +1646,202 @@ document.addEventListener('DOMContentLoaded', () => {
     return { minX, maxX, minY, maxY };
   }
 
+  // Lấy vùng khung nhìn Canvas đang thực sự hiển thị trên màn hình của trang
+  function getVisibleCanvasViewport(pageNum = state.currentPage) {
+    const activeC = getCanvasForPage(pageNum) || canvas;
+    const dims = getCanvasDimensions();
+    if (!activeC || !canvasContainer) {
+      return {
+        minX: 40,
+        maxX: dims.width - 40,
+        minY: 40,
+        maxY: dims.height - 40,
+        centerX: dims.width / 2,
+        centerY: dims.height / 2,
+        width: dims.width - 80,
+        height: dims.height - 80
+      };
+    }
+
+    const containerRect = canvasContainer.getBoundingClientRect();
+    const canvasRect = activeC.getBoundingClientRect();
+
+    const scaleX = (canvasRect.width > 0) ? (dims.width / canvasRect.width) : 1;
+    const scaleY = (canvasRect.height > 0) ? (dims.height / canvasRect.height) : 1;
+
+    // Vùng giao nhau giữa khung nhìn màn hình và trang giấy canvas
+    const visibleTopClient = Math.max(containerRect.top, canvasRect.top);
+    const visibleBottomClient = Math.min(containerRect.bottom, canvasRect.bottom);
+    const visibleLeftClient = Math.max(containerRect.left, canvasRect.left);
+    const visibleRightClient = Math.min(containerRect.right, canvasRect.right);
+
+    // Nếu trang hiện tại bị cuộn hoàn toàn ra khỏi màn hình
+    if (visibleBottomClient <= visibleTopClient || visibleRightClient <= visibleLeftClient) {
+      // Tìm trang đang hiển thị nhiều nhất trên màn hình
+      const pageCanvases = document.querySelectorAll('canvas.main-canvas, canvas[data-page]');
+      let bestPage = pageNum;
+      let maxVisH = -1;
+      pageCanvases.forEach(cv => {
+        const r = cv.getBoundingClientRect();
+        const vTop = Math.max(containerRect.top, r.top);
+        const vBot = Math.min(containerRect.bottom, r.bottom);
+        const visH = Math.max(0, vBot - vTop);
+        if (visH > maxVisH) {
+          maxVisH = visH;
+          const p = parseInt(cv.getAttribute('data-page'), 10);
+          if (!isNaN(p)) bestPage = p;
+        }
+      });
+      if (bestPage !== pageNum) {
+        state.currentPage = bestPage;
+        return getVisibleCanvasViewport(bestPage);
+      }
+      return {
+        minX: 40,
+        maxX: dims.width - 40,
+        minY: 40,
+        maxY: dims.height - 40,
+        centerX: dims.width / 2,
+        centerY: dims.height / 2,
+        width: dims.width - 80,
+        height: dims.height - 80
+      };
+    }
+
+    const minX = Math.max(20, Math.round((visibleLeftClient - canvasRect.left) * scaleX));
+    const maxX = Math.min(dims.width - 20, Math.round((visibleRightClient - canvasRect.left) * scaleX));
+    const minY = Math.max(20, Math.round((visibleTopClient - canvasRect.top) * scaleY));
+    const maxY = Math.min(dims.height - 20, Math.round((visibleBottomClient - canvasRect.top) * scaleY));
+
+    const centerX = Math.round((minX + maxX) / 2);
+    const centerY = Math.round((minY + maxY) / 2);
+
+    return {
+      minX,
+      maxX,
+      minY,
+      maxY,
+      centerX,
+      centerY,
+      width: Math.max(100, maxX - minX),
+      height: Math.max(100, maxY - minY)
+    };
+  }
+
+  // Tìm khoảng trống tối ưu trong vùng màn hình đang hiển thị để dán ảnh/đối tượng
+  function findBestEmptySpotInViewport(w, h, pageNum = state.currentPage) {
+    const viewport = getVisibleCanvasViewport(pageNum);
+    const list = state.pages[pageNum] || [];
+    const dims = getCanvasDimensions();
+
+    // Giới hạn kích thước đối tượng không vượt quá vùng nhìn thấy
+    const effW = Math.min(w, viewport.width - 20);
+    const effH = Math.min(h, viewport.height - 20);
+
+    // Thu thập các hộp bao của đối tượng trên trang có giao cắt với vùng nhìn thấy
+    const existingBoxes = [];
+    for (const el of list) {
+      if (!el || el.isPdfPage) continue;
+      const b = getElementBoundingBox(el);
+      if (b) {
+        if (!(b.maxX < viewport.minX || b.minX > viewport.maxX || b.maxY < viewport.minY || b.minY > viewport.maxY)) {
+          existingBoxes.push({
+            minX: b.minX - 8,
+            maxX: b.maxX + 8,
+            minY: b.minY - 8,
+            maxY: b.maxY + 8
+          });
+        }
+      }
+    }
+
+    const idealX = Math.max(viewport.minX, Math.min(viewport.maxX - effW, viewport.centerX - effW / 2));
+    const idealY = Math.max(viewport.minY, Math.min(viewport.maxY - effH, viewport.centerY - effH / 2));
+
+    if (existingBoxes.length === 0) {
+      return { x: Math.round(idealX), y: Math.round(idealY) };
+    }
+
+    const calcOverlap = (tMinX, tMinY, tMaxX, tMaxY) => {
+      let area = 0;
+      for (const box of existingBoxes) {
+        const ox1 = Math.max(tMinX, box.minX);
+        const ox2 = Math.min(tMaxX, box.maxX);
+        const oy1 = Math.max(tMinY, box.minY);
+        const oy2 = Math.min(tMaxY, box.maxY);
+        if (ox2 > ox1 && oy2 > oy1) {
+          area += (ox2 - ox1) * (oy2 - oy1);
+        }
+      }
+      return area;
+    };
+
+    // Nếu chính giữa màn hình hoàn toàn trống -> dán ngay chính giữa
+    if (calcOverlap(idealX, idealY, idealX + effW, idealY + effH) === 0) {
+      return { x: Math.round(idealX), y: Math.round(idealY) };
+    }
+
+    const startX = Math.max(viewport.minX, 20);
+    const endX = Math.min(viewport.maxX - effW, dims.width - effW - 20);
+    const startY = Math.max(viewport.minY, 20);
+    const endY = Math.min(viewport.maxY - effH, dims.height - effH - 20);
+
+    const candidates = [];
+
+    // Các vị trí thông minh xung quanh các đối tượng đã có
+    for (const box of existingBoxes) {
+      if (box.maxY + 14 <= endY) {
+        candidates.push({ x: idealX, y: box.maxY + 14 });
+      }
+      if (box.minY - effH - 14 >= startY) {
+        candidates.push({ x: idealX, y: box.minY - effH - 14 });
+      }
+      if (box.maxX + 14 <= endX) {
+        candidates.push({ x: box.maxX + 14, y: idealY });
+      }
+      if (box.minX - effW - 14 >= startX) {
+        candidates.push({ x: box.minX - effW - 14, y: idealY });
+      }
+    }
+
+    // Lưới rà soát khắp khung nhìn màn hình
+    const stepX = Math.max(40, Math.round(effW / 3));
+    const stepY = Math.max(30, Math.round(effH / 3));
+    if (endX >= startX && endY >= startY) {
+      for (let cy = startY; cy <= endY + 1; cy += stepY) {
+        for (let cx = startX; cx <= endX + 1; cx += stepX) {
+          candidates.push({
+            x: Math.min(cx, endX),
+            y: Math.min(cy, endY)
+          });
+        }
+      }
+    }
+
+    let best = null;
+    let minO = Infinity;
+    let minD = Infinity;
+
+    for (const cand of candidates) {
+      const cx = Math.max(startX, Math.min(endX, cand.x));
+      const cy = Math.max(startY, Math.min(endY, cand.y));
+      const overlap = calcOverlap(cx, cy, cx + effW, cy + effH);
+      const dist = Math.hypot((cx + effW / 2) - viewport.centerX, (cy + effH / 2) - viewport.centerY);
+
+      if (overlap < minO) {
+        minO = overlap;
+        minD = dist;
+        best = { x: cx, y: cy };
+        if (overlap === 0 && dist < 120) break;
+      } else if (overlap === minO && dist < minD) {
+        minD = dist;
+        best = { x: cx, y: cy };
+      }
+    }
+
+    return best ? { x: Math.round(best.x), y: Math.round(best.y) } : { x: Math.round(idealX), y: Math.round(idealY) };
+  }
+
   // Kiểm tra đoạn thẳng có cắt qua hình chữ nhật hay không
   function lineIntersectsRect(p1, p2, rect) {
     if (!p1 || !p2 || !rect) return false;
@@ -1791,6 +1988,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
     if (selected.length === 0) return;
     state.clipboardElements = JSON.parse(JSON.stringify(selected));
+    state.isCutAction = true;
     const list = state.pages[state.currentPage] || [];
     const before = [...list];
     state.pages[state.currentPage] = list.filter(el => !selected.includes(el));
@@ -1810,19 +2008,54 @@ document.addEventListener('DOMContentLoaded', () => {
     const selected = (state.selectedElements || []).filter(el => (state.pages[state.currentPage] || []).includes(el));
     if (selected.length === 0) return;
     state.clipboardElements = JSON.parse(JSON.stringify(selected));
+    state.isCutAction = false;
     showPageToast(`📋 Đã sao chép ${selected.length} đối tượng`);
   }
 
-  // Tác vụ: Dán các đối tượng từ bộ nhớ đệm
+  // Tác vụ: Dán các đối tượng từ bộ nhớ đệm vào vùng trống trên màn hình
   function pasteClipboardElements(targetPoint = null) {
     if (!state.clipboardElements || state.clipboardElements.length === 0) return;
     const box = getCombinedBoundingBox(state.clipboardElements);
+    const viewport = getVisibleCanvasViewport(state.currentPage);
+
     let offset = { dx: 25, dy: 25 };
     if (targetPoint && box) {
       const curCenterX = (box.minX + box.maxX) / 2;
       const curCenterY = (box.minY + box.maxY) / 2;
-      offset = { dx: targetPoint.x - curCenterX, dy: targetPoint.y - curCenterY };
+      offset = { dx: Math.round(targetPoint.x - curCenterX), dy: Math.round(targetPoint.y - curCenterY) };
+    } else if (box) {
+      const boxW = box.maxX - box.minX;
+      const boxH = box.maxY - box.minY;
+      const curCenterX = (box.minX + box.maxX) / 2;
+      const curCenterY = (box.minY + box.maxY) / 2;
+
+      // Kiểm tra xem vị trí gốc có đang nằm trong khung nhìn màn hình hay không
+      const isOriginalVisible = (
+        box.minX >= viewport.minX - 15 &&
+        box.maxX <= viewport.maxX + 15 &&
+        box.minY >= viewport.minY - 15 &&
+        box.maxY <= viewport.maxY + 15
+      );
+
+      // Nếu vừa CẮT đối tượng hoặc vị trí gốc đã bị cuộn ra khỏi màn hình:
+      // Luôn dán vào khoảng trống trên màn hình đang hiển thị!
+      if (state.isCutAction || !isOriginalVisible) {
+        const spot = findBestEmptySpotInViewport(boxW, boxH, state.currentPage);
+        offset = {
+          dx: Math.round(spot.x - box.minX),
+          dy: Math.round(spot.y - box.minY)
+        };
+      } else {
+        // Sao chép tại chỗ: dịch nhẹ 25px nhưng giữ nằm trọn vẹn trong vùng hiển thị
+        let dx = 25;
+        let dy = 25;
+        if (box.maxX + dx > viewport.maxX) dx = -25;
+        if (box.maxY + dy > viewport.maxY) dy = -25;
+        offset = { dx, dy };
+      }
     }
+    state.isCutAction = false;
+
     const clones = cloneElementsGroup(state.clipboardElements, offset);
     const list = state.pages[state.currentPage] || [];
     const before = [...list];
@@ -1835,7 +2068,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setSelectedElements(clones);
     showFloatingSelectionBar(clones);
     renderPage();
-    showPageToast(`📋 Đã dán ${clones.length} đối tượng`);
+    showPageToast(`📋 Đã dán ${clones.length} đối tượng vào màn hình`);
   }
 
   // Tác vụ: Nhân bản các đối tượng đang chọn
@@ -4417,6 +4650,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillStyle = el.color;
 
       if (el.tool === 'highlighter') {
+        // Dạ quang: Đơn đường cong Catmull-Rom Cubic Bézier mượt mà trong suốt, không bị đè vệt đậm cục bộ
         ctx.globalAlpha = 0.35;
         ctx.lineWidth = el.width * 3.5;
         ctx.beginPath();
@@ -4425,91 +4659,92 @@ document.addEventListener('DOMContentLoaded', () => {
           ctx.lineTo(el.points[1].x, el.points[1].y);
         } else {
           ctx.moveTo(el.points[0].x, el.points[0].y);
-          for (let i = 1; i < el.points.length - 1; i++) {
+          for (let i = 0; i < el.points.length - 1; i++) {
+            const p0 = i > 0 ? el.points[i - 1] : { x: 2 * el.points[0].x - el.points[1].x, y: 2 * el.points[0].y - el.points[1].y };
             const p1 = el.points[i];
             const p2 = el.points[i + 1];
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
-            ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+            const p3 = i < el.points.length - 2 ? el.points[i + 2] : { x: 2 * p2.x - p1.x, y: 2 * p2.y - p1.y };
+
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
           }
-          const lastPt = el.points[el.points.length - 1];
-          ctx.lineTo(lastPt.x, lastPt.y);
         }
         ctx.stroke();
       } else {
         ctx.globalAlpha = 1.0;
-        if (el.points.length === 2 || el.smoothing === 'normal') {
-          for (let i = 1; i < el.points.length; i++) {
-            const p1 = el.points[i - 1];
-            const p2 = el.points[i];
-            const pr1 = (p1.pr !== undefined && p1.pr > 0) ? p1.pr : ((p1.smoothedPressure !== undefined && p1.smoothedPressure > 0) ? p1.smoothedPressure : ((p1.pressure !== undefined && p1.pressure > 0) ? p1.pressure : 0.5));
-            const pr2 = (p2.pr !== undefined && p2.pr > 0) ? p2.pr : ((p2.smoothedPressure !== undefined && p2.smoothedPressure > 0) ? p2.smoothedPressure : ((p2.pressure !== undefined && p2.pressure > 0) ? p2.pressure : 0.5));
-            const pressureMultiplier = (pr1 + pr2) / 2;
-            ctx.lineWidth = Math.max(1, (el.width || 1.5) * (0.6 + pressureMultiplier * 0.8));
+        const pts = el.points;
+        const totalPts = pts.length;
+        const baseW = el.width || 1.5;
 
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
+        // Tính toán độ dày mượt mà từng điểm có Tapering tự nhiên (khởi bút & vuốt đuôi)
+        const getPointWidth = (idx) => {
+          const pt = pts[idx];
+          const pr = (pt.pr !== undefined && pt.pr > 0) ? pt.pr : ((pt.pressure !== undefined && pt.pressure > 0) ? pt.pressure : 0.5);
+          let taper = 1.0;
+          if (totalPts >= 6) {
+            if (idx === 0) taper = 0.55;
+            else if (idx === 1) taper = 0.78;
+            else if (idx === 2) taper = 0.92;
+            else if (idx === totalPts - 3) taper = 0.90;
+            else if (idx === totalPts - 2) taper = 0.75;
+            else if (idx === totalPts - 1) taper = 0.50;
           }
-        } else {
-          // Thuật toán mực số Siêu mượt: Gom cụm đường cong (Batching) Quadratic Bezier qua trung điểm kết hợp Tapering 2 đầu
-          const pts = el.points;
-          const totalPts = pts.length;
-          let midPrev = {
-            x: (pts[0].x + pts[1].x) / 2,
-            y: (pts[0].y + pts[1].y) / 2
-          };
+          return Math.max(0.7, baseW * (0.65 + pr * 0.7) * taper);
+        };
 
-          // Hàm tính độ dày có tapering mềm mại ở đầu và đuôi nét
-          const getTaperedWidth = (baseW, pr, index) => {
-            let taper = 1.0;
-            if (totalPts >= 6) {
-              if (index < 3) {
-                taper = 0.45 + 0.55 * (index / 3);
-              } else if (index >= totalPts - 3) {
-                taper = 0.35 + 0.65 * ((totalPts - 1 - index) / 3);
-              }
-            }
-            return Math.max(0.8, baseW * (0.6 + pr * 0.8) * taper);
-          };
-
-          // 1. Phân đoạn đầu từ P0 đến Trung điểm Mid1
-          const pr0 = (pts[0].pr !== undefined && pts[0].pr > 0) ? pts[0].pr : ((pts[0].smoothedPressure !== undefined && pts[0].smoothedPressure > 0) ? pts[0].smoothedPressure : ((pts[0].pressure !== undefined && pts[0].pressure > 0) ? pts[0].pressure : 0.5));
-          let currentLineWidth = getTaperedWidth(el.width || 1.5, pr0, 0);
-          ctx.lineWidth = currentLineWidth;
+        if (totalPts === 2) {
+          ctx.lineWidth = getPointWidth(0);
           ctx.beginPath();
           ctx.moveTo(pts[0].x, pts[0].y);
-          ctx.lineTo(midPrev.x, midPrev.y);
+          ctx.lineTo(pts[1].x, pts[1].y);
+          ctx.stroke();
+        } else {
+          // Vẽ liên tục các phân đoạn Catmull-Rom Cubic Bézier C1 có tiếp tuyến trơn nhẵn tuyệt đối
+          for (let i = 0; i < totalPts - 1; i++) {
+            const p0 = i > 0 ? pts[i - 1] : { x: 2 * pts[0].x - pts[1].x, y: 2 * pts[0].y - pts[1].y };
+            const p1 = pts[i];
+            const p2 = pts[i + 1];
+            const p3 = i < totalPts - 2 ? pts[i + 2] : { x: 2 * p2.x - p1.x, y: 2 * p2.y - p1.y };
 
-          // 2. Các phân đoạn uốn lượn trung gian liên tục C1 (Gom stroke để giảm tải GPU 10x)
-          for (let i = 1; i < pts.length - 1; i++) {
-            const pCurr = pts[i];
-            const pNext = pts[i + 1];
-            const midCurr = {
-              x: (pCurr.x + pNext.x) / 2,
-              y: (pCurr.y + pNext.y) / 2
-            };
-            const pr = (pCurr.pr !== undefined && pCurr.pr > 0) ? pCurr.pr : ((pCurr.smoothedPressure !== undefined && pCurr.smoothedPressure > 0) ? pCurr.smoothedPressure : ((pCurr.pressure !== undefined && pCurr.pressure > 0) ? pCurr.pressure : 0.5));
-            const nextLineWidth = getTaperedWidth(el.width || 1.5, pr, i);
+            let cp1x = p1.x + (p2.x - p0.x) / 6;
+            let cp1y = p1.y + (p2.y - p0.y) / 6;
+            let cp2x = p2.x - (p3.x - p1.x) / 6;
+            let cp2y = p2.y - (p3.y - p1.y) / 6;
 
-            // Chỉ stroke và đổi lineWidth khi độ chênh lệch >= 0.25px (giảm từ hàng trăm draw call xuống vài call)
-            if (Math.abs(nextLineWidth - currentLineWidth) >= 0.25) {
-              ctx.stroke();
-              ctx.beginPath();
-              ctx.moveTo(midPrev.x, midPrev.y);
-              ctx.lineWidth = nextLineWidth;
-              currentLineWidth = nextLineWidth;
+            if (p1.isCorner) {
+              cp1x = p1.x + (p2.x - p1.x) / 3;
+              cp1y = p1.y + (p2.y - p1.y) / 3;
+            }
+            if (p2.isCorner) {
+              cp2x = p2.x - (p2.x - p1.x) / 3;
+              cp2y = p2.y - (p2.y - p1.y) / 3;
             }
 
-            ctx.quadraticCurveTo(pCurr.x, pCurr.y, midCurr.x, midCurr.y);
-            midPrev = midCurr;
+            const w1 = getPointWidth(i);
+            const w2 = getPointWidth(i + 1);
+            const segW = (w1 + w2) / 2;
+
+            ctx.lineWidth = segW;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            ctx.stroke();
+
+            // Vòng tròn hàn kín mút giao khớp để triệt tiêu hoàn toàn hiện tượng răng cưa / ngấn khớp
+            ctx.beginPath();
+            ctx.arc(p1.x, p1.y, Math.max(w1, segW) / 2, 0, Math.PI * 2);
+            ctx.fill();
           }
 
-          // 3. Phân đoạn cuối vuốt nhẹ từ Trung điểm cuối đến điểm nhấc bút
-          const pLast = pts[pts.length - 1];
-          ctx.lineTo(pLast.x, pLast.y);
-          ctx.stroke();
+          // Chốt tròn đuôi nét cuối cùng
+          const lastW = getPointWidth(totalPts - 1);
+          ctx.beginPath();
+          ctx.arc(pts[totalPts - 1].x, pts[totalPts - 1].y, lastW / 2, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
     } else if (el.type === 'text') {
@@ -11292,11 +11527,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // Bút vẽ hoặc Dạ quang
       const pr = (point.pressure && point.pressure > 0) ? point.pressure : 0.5;
       point.smoothedPressure = pr;
+      point.pr = pr;
       state.lastSmoothedPressure = pr;
+      state.lastMoveTime = (e && e.timeStamp) ? e.timeStamp : performance.now();
+      state.lastPointSpeed = 0;
       state.streamlinePos = { x: point.x, y: point.y };
       state.currentPath = [point];
 
-      // Vẽ ngay điểm chấm ban đầu (hỗ trợ chấm câu, dấu chấm chữ i, chữ j)
+      // Điểm khởi bút tinh tế, thanh thoát (không bị vệt to bè kiểu chiếc búa)
       ctx.save();
       const dpr = window.devicePixelRatio || 1;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -11305,7 +11543,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.beginPath();
       const dotRadius = state.activeTool === 'highlighter' 
         ? (state.strokeWidth * 3.5) / 2 
-        : Math.max(0.8, (state.strokeWidth * (0.6 + pr * 0.8)) / 2);
+        : Math.max(0.6, (state.strokeWidth * (0.65 + pr * 0.7)) * 0.38);
       ctx.arc(point.x, point.y, dotRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
@@ -12231,6 +12469,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const dpr = window.devicePixelRatio || 1;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.strokeStyle = state.color;
+      ctx.fillStyle = state.color;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -12240,93 +12479,161 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.setLineDash([]);
       }
 
+      // Tính toán khoảng thời gian phân bổ đều cho các điểm coalesced để triệt tiêu sốc gia tốc ảo
+      const nowTime = (e && e.timeStamp) ? e.timeStamp : performance.now();
+      const lastTime = state.lastMoveTime || (nowTime - 16);
+      const totalDt = Math.max(8, Math.min(60, nowTime - lastTime));
+      const dtPerEvent = Math.max(2, totalDt / eventsToProcess.length);
+      state.lastMoveTime = nowTime;
+
       for (let evIdx = 0; evIdx < eventsToProcess.length; evIdx++) {
         const ev = eventsToProcess[evIdx];
         const pt = getCanvasCoordinates(ev);
         const lastPt = state.currentPath.length > 0 ? state.currentPath[state.currentPath.length - 1] : null;
 
+        let dist = 0;
+        let isSharpCorner = false;
+
         if (lastPt) {
           const dx = pt.x - lastPt.x;
           const dy = pt.y - lastPt.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          dist = Math.hypot(dx, dy);
 
-          // Khử rung tay: bỏ qua các điểm di chuyển quá bé (< 1.2px) trừ khi là điểm cuối của loạt event
-          if (dist < 1.2 && evIdx < eventsToProcess.length - 1) {
+          // Khử rung tay vi mô (< 0.7px) trừ khi là sự kiện cuối cùng
+          if (dist < 0.7 && evIdx < eventsToProcess.length - 1) {
             continue;
           }
 
-          // Làm mượt lực nhấn & độ dày nét
+          // Đo đạc vận tốc thực tế của đầu bút (px/ms)
+          const instantSpeed = dist / dtPerEvent;
+          state.lastPointSpeed = (state.lastPointSpeed || 0) * 0.65 + instantSpeed * 0.35;
+
+          // Phát hiện góc nhọn (chữ v, w, M, N, Z, căn bậc hai, dấu sắc/huyền/ngã/hỏi)
+          if (state.currentPath.length >= 2 && dist >= 2.5) {
+            const prevPt = state.currentPath[state.currentPath.length - 2];
+            const v1x = lastPt.x - prevPt.x;
+            const v1y = lastPt.y - prevPt.y;
+            const len1 = Math.hypot(v1x, v1y);
+            if (len1 >= 2.5) {
+              const cosAngle = (v1x * dx + v1y * dy) / (len1 * dist);
+              // Góc quay gắt (> 72 độ tương đương cosAngle < 0.30)
+              if (cosAngle < 0.30) {
+                isSharpCorner = true;
+                lastPt.isCorner = true;
+              }
+            }
+          }
+
+          // Điều hòa lực nhấn mượt mà
           if (pt.pointerType === 'pen' && pt.pressure > 0) {
-            state.lastSmoothedPressure = (state.lastSmoothedPressure * 0.65) + (pt.pressure * 0.35);
+            state.lastSmoothedPressure = (state.lastSmoothedPressure * 0.60) + (pt.pressure * 0.40);
           } else {
-            const dt = Math.max(1, (pt.time || Date.now()) - (lastPt.time || Date.now()));
-            const velocity = dist / dt;
-            const velocityFactor = Math.max(0.2, Math.min(1.0, 1.0 - (velocity - 0.5) * 0.25));
-            state.lastSmoothedPressure = (state.lastSmoothedPressure * 0.7) + (velocityFactor * 0.3);
+            // Chuột / Touch / Trackpad: Mô phỏng lực nhấn bút tự nhiên theo tốc độ viết
+            const speedFactor = Math.max(0.3, Math.min(1.0, 1.0 - (state.lastPointSpeed - 0.4) * 0.28));
+            state.lastSmoothedPressure = (state.lastSmoothedPressure * 0.65) + (speedFactor * 0.35);
           }
         }
 
-        // Bộ lọc động học Streamline Stabilizer (Luôn luôn Siêu siêu mượt khử sạch rung giật thời gian thực)
-        const smoothingFactor = 0.36;
+        // Bộ lọc động học Thích ứng (Adaptive Streamline Filter):
+        // Viết nhanh -> alpha ~ 0.95 (bắt kịp tức thì 0ms, không kéo dây thun trễ nét)
+        // Viết chậm -> alpha ~ 0.65 (lọc êm tay, nắn nét chữ tròn đẹp)
+        // Góc nhọn -> alpha = 1.0 (giữ đỉnh góc sắc sảo, không làm tù chóp chữ v, M, N, căn thức)
+        let alpha = isSharpCorner ? 1.0 : Math.min(0.96, Math.max(0.62, 0.62 + 0.34 * ((state.lastPointSpeed || 0) / 1.4)));
         if (state.streamlinePos) {
-          state.streamlinePos.x += (pt.x - state.streamlinePos.x) * smoothingFactor;
-          state.streamlinePos.y += (pt.y - state.streamlinePos.y) * smoothingFactor;
+          state.streamlinePos.x += (pt.x - state.streamlinePos.x) * alpha;
+          state.streamlinePos.y += (pt.y - state.streamlinePos.y) * alpha;
           pt.x = state.streamlinePos.x;
           pt.y = state.streamlinePos.y;
         } else {
           state.streamlinePos = { x: pt.x, y: pt.y };
         }
 
-        pt.smoothedPressure = state.lastSmoothedPressure || 0.5;
+        pt.pr = state.lastSmoothedPressure || 0.5;
+        pt.smoothedPressure = pt.pr;
+        if (isSharpCorner) pt.isCorner = true;
         state.currentPath.push(pt);
 
-        if (state.activeTool === 'highlighter') {
-          ctx.globalAlpha = 0.35;
-          ctx.lineWidth = state.strokeWidth * 3.5;
-        } else {
-          ctx.globalAlpha = 1.0;
-          const prMid = lastPt ? (pt.smoothedPressure + lastPt.smoothedPressure) / 2 : pt.smoothedPressure;
-          ctx.lineWidth = Math.max(1, state.strokeWidth * (0.6 + prMid * 0.8));
-        }
-
         const len = state.currentPath.length;
-        if (state.penSmoothing === 'normal') {
-          // Chế độ tiêu chuẩn
-          if (len >= 2) {
+        const pts = state.currentPath;
+        const baseW = state.strokeWidth || 1.5;
+
+        if (state.activeTool === 'highlighter') {
+          // Dạ quang vẽ liên tục thời gian thực
+          ctx.globalAlpha = 0.35;
+          ctx.lineWidth = baseW * 3.5;
+          if (len === 2) {
             ctx.beginPath();
-            ctx.moveTo(state.currentPath[len - 2].x, state.currentPath[len - 2].y);
-            ctx.lineTo(state.currentPath[len - 1].x, state.currentPath[len - 1].y);
+            ctx.moveTo(pts[0].x, pts[0].y);
+            ctx.lineTo(pts[1].x, pts[1].y);
+            ctx.stroke();
+          } else if (len >= 3) {
+            const p0 = len >= 4 ? pts[len - 4] : { x: 2 * pts[len - 3].x - pts[len - 2].x, y: 2 * pts[len - 3].y - pts[len - 2].y };
+            const p1 = pts[len - 3];
+            const p2 = pts[len - 2];
+            const p3 = pts[len - 1];
+
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
             ctx.stroke();
           }
         } else {
-          // Chế độ Siêu mượt (Mặc định): Quadratic Bezier qua trung điểm
+          // Bút mực Siêu mượt: Catmull-Rom Cubic Bézier C1 thời gian thực đồng bộ tuyệt đối với drawElement
+          ctx.globalAlpha = 1.0;
           if (len === 2) {
-            const mid = {
-              x: (state.currentPath[0].x + state.currentPath[1].x) / 2,
-              y: (state.currentPath[0].y + state.currentPath[1].y) / 2
-            };
+            const w1 = Math.max(0.7, baseW * (0.65 + pts[0].pr * 0.7) * 0.6);
+            const w2 = Math.max(0.7, baseW * (0.65 + pts[1].pr * 0.7));
+            const segW = (w1 + w2) / 2;
+            ctx.lineWidth = segW;
             ctx.beginPath();
-            ctx.moveTo(state.currentPath[0].x, state.currentPath[0].y);
-            ctx.lineTo(mid.x, mid.y);
+            ctx.moveTo(pts[0].x, pts[0].y);
+            ctx.lineTo(pts[1].x, pts[1].y);
             ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(pts[0].x, pts[0].y, w1 / 2, 0, Math.PI * 2);
+            ctx.arc(pts[1].x, pts[1].y, w2 / 2, 0, Math.PI * 2);
+            ctx.fill();
           } else if (len >= 3) {
-            const pPrev2 = state.currentPath[len - 3];
-            const pPrev1 = state.currentPath[len - 2];
-            const pCurr = state.currentPath[len - 1];
+            // Vẽ phân đoạn p1 -> p2 mượt mà
+            const p0 = len >= 4 ? pts[len - 4] : { x: 2 * pts[len - 3].x - pts[len - 2].x, y: 2 * pts[len - 3].y - pts[len - 2].y };
+            const p1 = pts[len - 3];
+            const p2 = pts[len - 2];
+            const p3 = pts[len - 1];
 
-            const midPrev = {
-              x: (pPrev2.x + pPrev1.x) / 2,
-              y: (pPrev2.y + pPrev1.y) / 2
-            };
-            const midCurr = {
-              x: (pPrev1.x + pCurr.x) / 2,
-              y: (pPrev1.y + pCurr.y) / 2
-            };
+            let cp1x = p1.x + (p2.x - p0.x) / 6;
+            let cp1y = p1.y + (p2.y - p0.y) / 6;
+            let cp2x = p2.x - (p3.x - p1.x) / 6;
+            let cp2y = p2.y - (p3.y - p1.y) / 6;
 
+            if (p1.isCorner) {
+              cp1x = p1.x + (p2.x - p1.x) / 3;
+              cp1y = p1.y + (p2.y - p1.y) / 3;
+            }
+            if (p2.isCorner) {
+              cp2x = p2.x - (p2.x - p1.x) / 3;
+              cp2y = p2.y - (p2.y - p1.y) / 3;
+            }
+
+            const w1 = Math.max(0.7, baseW * (0.65 + p1.pr * 0.7));
+            const w2 = Math.max(0.7, baseW * (0.65 + p2.pr * 0.7));
+            const segW = (w1 + w2) / 2;
+
+            ctx.lineWidth = segW;
             ctx.beginPath();
-            ctx.moveTo(midPrev.x, midPrev.y);
-            ctx.quadraticCurveTo(pPrev1.x, pPrev1.y, midCurr.x, midCurr.y);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
             ctx.stroke();
+
+            // Vòng tròn hàn kín mút giao khớp để triệt tiêu mọi vết gập
+            ctx.beginPath();
+            ctx.arc(p1.x, p1.y, Math.max(w1, segW) / 2, 0, Math.PI * 2);
+            ctx.fill();
           }
         }
       }
@@ -12740,37 +13047,68 @@ document.addEventListener('DOMContentLoaded', () => {
       finishGeoTask(newGeo);
     } else if (state.activeTool === 'pen' || state.activeTool === 'highlighter') {
       const len = state.currentPath ? state.currentPath.length : 0;
+      const pts = state.currentPath || [];
+      const baseW = state.strokeWidth || 1.5;
+
       if (len >= 2 && state.penSmoothing !== 'normal') {
-        // Nối mượt mà từ trung điểm cuối đến điểm kết thúc nhấc bút
-        const pLast2 = state.currentPath[len - 2];
-        const pLast1 = state.currentPath[len - 1];
-        const midLast = {
-          x: (pLast2.x + pLast1.x) / 2,
-          y: (pLast2.y + pLast1.y) / 2
-        };
+        // Nối mượt mà phân đoạn cuối cùng tới điểm nhấc bút thực tế
+        const p0 = len >= 3 ? pts[len - 3] : { x: 2 * pts[len - 2].x - pts[len - 1].x, y: 2 * pts[len - 2].y - pts[len - 1].y };
+        const p1 = pts[len - 2];
+        const p2 = pts[len - 1];
+        const p3 = { x: 2 * p2.x - p1.x, y: 2 * p2.y - p1.y };
+
+        let cp1x = p1.x + (p2.x - p0.x) / 6;
+        let cp1y = p1.y + (p2.y - p0.y) / 6;
+        let cp2x = p2.x - (p3.x - p1.x) / 6;
+        let cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        if (p1.isCorner) {
+          cp1x = p1.x + (p2.x - p1.x) / 3;
+          cp1y = p1.y + (p2.y - p1.y) / 3;
+        }
+        if (p2.isCorner) {
+          cp2x = p2.x - (p2.x - p1.x) / 3;
+          cp2y = p2.y - (p2.y - p1.y) / 3;
+        }
+
         ctx.save();
         const dpr = window.devicePixelRatio || 1;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.strokeStyle = state.color;
+        ctx.fillStyle = state.color;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+
         if (state.dashStyle === 'dashed') {
           ctx.setLineDash([10, 7]);
         } else {
           ctx.setLineDash([]);
         }
+
         if (state.activeTool === 'highlighter') {
           ctx.globalAlpha = 0.35;
-          ctx.lineWidth = state.strokeWidth * 3.5;
+          ctx.lineWidth = baseW * 3.5;
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+          ctx.stroke();
         } else {
           ctx.globalAlpha = 1.0;
-          const pr = (pLast1.smoothedPressure !== undefined && pLast1.smoothedPressure > 0) ? pLast1.smoothedPressure : ((pLast1.pressure !== undefined && pLast1.pressure > 0) ? pLast1.pressure : 0.5);
-          ctx.lineWidth = Math.max(1, state.strokeWidth * (0.6 + pr * 0.8));
+          const w1 = Math.max(0.7, baseW * (0.65 + (p1.pr || 0.5) * 0.7));
+          const w2 = Math.max(0.7, baseW * (0.65 + (p2.pr || 0.5) * 0.7) * 0.55); // Vuốt nhẹ đuôi khi nhấc bút
+          const segW = (w1 + w2) / 2;
+
+          ctx.lineWidth = segW;
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+          ctx.stroke();
+
+          // Chốt tròn đuôi nét bút
+          ctx.beginPath();
+          ctx.arc(p2.x, p2.y, w2 / 2, 0, Math.PI * 2);
+          ctx.fill();
         }
-        ctx.beginPath();
-        ctx.moveTo(midLast.x, midLast.y);
-        ctx.lineTo(pLast1.x, pLast1.y);
-        ctx.stroke();
         ctx.restore();
       }
 
@@ -12779,16 +13117,17 @@ document.addEventListener('DOMContentLoaded', () => {
         let simplified = [];
         for (let i = 0; i < rawPoints.length; i++) {
           const pt = rawPoints[i];
-          const pr = (pt.smoothedPressure !== undefined && pt.smoothedPressure > 0) ? pt.smoothedPressure : ((pt.pressure !== undefined && pt.pressure > 0) ? pt.pressure : 0.5);
-          if (i === 0 || i === rawPoints.length - 1) {
+          const pr = (pt.pr !== undefined && pt.pr > 0) ? pt.pr : ((pt.smoothedPressure !== undefined && pt.smoothedPressure > 0) ? pt.smoothedPressure : ((pt.pressure !== undefined && pt.pressure > 0) ? pt.pressure : 0.5));
+          if (i === 0 || i === rawPoints.length - 1 || pt.isCorner) {
             simplified.push({
               x: Math.round(pt.x * 10) / 10,
               y: Math.round(pt.y * 10) / 10,
-              pr: Math.round(pr * 100) / 100
+              pr: Math.round(pr * 100) / 100,
+              isCorner: !!pt.isCorner
             });
           } else {
             const last = simplified[simplified.length - 1];
-            if (Math.hypot(pt.x - last.x, pt.y - last.y) >= 0.8) {
+            if (Math.hypot(pt.x - last.x, pt.y - last.y) >= 0.7) {
               simplified.push({
                 x: Math.round(pt.x * 10) / 10,
                 y: Math.round(pt.y * 10) / 10,
@@ -12797,14 +13136,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         }
-        let finalPoints = simplified;
-        if (finalPoints.length >= 4) {
-          finalPoints = chaikinSmooth(finalPoints, 1);
-        }
+
+        // Tuyệt đối không áp dụng chaikinSmooth làm co rút, biến dạng góc nhọn và giật nét sau khi nhấc bút.
+        // Dữ liệu spline Catmull-Rom C1 được lưu trữ trung thực 100% với những gì người dùng vừa viết.
         pushNewElement({
           type: 'stroke',
           tool: state.activeTool,
-          points: finalPoints,
+          points: simplified,
           color: state.color,
           width: state.strokeWidth,
           dash: state.dashStyle,
@@ -17102,8 +17440,12 @@ document.addEventListener('DOMContentLoaded', () => {
         copySelectedElements();
         return;
       }
-      if (e.key.toLowerCase() === 'v' && state.activeTool === 'select' && state.clipboardElements && state.clipboardElements.length > 0) {
+      if (e.key.toLowerCase() === 'v' && state.clipboardElements && state.clipboardElements.length > 0) {
         e.preventDefault();
+        if (state.activeTool !== 'select') {
+          const btnSelect = document.getElementById('tool-select');
+          if (btnSelect) btnSelect.click();
+        }
         pasteClipboardElements();
         return;
       }
@@ -17660,11 +18002,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const naturalH = img.naturalHeight || 400;
       const ar = naturalW / naturalH;
 
-      let w = Math.min(naturalW, 700);
+      const viewport = getVisibleCanvasViewport(state.currentPage);
+      // Tự động điều chỉnh kích thước ảnh vừa vặn với vùng nhìn thấy trên màn hình
+      const maxW = Math.min(680, Math.max(260, viewport.width * 0.85));
+      const maxH = Math.min(520, Math.max(200, viewport.height * 0.80));
+
+      let w = Math.min(naturalW, maxW);
       let h = Math.round(w / ar);
-      if (h > 550) {
-        h = 550;
+      if (h > maxH) {
+        h = maxH;
         w = Math.round(h * ar);
+      }
+      if (w > maxW) {
+        w = maxW;
+        h = Math.round(w / ar);
       }
 
       let x, y;
@@ -17672,13 +18023,10 @@ document.addEventListener('DOMContentLoaded', () => {
         x = Math.round(customCoords.x - w / 2);
         y = Math.round(customCoords.y - h / 2);
       } else {
-        const activeC = getCanvasForPage(state.currentPage) || canvas;
-        const rect = activeC.getBoundingClientRect();
-        const dims = getCanvasDimensions();
-        const viewportCenterY = canvasContainer.scrollTop + canvasContainer.clientHeight / 2;
-        const canvasY = Math.max(0, Math.min(dims.height, ((viewportCenterY - rect.top) / (rect.height || dims.height)) * dims.height));
-        x = Math.max(40, Math.min(dims.width - w - 40, Math.round((dims.width - w) / 2)));
-        y = Math.max(40, Math.min(dims.height - h - 40, Math.round(canvasY - h / 2)));
+        // Tự động tìm khoảng trống trên vùng màn hình đang hiển thị (không mặc định dán đầu/cuối trang)
+        const spot = findBestEmptySpotInViewport(w, h, state.currentPage);
+        x = spot.x;
+        y = spot.y;
       }
 
       const imgEl = {
@@ -18034,6 +18382,9 @@ document.addEventListener('DOMContentLoaded', () => {
       cutSelectedElements,
       copySelectedElements,
       pasteClipboardElements,
+      getVisibleCanvasViewport,
+      findBestEmptySpotInViewport,
+      insertImageToCurrentPage,
       duplicateSelectedElements,
       deleteSelectedElements,
       changeSelectedElementsColor,

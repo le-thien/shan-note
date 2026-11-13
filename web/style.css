@@ -5478,6 +5478,120 @@ kbd {
   box-shadow: 0 1px 3px rgba(40, 99, 78, 0.25);
 }
 
+/* Thanh chọn Chế độ hiển thị 3D sáng tạo */
+.preview-3d-modes-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  background: #f1f5f9;
+  border: 1px solid rgba(40, 99, 78, 0.12);
+  border-radius: 7px;
+  padding: 3px;
+  margin-top: 1px;
+}
+.btn-3d-mode {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 4px 4px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  text-align: center;
+}
+.btn-3d-mode:hover {
+  background: rgba(124, 58, 237, 0.08);
+  color: #6d28d9;
+}
+.btn-3d-mode.active {
+  background: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.3);
+}
+
+/* Thanh thao tác nhanh góc quay 3D */
+.preview-3d-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 2px;
+}
+.btn-3d-act {
+  flex: 1;
+  border: 1px solid rgba(40, 99, 78, 0.16);
+  background: #ffffff;
+  padding: 4px 4px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.btn-3d-act:hover {
+  background: #f8fafc;
+  border-color: #7c3aed;
+  color: #7c3aed;
+}
+.btn-3d-act.active {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #7c3aed;
+}
+
+/* Card chọn chế độ 3D trong Tab 4 */
+.rev-mode-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+.btn-rev-mode-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1.5px solid rgba(40, 99, 78, 0.18);
+  background: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+.btn-rev-mode-card:hover {
+  border-color: #7c3aed;
+  background: #faf5ff;
+}
+.btn-rev-mode-card.active {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.15);
+}
+.btn-rev-mode-card .mode-card-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.btn-rev-mode-card .mode-card-text {
+  font-size: 11.5px;
+  line-height: 1.25;
+  color: #1e293b;
+}
+.btn-rev-mode-card .mode-card-text small {
+  color: #64748b;
+  font-size: 10px;
+}
+
 .preview-canvas-wrap {
   position: relative;
   border: 1px solid rgba(40, 99, 78, 0.18);

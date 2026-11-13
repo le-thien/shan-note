@@ -2,6 +2,65 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Dán Ảnh/Đối Tượng Thông Minh Vào Khoảng Trống Trên Màn Hình Đang Hiển Thị (v84)] - 13/11/2026
+
+- **1. Xác Định Vùng Khung Nhìn Thực Tế Trên Màn Hình (`getVisibleCanvasViewport` - `web/app.js`):**
+  - Tự động tính toán vùng giao thoa giữa khung cuộn trình duyệt và trang giấy canvas bằng `getBoundingClientRect()`.
+  - Triệt tiêu lỗi tính toán cũ pha trộn `scrollTop` và `rect.top` khiến ảnh luôn bị dán lệch ra ngoài tầm nhìn (đáy trang hoặc đầu trang).
+- **2. Tự Động Tìm Khoảng Trống Không Bị Che Lấp (`findBestEmptySpotInViewport` - `web/app.js`):**
+  - Quét tìm vị trí trống trong khung nhìn hiện tại của màn hình mà không đè lên nét bút, hình học, ảnh hoặc chữ đã viết trước đó.
+  - Nếu chính giữa màn hình trống: dán ngay trung tâm. Nếu chính giữa đã có nội dung: tự động tìm vị trí trống lân cận trong tầm mắt để không che lấp nội dung cũ.
+  - Tự động co giãn kích thước ảnh dán vào vừa vặn với kích thước khung nhìn màn hình của thiết bị.
+- **3. Đồng Bộ Thao Tác Cắt / Dán & Dán Ảnh Từ Clipboard (`web/app.js`):**
+  - Khi Cắt đối tượng (`cutSelectedElements`) hoặc sao chép rồi cuộn sang vùng khác: lệnh Dán (`pasteClipboardElements`) tự động đặt đối tượng vào khoảng trống của màn hình đang hiển thị.
+  - Hỗ trợ phím tắt Cmd+V / Ctrl+V dán mọi lúc mọi nơi và tự động chuyển sang công cụ Chọn.
+- **4. Nâng Cấp Cache & Kiểm Thử Toàn Diện (`web/sw.js`, `web/index.html`, `scratch/test_paste_empty_viewport.js`):**
+  - Viết bộ kiểm thử `scratch/test_paste_empty_viewport.js` kiểm tra 10 tiêu chí toán học định vị viewport và tránh đè hình (đạt 10/10 test).
+  - Nâng cache Service Worker lên `net-app-v84` và cập nhật query string `?v=20261113_1725` trong `web/index.html`.
+
+## [Nâng Cấp Động Học Bút Vẽ Siêu Mượt, Triệt Tiêu Giật Lag & Co Rút Biến Dạng Khi Nhấc Bút (v83)] - 13/11/2026
+
+- **1. Bộ Lọc Động Học Thích Ứng (Adaptive Streamline Filter - `web/app.js`):**
+  - Tự động điều chỉnh hệ số bám đuổi $\alpha \in [0.62, 0.96]$ theo tốc độ thực tế của đầu bút: khi viết nhanh, gạch chữ 't', phẩy dấu: $\alpha \to 0.96$ giúp nét bám sát đầu bút tức thì $0\text{ms}$, triệt tiêu hoàn toàn cảm giác "kéo dây thun" bị trễ nét. Khi viết chậm, nắn nót: $\alpha \to 0.62$ giúp lọc sạch rung giật tay.
+  - Phân bổ đều thời gian cho các sự kiện gộp (`e.getCoalescedEvents()`) để tính vận tốc và lực nhấn mượt mà, triệt tiêu hiện tượng phình to vệt mực giả lập.
+- **2. Bảo Toàn Đỉnh Góc Nhọn & Dấu Tiếng Việt (Sharp Corner Preservation - `web/app.js`):**
+  - Nhận diện góc quay gắt $> 72^\circ$ ($\cos \theta < 0.30$) đối với chữ v, w, M, N, Z, $\sqrt{}$, các dấu sắc/huyền/hỏi/ngã.
+  - Đưa $\alpha = 1.0$ tại đỉnh góc nhọn và đánh dấu `isCorner = true`, giữ nguyên chóp nhọn sắc sảo tự nhiên, không bị bo tròn làm tù góc chữ.
+- **3. Đường Cong Spline Catmull-Rom $C^1$ Liên Tục & Đồng Bộ Tuyệt Đối (`web/app.js`):**
+  - Đồng bộ thuật toán vẽ Catmull-Rom cubic Bézier giữa lúc đang rê chuột/bút thời gian thực và lúc vẽ lại vĩnh viễn trên canvas qua `drawElement()`.
+  - Hàn tròn mút giao khớp để triệt tiêu hoàn toàn răng cưa và ngấn nối phân đoạn.
+  - Tinh chỉnh điểm khởi bút thanh thoát (`* 0.38`), không còn đốm to bè kiểu chiếc búa.
+- **4. Loại Bỏ Hoàn Toàn Thuật Toán Thu Nhỏ Nét (Chaikin Smooth - `web/app.js`):**
+  - Bỏ bước cắt xén góc 25% sau khi nhấc bút (`chaikinSmooth(points, 1)`), loại bỏ triệt để hiện tượng nét bút bị giật nảy, co rút hoặc lệch vị trí khi vừa nhấc tay khỏi màn hình/bảng vẽ.
+- **5. Nâng Cấp Cache & Kiểm Thử Toàn Diện (`web/sw.js`, `web/index.html`, `scratch/test_pen_smoothness.js`):**
+  - Viết bộ kiểm thử `scratch/test_pen_smoothness.js` kiểm tra 9 tiêu chí toán học Catmull-Rom, bảo toàn góc nhọn và tính toàn vẹn đường nét (đạt 9/9 test).
+  - Nâng cache Service Worker lên `net-app-v83` và cập nhật query string `?v=20261113_1345` trong `web/index.html`.
+
+## [Tối Ưu Tác Vụ Đồ Thị - Khắc Phục Lỗi 600 Giao Điểm, Sửa Nhãn Tọa Độ Kép & 4 Chế Độ Hiển Thị Khối 3D Sáng Tạo (v82)] - 08/11/2026
+
+- **1. Sửa Lỗi 600 Giao Điểm Trùng Nhau Khi f(x) = g(x) (`web/graph_widget.js`):**
+  - Tự động phát hiện hai hàm số được chọn giống nhau hoặc trùng nhau trên miền khảo sát.
+  - Ngăn chặn triệt để thuật toán tìm nghiệm số học lặp qua từng bước nhỏ đẩy 600 điểm giao trùng lặp ra màn hình.
+  - Hiển thị hộp thông báo màu hổ phách cảnh báo học sinh hai hàm đang trùng nhau, đồng thời tự động gợi ý / thêm hàm $y2 = 2 - x$ khi học sinh chuyển sang tính diện tích giữa 2 hàm mà bảng mới có 1 hàm.
+- **2. Chống Trùng Lặp Nhãn Tọa Độ & Cải Thiện Độ Rõ Nét (`web/graph_widget.js`):**
+  - Khắc phục lỗi in nhãn tọa độ kép (như `M1(-1.3; 3.3) (-1.3, 3.3)`, `C(0; -1) (0, -1)`, `I(1; -2) (1, -2)`): nếu nhãn đã chứa sẵn tọa độ thì giữ nguyên tên điểm chuẩn, không in thêm đuôi `(x, y)`.
+  - Không vẽ đè điểm giao cắt màu đỏ khi điểm đó đã có trong danh sách điểm đặc biệt.
+  - Bổ sung nền thẻ màu trắng mờ (`rgba(255, 255, 255, 0.88)`) phía sau mọi nhãn điểm và nhãn đường cận $x = a, x = b$ để chống chìm hoặc bị đường lưới cắt ngang.
+  - Đường dóng cận $x = 0$ được đưa nhãn lên góc trên cùng của khung để không bị đè lên gốc tọa độ $O(0, 0)$.
+- **3. Bổ Sung 4 Chế Độ Hiển Thị Khối Tròn Xoay 3D Sáng Tạo & Đẹp Mắt (`web/index.html`, `web/style.css`, `web/graph_widget.js`):**
+  - Khắc phục hiện tượng góc quét mặc định bằng 0° khiến khối 3D bị phẳng lỳ thành lát cắt 2D: khi mở xem trước 3D, hệ thống tự động khởi tạo ở góc quay 360° (hoặc 180° nếu ở chế độ bổ đôi).
+  - Tích hợp 4 chế độ trực quan sinh động theo chuẩn Sách giáo khoa Giải tích 12:
+    1. 🌟 **Khối 3D mượt mà (`smooth`):** Bề mặt tròn xoay hoàn chỉnh 360° với đổ bóng ánh sáng chân thực (Lambertian shading) và các vòng vĩ tuyến rõ nét.
+    2. 💿 **Lát cắt đĩa Riemann ΔV (`disks`):** Mô phỏng 12–14 khối trụ tròn xoay xếp chồng thể hiện trực quan phương pháp lát cắt đĩa trong tích phân Giải tích 12, kèm nhãn công thức vi phân $\Delta V_i \approx \pi [f(x_i)]^2 \Delta x \to V = \pi \int f^2(x) dx$.
+    3. ✂️ **Bổ đôi 180° (`halfcut`):** Bổ dọc nửa khối 180° với mặt cắt ruột màu san hô rực rỡ, giúp học sinh nhìn thấu cấu trúc rỗng bên trong và độ dày của khối thể tích.
+    4. 🕸️ **Khung dây không gian (`wireframe`):** Hiển thị hệ thống lưới kinh vĩ tuyến không gian 3D dạng xuyên thấu công nghệ cao.
+- **4. Thao Tác Xoay 3D Đa Hướng & Thanh Thao Tác Nhanh (`web/graph_widget.js`):**
+  - Hỗ trợ kéo chuột trực tiếp trên khung xem trước 3D: kéo ngang xoay góc trục quanh tâm (Yaw), kéo dọc thay đổi góc nghiêng nhìn xuống (Tilt).
+  - Thanh nút chuyển nhanh góc quay: `▶️ Tự động xoay`, `🌕 360°`, `🌗 180°`, `↺ 0° (Phẳng)`.
+- **5. Nâng Cấp Cache & Kiểm Thử Toàn Diện (`web/sw.js`, `web/index.html`, `scratch/test_graph_widget_fixes.js`):**
+  - Viết bộ kiểm thử `scratch/test_graph_widget_fixes.js` kiểm tra 8 tiêu chí toán học và dựng hình 3D (đạt 8/8 test).
+  - Nâng cache Service Worker lên `net-app-v82` và cập nhật query string `?v=20261108_1830` trong `web/index.html`.
+
 ## [Ưu Tiên Hiển Thị Thao Tác Bấm Trên Dòng Nhập Liệu LCD & Giữ Ô Ma Trận Gọn Gàng Chuẩn Casio ClassWiz (v81)] - 07/11/2026
 
 - **1. Giữ Ô Ma Trận Hệ Số Gọn Gàng Chuẩn Casio ClassWiz Thật (`web/fx580.js`):**

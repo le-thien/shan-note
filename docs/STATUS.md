@@ -1,12 +1,34 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 07/11/2026
+**Cập nhật lần cuối:** 13/11/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Dán Ảnh/Đối Tượng Thông Minh Vào Khoảng Trống Trên Màn Hình Đang Hiển Thị (v84):**
+    + *Nhận Diện Chính Xác Vùng Nhìn Thấy (`getVisibleCanvasViewport`):* Xác định tọa độ canvas thực tế đang hiển thị trên màn hình dựa theo giao điểm hình học của khung nhìn và trang giấy, triệt tiêu lỗi tính toán cũ khiến ảnh luôn bị dán lệch xuống đáy hoặc kẹt ở đầu trang.
+    + *Tìm Khoảng Trống Tối Ưu (`findBestEmptySpotInViewport`):* Tự động quét và phát hiện vùng trống trên màn hình không bị chữ hoặc hình vẽ khác che phủ để dán ảnh/đối tượng vào ngay trước mắt người dùng. Nếu chính giữa màn hình trống, đặt ngay trung tâm; nếu đã có chữ/hình, tự động tìm khoảng trống lân cận trong tầm nhìn để không che lấp nội dung cũ.
+    + *Hỗ Trợ Toàn Diện Cho Cắt/Dán & Dán Ảnh Clipboard:* Áp dụng đồng bộ cho cả thao tác Cắt đối tượng (`cutSelectedElements` -> `pasteClipboardElements`) và Dán ảnh chụp màn hình / ảnh chép từ ngoài vào qua Cmd+V / Ctrl+V (`insertImageToCurrentPage`).
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v84` và cập nhật query string `?v=20261113_1725` trong `web/index.html`.
+  - **Nâng Cấp Động Học Bút Vẽ Siêu Mượt, Triệt Tiêu Giật Lag & Co Rút Biến Dạng Khi Nhấc Bút (v83):**
+    + *Bộ Lọc Động Học Thích Ứng (Adaptive Streamline Filter):* Tự động điều chỉnh hệ số bám đuổi $\alpha \in [0.62, 0.96]$ theo tốc độ thực tế của đầu bút. Khi viết nhanh, gạch chữ 't', phẩy dấu sắc/huyền/hỏi/ngã: $\alpha \to 0.96$ giúp nét bám sát đầu bút tức thì $0\text{ms}$, triệt tiêu hoàn toàn cảm giác "kéo dây thun" bị trễ nét. Khi viết chậm, nắn nót: $\alpha \to 0.62$ giúp lọc sạch rung giật tay.
+    + *Bảo Toàn Góc Nhọn & Dấu Tiếng Việt (Sharp Corner Preservation):* Tự động nhận diện đỉnh góc nhọn (góc quay $> 72^\circ$, chữ v, w, M, N, Z, $\sqrt{}$, các dấu thanh) và đưa $\alpha = 1.0$ tại đỉnh góc, giữ nguyên chóp nhọn sắc sảo, không bị bo tròn làm tù chữ.
+    + *Spline Catmull-Rom $C^1$ Thời Gian Thực & Đồng Bộ Tuyệt Đối:* Sử dụng đường cong $C^1$ Catmull-Rom cubic Bézier liên tục trong suốt quá trình rê bút và vẽ lại trên canvas, kết hợp hàn tròn mút giao điểm. Nét bút hiển thị thời gian thực thế nào thì khi nhấc bút lưu lại chính xác $100\%$ như vậy.
+    + *Loại Bỏ Hoàn Toàn Thuật Toán Thu Nhỏ Nét (Chaikin Smooth):* Bỏ bước cắt xén góc 25% sau khi nhấc bút, giải quyết dứt điểm phản ánh nét bút bị giật nảy hoặc co rút biến dạng khi vừa nhấc tay khỏi màn hình/bảng vẽ.
+    + *Triệt Tiêu Xung Vận Tốc Ảo Ở Sự Kiện Coalesced:* Chia đều thời gian cho các sự kiện gộp để tính vận tốc và lực nhấn mượt mà, không bị phình to vệt cục bộ dạng chiếc búa.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v83` và cập nhật query string `?v=20261113_1345` trong `web/index.html`.
+  - **Tối Ưu Tác Vụ Đồ Thị - Sửa Lỗi 600 Giao Điểm Trùng Nhau, Chống Lặp Nhãn Tọa Độ & 4 Chế Độ Hiển Thị Khối 3D Sáng Tạo (v82):**
+    + *Khắc Phục Lỗi 600 Giao Điểm (Hình 1):* Triệt tiêu hoàn toàn lỗi khi chọn hai hàm số giống nhau $f(x) \equiv g(x)$ làm sinh ra 600 điểm cắt đỏ dày đặc trên đồ thị. Tự động phát hiện hai hàm số trùng nhau, hiển thị cảnh báo hướng dẫn người dùng chọn 2 hàm khác nhau hoặc tự động thêm đường thẳng $y2 = 2 - x$ khi người dùng chuyển sang chế độ "Giữa 2 hàm số" mà chỉ có 1 hàm trong danh sách.
+    + *Khắc Phục Lỗi Trùng Lặp Nhãn Tọa Độ (Hình 2):* Loại bỏ hoàn toàn lỗi in lặp tọa độ kép (như `M1(-1.3; 3.3) (-1.3, 3.3)`, `C(0; -1) (0, -1)`, `I(1; -2) (1, -2)`). Bổ sung nền thẻ mờ cho tất cả nhãn điểm đặc biệt giúp nhãn luôn sắc nét, không bị đường lưới cắt ngang; đưa nhãn cận $x = 0$ lên đỉnh khung để không đè lên gốc tọa độ $O(0, 0)$.
+    + *4 Chế Độ Hiển Thị Khối 3D Trực Quan Sáng Tạo (Hình 3):*
+      1. 🌟 **Khối 3D Mượt Mà (`smooth`):** Khối tròn xoay mượt 360° với đổ bóng ánh sáng bề mặt (Lambertian shading) và các vòng vĩ tuyến sắc sảo.
+      2. 💿 **Lát Cắt Đĩa Riemann ΔV (`disks`):** Mô phỏng 12–14 hình trụ tròn xoay xếp chồng thể hiện trực quan phương pháp lát cắt đĩa trong Giải tích 12, kèm nhãn công thức vi phân $\Delta V_i \approx \pi [f(x_i)]^2 \Delta x \to V = \pi \int f^2(x) dx$.
+      3. ✂️ **Bổ Đôi 180° (`halfcut`):** Cắt ngang 180° với mặt cắt ruột màu san hô nổi bật, giúp học sinh nhìn rõ cấu trúc lòng trong và độ dày thành khối.
+      4. 🕸️ **Khung Dây Không Gian (`wireframe`):** Hiển thị mạng lưới kinh vĩ tuyến không gian 3D dạng xuyên thấu công nghệ cao.
+    + *Thao Tác Xoay 3D Mượt Mà:* Tích hợp điều khiển xoay chuột đa hướng (kéo ngang xoay quanh trục/yaw, kéo dọc thay đổi góc nghiêng/tilt), nút bấm chuyển nhanh `🌕 360°`, `🌗 180°`, `↺ 0° (Phẳng)` và chế độ `▶️ Tự động xoay`.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v82` và cập nhật query string `?v=20261108_1830` trong `web/index.html`.
   - **Ưu Tiên Hiển Thị Thao Tác Bấm Trên Dòng Nhập Liệu LCD & Giữ Ô Ma Trận Gọn Gàng Chuẩn Casio ClassWiz (v81):**
     + *Loại Bỏ Biểu Thức Bấm Dở Khỏi Ô Ma Trận Nhỏ:* Các ô ma trận phía trên ($a, b, c$) chỉ hiển thị giá trị số hoặc phân số đã lưu cố định, không còn nhét các biểu thức dở dang (như `(√2...`) vào ô ma trận hẹp gây tràn hoặc chật chội.
     + *Tập Trung Toàn Bộ Thao Tác Bấm Vào Thanh Nhập Liệu Dưới Đáy (`a=`, `b=`, `c=`):* Mở rộng không gian thanh nhập liệu dưới đáy màn hình LCD (`min-height: calc(18px * var(--lcd-scale, 1))`, cỡ chữ `calc(13.5px * var(--lcd-scale, 1))`), hiển thị rõ ràng từng phím bấm căn thức `√(`, lũy thừa, phân số, đóng mở ngoặc cùng con trỏ nhấp nháy chân thực 100% như máy tính Casio fx-580VN X thật. Khi bấm `=`, biểu thức tự động tính toán ra giá trị và cập nhật vào ô ma trận.

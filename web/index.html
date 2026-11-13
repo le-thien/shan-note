@@ -1745,8 +1745,32 @@
                 </div>
               </div>
 
+              <!-- Chế độ hiển thị 3D trực quan sáng tạo -->
+              <div class="graph-section-card">
+                <label class="graph-group-title">2. Chế độ hiển thị 3D trực quan:</label>
+                <div class="rev-mode-cards" id="tab-rev-mode-cards">
+                  <button type="button" class="btn-rev-mode-card active" data-mode="smooth">
+                    <span class="mode-card-icon">🌟</span>
+                    <span class="mode-card-text"><b>Khối 3D mượt</b><br><small>Bề mặt mượt đổ bóng ánh sáng</small></span>
+                  </button>
+                  <button type="button" class="btn-rev-mode-card" data-mode="disks">
+                    <span class="mode-card-icon">💿</span>
+                    <span class="mode-card-text"><b>Lát cắt đĩa</b><br><small>Phương pháp đĩa vi phân ΔV</small></span>
+                  </button>
+                  <button type="button" class="btn-rev-mode-card" data-mode="halfcut">
+                    <span class="mode-card-icon">✂️</span>
+                    <span class="mode-card-text"><b>Bổ đôi 180°</b><br><small>Cắt đôi nhìn cấu trúc lòng trong</small></span>
+                  </button>
+                  <button type="button" class="btn-rev-mode-card" data-mode="wireframe">
+                    <span class="mode-card-icon">🕸️</span>
+                    <span class="mode-card-text"><b>Khung dây</b><br><small>Lưới không gian kinh vĩ tuyến</small></span>
+                  </button>
+                </div>
+              </div>
+
               <!-- Chọn hàm quay và cận tích phân -->
               <div class="graph-section-card">
+                <label class="graph-group-title">3. Chọn hàm số &amp; cận tích phân:</label>
                 <div class="graph-rev-row">
                   <div class="rev-col">
                     <label>Đường cong chính y = f(x):</label>
@@ -1762,7 +1786,7 @@
 
                 <div class="graph-rev-row" style="margin-top: 10px;">
                   <div class="rev-col full-width">
-                    <label>2. Khoảng cận quay trên trục hoành [a; b]:</label>
+                    <label>Khoảng cận quay trên trục hoành [a; b]:</label>
                     <div class="rev-range-inputs">
                       <span>Từ x = a =</span>
                       <input type="number" id="input-rev-ox-min" step="0.5" value="0">
@@ -1838,12 +1862,30 @@
               <button type="button" id="btn-preview-mode-3d" class="btn-preview-mode">🔄 Khối 3D</button>
             </div>
           </div>
+
+          <!-- Thanh chọn Chế độ hiển thị 3D sáng tạo (Khối mượt / Lát cắt đĩa / Bổ đôi 180° / Khung dây) -->
+          <div id="preview-3d-modes-bar" class="preview-3d-modes-bar" style="display: none;">
+            <button type="button" class="btn-3d-mode active" data-mode="smooth" title="Khối bề mặt 3D mượt mà, đổ bóng ánh sáng">🌟 Mượt mà</button>
+            <button type="button" class="btn-3d-mode" data-mode="disks" title="Mô hình các lát cắt đĩa / vành khăn xếp chồng (Phương pháp đĩa)">💿 Lát cắt đĩa</button>
+            <button type="button" class="btn-3d-mode" data-mode="halfcut" title="Bổ đôi khối 180° để nhìn cấu trúc lòng trong">✂️ Bổ đôi 180°</button>
+            <button type="button" class="btn-3d-mode" data-mode="wireframe" title="Khung dây không gian 3D tinh xảo">🕸️ Khung dây</button>
+          </div>
+
           <div class="preview-canvas-wrap">
             <canvas id="graph-modal-preview-canvas" width="360" height="320"></canvas>
             <div id="preview-3d-hint" class="preview-3d-hint" style="display: none;">
-              💡 Kéo chuột lên/xuống trên hình để đổi góc nghiêng 3D
+              💡 Kéo chuột để xoay 3D đa hướng (nghiêng &amp; quanh trục)
             </div>
           </div>
+
+          <!-- Thanh thao tác nhanh góc quay 3D -->
+          <div id="preview-3d-actions-bar" class="preview-3d-actions-bar" style="display: none;">
+            <button type="button" id="btn-quick-3d-spin" class="btn-3d-act" title="Tự động xoay 360°">▶️ Tự động xoay</button>
+            <button type="button" id="btn-quick-3d-360" class="btn-3d-act" title="Xem trọn vẹn 360°">🌕 360°</button>
+            <button type="button" id="btn-quick-3d-180" class="btn-3d-act" title="Cắt nửa khối 180°">🌗 180°</button>
+            <button type="button" id="btn-quick-3d-0" class="btn-3d-act" title="Về hình phẳng 0°">↺ 0° (Phẳng)</button>
+          </div>
+
           <div id="preview-live-summary" class="preview-live-summary">
             Đang hiển thị đồ thị hàm số trên hệ trục Oxy
           </div>
@@ -1921,14 +1963,14 @@
   <!-- Module Máy tính Casio fx-580VN X -->
   <script src="fx580.js?v=20261107_1505"></script>
   <!-- Module Đồ thị hàm số & 3D Solid of Revolution -->
-  <script src="graph_widget.js?v=20261102_1955"></script>
+  <script src="graph_widget.js?v=20261113_1345"></script>
   <!-- Module Video Hướng dẫn Dựng hình có minh họa lời nói -->
   <script src="tutorials.js?v=20261107_1355"></script>
-  <script src="app.js?v=20261107_1505"></script>
+  <script src="app.js?v=20261113_1725"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20261107_1505').catch(function() {});
+        navigator.serviceWorker.register('./sw.js?v=20261113_1725').catch(function() {});
       });
     }
   </script>
