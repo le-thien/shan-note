@@ -2,6 +2,32 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Tối Ưu Hóa Đồ Thị, Mô Phỏng Khối Xoay 3D Sáng Tạo, Vẽ Nửa Đường Tròn & Dựng Đường Kính (v86)] - 18/11/2026
+
+- **1. Khắc Phục Triệt Để Lỗi 600 Giao Điểm Rác Khi Trùng Hàm (`web/graph_widget.js`):**
+  - Tối ưu hóa hàm `findTwoFunctionsIntersections`: tự động chuẩn hóa chuỗi và kiểm tra mẫu 11 điểm kiểm định. Khi hai hàm trùng nhau, lập tức trả về rỗng và hiển thị cảnh báo thân thiện trên giao diện.
+  - Tự động bão hòa và ngăn chặn sinh hàng trăm nghiệm rác, giới hạn hiển thị tối đa 4 giao điểm đầu tiên kèm "..." để bảo vệ giao diện không bị vỡ.
+- **2. Triệt Tiêu Hoàn Toàn Lỗi In Đúp Nhãn Tọa Độ (`web/graph_widget.js`):**
+  - Tinh chỉnh hàm `drawSpecialPoint` và `drawAreaCalculationRegion`: dùng regex nhận diện nhãn đã chứa sẵn tọa độ dạng `M1(x; y)` hoặc `(x; y)`.
+  - Nhãn tọa độ chỉ được vẽ duy nhất 1 lần với thẻ pill nền trắng mờ bo góc thanh lịch, loại bỏ triệt để việc in lặp lại đuôi `(-1.3, 3.3)`.
+- **3. Mô Phỏng Khối Tròn Xoay 3D Đẹp & Sáng Tạo Giúp Học Sinh Dễ Trực Quan (`web/graph_widget.js`):**
+  - Mặc định hiển thị khối tròn xoay hoàn chỉnh 360° khi mở tab Khối 3D hoặc bấm nút 3D, xóa bỏ hiện tượng trơ trọi chỉ có 1 hình elip cam và miền $S$ phẳng.
+  - Tích hợp hiệu ứng *Ghost 3D Silhouette* (khung dây bóng ma 3D ảo nét đứt) khi góc quay ở 0°, giúp học sinh lập tức hình dung được vật thể không gian tương lai sẽ tạo thành từ miền phẳng $S$.
+  - Đổ bóng studio gradient đa tầng mượt mà, hỗ trợ chuyển nhanh giữa các chế độ: Mượt mà 360°, Lát cắt đĩa vi phân Riemann ($\Delta V = \pi R^2 \Delta x$), Bổ đôi khối 180°, và Hoạt ảnh quay động tự động 60fps.
+- **4. Bổ Sung Công Cụ "Nửa Đường Tròn (Biết Trước Đường Kính, Xác Định Tâm)" (`web/index.html`, `web/app.js`):**
+  - Thêm nút công cụ trong dropdown Hình cơ bản (`data-geo="semicircle"`).
+  - Thao tác: Chọn công cụ $\to$ Chọn 2 điểm mút đường kính $A, B$ (hoặc kéo chuột từ $A$ sang $B$).
+  - Tự động tính tâm $O = ((A.x+B.x)/2, (A.y+B.y)/2)$, bán kính $R = |AB|/2$.
+  - Vẽ cung nửa đường tròn, đoạn kính nối $A, B$, và tự động đánh dấu tâm $O$ trên bảng vẽ.
+  - Hỗ trợ đầy đủ tay cầm co giãn/xoay tại $A, B$ và di chuyển tại tâm $O$.
+- **5. Bổ Sung Công Cụ Dựng Hình "Đường Kính" (`web/index.html`, `web/app.js`):**
+  - Thêm nút công cụ trong dropdown Dựng hình (`data-geo="diameter"`).
+  - Thao tác: Chọn công cụ Đường kính $\to$ Bấm chọn 1 điểm $P$ trên đường tròn.
+  - Tự động xác định tâm $O$, tính điểm đối diện $P' = (2 O.x - P.x, 2 O.y - P.y)$, dựng đoạn thẳng đường kính $PP'$ đi qua tâm $O$.
+  - Gắn ràng buộc hình học động hai chiều (`circle_diameter`): tự động cập nhật đường kính khi đường tròn di chuyển hoặc co giãn.
+- **6. Nâng Cấp Cache Service Worker (`web/sw.js`, `web/index.html`):**
+  - Nâng cache Service Worker lên `net-app-v86` và cập nhật query string `?v=20261118_v86` trong `web/index.html`.
+
 ## [Tối Ưu Hóa Toàn Diện Viết & Xóa - Khử 2 Vòng Tròn Tẩy, Sạch 100% Rác Nét & Tâm Ngắm Hình Học Tinh Tế (v85)] - 17/11/2026
 
 - **1. Xóa Bỏ Hoàn Toàn Vòng Tròn Hồng Trễ Nét Của Tẩy (`web/app.js`):**

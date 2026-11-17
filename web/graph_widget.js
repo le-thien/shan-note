@@ -314,7 +314,9 @@
   // Tìm các giao điểm giữa 2 hàm số f(x) và g(x)
   function findTwoFunctionsIntersections(expr1, expr2, minX = -12, maxX = 12) {
     if (!expr1 || !expr2) return [];
-    if (expr1.trim() === expr2.trim()) {
+    const s1 = expr1.replace(/\s+/g, '').toLowerCase();
+    const s2 = expr2.replace(/\s+/g, '').toLowerCase();
+    if (s1 === s2) {
       // Hai biểu thức giống hệt nhau -> trùng nhau vô số điểm
       return [];
     }
@@ -323,8 +325,8 @@
     const fn2 = compileMathExpr(expr2);
     if (!fn1 || !fn2) return [];
 
-    // Kiểm tra mẫu 7 điểm: nếu cả 7 điểm đều có giá trị bằng nhau thì 2 hàm trùng nhau hoàn toàn
-    const sampleX = [-4, -2, -0.5, 0.5, 2, 3.5, 5];
+    // Kiểm tra mẫu 11 điểm kiểm định: nếu cả 11 điểm đều có giá trị bằng nhau thì 2 hàm trùng nhau hoàn toàn
+    const sampleX = [-5, -3.5, -2, -1, -0.2, 0.5, 1.8, 3, 4.2, 6, 8];
     let sameCount = 0;
     let validCount = 0;
     for (const sx of sampleX) {
@@ -332,7 +334,7 @@
       const y2 = fn2(sx);
       if (!isNaN(y1) && !isNaN(y2) && isFinite(y1) && isFinite(y2)) {
         validCount++;
-        if (Math.abs(y1 - y2) < 1e-5) sameCount++;
+        if (Math.abs(y1 - y2) < 1e-4) sameCount++;
       }
     }
     if (validCount >= 4 && sameCount === validCount) {
@@ -342,13 +344,14 @@
 
     const diffFn = (x) => fn1(x) - fn2(x);
     const roots = [];
-    const step = 0.04;
+    const step = 0.05;
     let prevX = minX;
     let prevY = diffFn(prevX);
+    let closeToZeroSteps = 0;
 
     const addRoot = (rx) => {
       const val = Number(rx.toFixed(3));
-      if (!roots.some(r => Math.abs(r - val) < 0.05) && roots.length < 12) {
+      if (!roots.some(r => Math.abs(r - val) < 0.06) && roots.length < 10) {
         roots.push(val);
       }
     };
@@ -361,8 +364,16 @@
         continue;
       }
 
+      if (Math.abs(curY) < 1e-4) {
+        closeToZeroSteps++;
+        if (closeToZeroSteps > 18) {
+          // Trùng nhau trên khoảng liên tục -> vô số giao điểm, không coi là nghiệm rời rạc
+          return [];
+        }
+      }
+
       if (!isNaN(prevY) && isFinite(prevY) && Math.abs(curY - prevY) < 50) {
-        if (Math.abs(curY) < 1e-6) {
+        if (Math.abs(curY) < 1e-5) {
           addRoot(x);
         } else if (prevY * curY < 0) {
           let left = prevX;
@@ -737,12 +748,12 @@
     }
 
     // 3. Đánh dấu các giao điểm nếu có (tránh vẽ đè nếu đã có trong specialPoints)
-    if (calcRes.intersections && calcRes.intersections.length > 0) {
+    if (calcRes.intersections && calcRes.intersections.length > 0 && calcRes.intersections.length <= 10) {
       const existingSpecialPoints = widget.specialPoints || [];
       ctx.save();
       for (const ip of calcRes.intersections) {
         const isAlreadyDrawn = existingSpecialPoints.some(sp =>
-          Math.abs(sp.x - ip.x) < 0.08 && Math.abs(sp.y - ip.y) < 0.08
+          Math.abs(sp.x - ip.x) < 0.15 && Math.abs(sp.y - ip.y) < 0.15
         );
         if (isAlreadyDrawn) continue;
 
@@ -1130,16 +1141,24 @@
     ctx.strokeStyle = '#ffffff';
     ctx.stroke();
 
-    // Nhãn tên điểm và tọa độ (x, y) - chống in lặp lại tọa độ nếu label đã chứa sẵn tọa độ
+    // Nhãn tên điểm và tọa độ (x, y) - khử triệt để mọi lỗi lặp đúp tọa độ
     ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     const rx = Number(sp.x.toFixed(2));
     const ry = Number(sp.y.toFixed(2));
     let label = '';
-    if (sp.label) {
-      if (sp.label.includes('(')) {
-        label = sp.label;
+    if (sp.label && typeof sp.label === 'string') {
+      let cleanLbl = sp.label.trim();
+      // Nếu dữ liệu cũ có chuỗi lặp đúp dạng "M1(-1.3; 3.3) (-1.3, 3.3)", dùng regex lọc lấy phần đầu tiên
+      const dupMatch = cleanLbl.match(/^([A-Za-z0-9_]*\s*\([^\)]+\))/);
+      if (dupMatch) {
+        cleanLbl = dupMatch[1];
+      }
+      if (cleanLbl.includes('(') && cleanLbl.includes(')')) {
+        label = cleanLbl;
+      } else if (cleanLbl) {
+        label = `${cleanLbl}(${rx}; ${ry})`;
       } else {
-        label = `${sp.label}(${rx}; ${ry})`;
+        label = `(${rx}; ${ry})`;
       }
     } else {
       label = `(${rx}; ${ry})`;
@@ -1691,6 +1710,60 @@
     // Vẽ đường trục xuyên tâm khối 3D
     drawCoordinateAxes3D(true);
 
+    // Nếu góc quay = 0 (trạng thái hình phẳng ban đầu): Vẽ Ghost 3D Silhouette mờ và nhãn gợi ý để học sinh dễ trực quan
+    if (angleDeg <= 0.5) {
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = isOy ? 'rgba(2, 132, 199, 0.38)' : 'rgba(109, 40, 217, 0.38)';
+
+      // 1. Viền bao đối xứng 180°
+      const ghostNx = 30;
+      const ghostDx = (b - a) / ghostNx;
+      ctx.beginPath();
+      for (let i = 0; i <= ghostNx; i++) {
+        const gx = a + i * ghostDx;
+        const gy = safeF1(gx);
+        const pt = !isOy ? proj(gx, -gy, 0) : proj(-gx, gy, 0);
+        if (i === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.stroke();
+
+      // 2. Vành tròn 3D nét đứt ở hai đầu cận a, b và điểm giữa
+      for (const cx of [a, b, (a + b) / 2]) {
+        const cy = safeF1(cx);
+        if (Math.abs(cy) > 0.05) {
+          ctx.beginPath();
+          for (let k = 0; k <= 32; k++) {
+            const al = (k / 32) * Math.PI * 2;
+            const pt = !isOy ? proj(cx, cy * Math.cos(al), cy * Math.sin(al)) : proj(cx * Math.cos(al), cy, cx * Math.sin(al));
+            if (k === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // Nhãn hướng dẫn trực quan
+      ctx.save();
+      const hintT = '💡 Bấm [▶ Bắt đầu quay] hoặc [🌕 360°] để xem khối tròn xoay';
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+      const htw = ctx.measureText(hintT).width + 20;
+      ctx.fillStyle = 'rgba(248, 250, 252, 0.95)';
+      ctx.beginPath();
+      ctx.roundRect(x + (width - htw) / 2, y + height - 38, htw, 24, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = '#475569';
+      ctx.textAlign = 'center';
+      ctx.fillText(hintT, x + width / 2, y + height - 22);
+      ctx.restore();
+    }
+
     // 5. VẼ NHÃN CÔNG THỨC MINH HỌA NỔI BẬT THEO TỪNG CHẾ ĐỘ
     if (renderMode === 'disks') {
       // Nhãn phương pháp đĩa Riemann
@@ -2087,14 +2160,14 @@
     if (modalPreviewMode === '3d' && currentEditingWidget) {
       if (!currentEditingWidget.revolution3D) currentEditingWidget.revolution3D = {};
       const rev = currentEditingWidget.revolution3D;
-      // Khắc phục hình phẳng: Nếu góc quay đang là 0 hoặc chưa có, tự động mở 360 độ để học sinh thấy ngay khối 3D sống động
+      // Khắc phục hình phẳng: Tự động mở 360 độ để học sinh thấy ngay khối 3D sống động
       if (rev.angleDeg === undefined || rev.angleDeg === 0) {
         rev.angleDeg = 360;
-        const inA = document.getElementById('input-rev-angle');
-        const lblA = document.getElementById('label-rev-angle');
-        if (inA) inA.value = 360;
-        if (lblA) lblA.textContent = '360° / 360°';
       }
+      const inA = document.getElementById('input-rev-angle');
+      const lblA = document.getElementById('label-rev-angle');
+      if (inA) inA.value = rev.angleDeg;
+      if (lblA) lblA.textContent = `${Math.round(rev.angleDeg)}° / 360°`;
       if (!rev.renderMode) rev.renderMode = 'smooth';
       document.querySelectorAll('.btn-3d-mode').forEach(b => b.classList.toggle('active', b.getAttribute('data-mode') === rev.renderMode));
       document.querySelectorAll('.btn-rev-mode-card').forEach(b => b.classList.toggle('active', b.getAttribute('data-mode') === rev.renderMode));
@@ -2216,7 +2289,13 @@
     currentEditingWidget.revolution3D.range = currentEditingWidget.revolution3D.axis === 'Ox'
       ? [currentEditingWidget.revolution3D.rangeX[0], currentEditingWidget.revolution3D.rangeX[1]]
       : [Math.max(0, currentEditingWidget.revolution3D.rangeX[0]), Math.max(currentEditingWidget.revolution3D.rangeX[0] + 0.1, currentEditingWidget.revolution3D.rangeX[1])];
-    currentEditingWidget.revolution3D.angleDeg = inputAngle ? parseFloat(inputAngle.value) || 0 : 360;
+    const activeTabBtn = document.querySelector('.graph-tab-btn.active');
+    const isRevTab = activeTabBtn && activeTabBtn.getAttribute('data-tab') === 'tab-graph-revolution';
+    if (modalPreviewMode === '3d' || isRevTab) {
+      currentEditingWidget.revolution3D.angleDeg = inputAngle ? (parseFloat(inputAngle.value) || 360) : 360;
+    } else {
+      currentEditingWidget.revolution3D.angleDeg = inputAngle ? (parseFloat(inputAngle.value) || 0) : 360;
+    }
     currentEditingWidget.revolution3D.tiltDeg = inputTilt ? parseFloat(inputTilt.value) || 28 : 28;
     currentEditingWidget.revolution3D.showSlice = chkSlice ? chkSlice.checked : true;
     currentEditingWidget.revolution3D.speed = activeSpeedBtn ? parseFloat(activeSpeedBtn.getAttribute('data-speed')) || 1.0 : 1.0;
@@ -3181,7 +3260,7 @@
       const manualInputs = document.getElementById('area-2f-manual-inputs');
       const lblInfo = document.getElementById('label-area-2f-intersections');
 
-      const isIdentical = (f1Idx === f2Idx) || (expr1.trim() === expr2.trim());
+      const isIdentical = (f1Idx === f2Idx) || (expr1.replace(/\s+/g, '') === expr2.replace(/\s+/g, ''));
 
       if (isIdentical) {
         if (infoBox) infoBox.style.display = 'flex';
@@ -3198,7 +3277,8 @@
           aVal = inters[0].x;
           bVal = inters[1].x;
           if (lblInfo) {
-            lblInfo.innerHTML = `Đã tìm thấy ${inters.length} giao điểm: <b>${inters.map(p => `(${p.x}; ${p.y})`).join(', ')}</b>. Cận [x₁ = ${aVal}; x₂ = ${bVal}].`;
+            const listStr = inters.slice(0, 4).map(p => `(${p.x}; ${p.y})`).join(', ') + (inters.length > 4 ? ` và ${inters.length - 4} điểm khác...` : '');
+            lblInfo.innerHTML = `Đã tìm thấy ${inters.length} giao điểm: <b>${listStr}</b>. Cận [x₁ = ${aVal}; x₂ = ${bVal}].`;
           }
         } else if (inters.length === 1) {
           aVal = inters[0].x;

@@ -755,6 +755,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (el.shape === 'circle') {
       handles.push({ id: 'center', x: el.start.x, y: el.start.y, name: 'Tâm O' });
       handles.push({ id: 'radius', x: el.end.x, y: el.end.y, name: 'Bán kính R' });
+    } else if (el.shape === 'semicircle') {
+      const Ox = (el.start.x + el.end.x) / 2;
+      const Oy = (el.start.y + el.end.y) / 2;
+      handles.push({ id: 'start', x: el.start.x, y: el.start.y, name: 'Mút đường kính A' });
+      handles.push({ id: 'end', x: el.end.x, y: el.end.y, name: 'Mút đường kính B' });
+      handles.push({ id: 'center', x: Ox, y: Oy, name: 'Tâm O (trung điểm đường kính)' });
+    } else if (el.shape === 'diameter') {
+      const Ox = el.center ? el.center.x : (el.start.x + el.end.x) / 2;
+      const Oy = el.center ? el.center.y : (el.start.y + el.end.y) / 2;
+      handles.push({ id: 'start', x: el.start.x, y: el.start.y, name: 'Mút đường kính 1' });
+      handles.push({ id: 'end', x: el.end.x, y: el.end.y, name: 'Mút đường kính 2' });
+      handles.push({ id: 'center', x: Ox, y: Oy, name: 'Tâm O' });
     } else if (el.shape === 'tangent') {
       handles.push({ id: 'start', x: el.start.x, y: el.start.y, name: 'Đầu mút 1 (kéo thu hẹp/mở rộng)' });
       handles.push({ id: 'end', x: el.end.x, y: el.end.y, name: 'Đầu mút 2 (kéo thu hẹp/mở rộng)' });
@@ -1484,6 +1496,25 @@ document.addEventListener('DOMContentLoaded', () => {
           maxX: el.start.x + r,
           minY: el.start.y - r,
           maxY: el.start.y + r
+        };
+      }
+      if (el.shape === 'semicircle') {
+        const Ox = (el.start.x + el.end.x) / 2;
+        const Oy = (el.start.y + el.end.y) / 2;
+        const r = Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y) / 2;
+        return {
+          minX: Ox - r - 4,
+          maxX: Ox + r + 4,
+          minY: Oy - r - 4,
+          maxY: Oy + r + 4
+        };
+      }
+      if (el.shape === 'diameter') {
+        return {
+          minX: Math.min(el.start.x, el.end.x) - 6,
+          maxX: Math.max(el.start.x, el.end.x) + 6,
+          minY: Math.min(el.start.y, el.end.y) - 6,
+          maxY: Math.max(el.start.y, el.end.y) + 6
         };
       }
       if (el.shape === 'two-tangents') {
@@ -3466,6 +3497,40 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       }
+    } else if (b.type === 'circle_diameter') {
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && (pEl.shape === 'circle' || pEl.start)) {
+        const O = pEl.center || { x: pEl.start.x, y: pEl.start.y };
+        const R = pEl.radius || (pEl.end ? Math.hypot(pEl.end.x - pEl.start.x, pEl.end.y - pEl.start.y) : (child.radius || 50));
+        let ang = b.angle !== undefined ? b.angle : 0;
+        if (b.pointElId) {
+          const ptEl = findElementById(b.pointElId);
+          if (ptEl && ptEl.start) {
+            ang = Math.atan2(ptEl.start.y - O.y, ptEl.start.x - O.x);
+            b.angle = ang;
+          }
+        }
+        child.center = { x: O.x, y: O.y };
+        child.radius = R;
+        child.start = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
+        child.end = { x: O.x - R * Math.cos(ang), y: O.y - R * Math.sin(ang) };
+      }
+    } else if (b.type === 'semicircle_center') {
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.start && pEl.end) {
+        const Ox = (pEl.start.x + pEl.end.x) / 2;
+        const Oy = (pEl.start.y + pEl.end.y) / 2;
+        child.start = { x: Ox, y: Oy };
+        child.end = { x: Ox, y: Oy };
+      }
+    } else if (b.type === 'circle_center_point') {
+      const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
+      if (pEl && pEl.start) {
+        const Ox = pEl.center ? pEl.center.x : pEl.start.x;
+        const Oy = pEl.center ? pEl.center.y : pEl.start.y;
+        child.start = { x: Ox, y: Oy };
+        child.end = { x: Ox, y: Oy };
+      }
     } else if (b.type === 'two_tangents') {
       const pEl = b.parentId ? (findElementById(b.parentId) || parentEl) : parentEl;
       if (pEl && pEl.shape === 'circle') {
@@ -4469,6 +4534,15 @@ document.addEventListener('DOMContentLoaded', () => {
           const r = Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
           const dist = Math.hypot(x - el.start.x, y - el.start.y);
           if (Math.abs(dist - r) <= 18 || dist <= r) return el;
+        } else if (el.shape === 'semicircle') {
+          const Ox = (el.start.x + el.end.x) / 2;
+          const Oy = (el.start.y + el.end.y) / 2;
+          const r = Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y) / 2;
+          const dist = Math.hypot(x - Ox, y - Oy);
+          const distD = distToSegment(x, y, el.start.x, el.start.y, el.end.x, el.end.y);
+          if (distD <= 18 || Math.abs(dist - r) <= 18 || dist <= r) return el;
+        } else if (el.shape === 'diameter') {
+          if (distToSegment(x, y, el.start.x, el.start.y, el.end.x, el.end.y) <= 18) return el;
         } else if (el.shape === 'ellipse') {
           const rx = el.rx || 60;
           const ry = el.ry || 40;
@@ -5734,6 +5808,66 @@ document.addEventListener('DOMContentLoaded', () => {
       context.moveTo(start.x, start.y - 3.5);
       context.lineTo(start.x, start.y + 3.5);
       context.stroke();
+    } else if (shape === 'semicircle') {
+      const pA = start;
+      const pB = end;
+      const Ox = (pA.x + pB.x) / 2;
+      const Oy = (pA.y + pB.y) / 2;
+      const radius = Math.hypot(pB.x - pA.x, pB.y - pA.y) / 2;
+      const theta = Math.atan2(pB.y - pA.y, pB.x - pA.x);
+
+      // 1. Đoạn thẳng đường kính nối 2 mút A và B
+      context.beginPath();
+      context.moveTo(pA.x, pA.y);
+      context.lineTo(pB.x, pB.y);
+      context.stroke();
+
+      // 2. Cung tròn nửa đường tròn (180 độ) từ A sang B
+      context.beginPath();
+      context.arc(Ox, Oy, radius, theta, theta + Math.PI, false);
+      context.stroke();
+
+      // 3. Tâm O xác định ở trung điểm đường kính (dấu thập thanh mảnh và chấm tâm)
+      context.beginPath();
+      context.moveTo(Ox - 3.5, Oy);
+      context.lineTo(Ox + 3.5, Oy);
+      context.moveTo(Ox, Oy - 3.5);
+      context.lineTo(Ox, Oy + 3.5);
+      context.stroke();
+
+      // Hai đầu mút đường kính có chấm tròn nhỏ
+      context.beginPath();
+      context.arc(pA.x, pA.y, 2.2, 0, Math.PI * 2);
+      context.arc(pB.x, pB.y, 2.2, 0, Math.PI * 2);
+      context.fillStyle = geo.color || state.color;
+      context.fill();
+    } else if (shape === 'diameter') {
+      const p1 = start;
+      const p2 = end;
+      const Ox = geo.center ? geo.center.x : (p1.x + p2.x) / 2;
+      const Oy = geo.center ? geo.center.y : (p1.y + p2.y) / 2;
+
+      // Đoạn thẳng đường kính nối 2 điểm mút đi qua tâm
+      context.beginPath();
+      context.moveTo(p1.x, p1.y);
+      context.lineTo(p2.x, p2.y);
+      context.stroke();
+
+      // Tâm O trên đường kính
+      context.beginPath();
+      context.moveTo(Ox - 3.5, Oy);
+      context.lineTo(Ox + 3.5, Oy);
+      context.moveTo(Ox, Oy - 3.5);
+      context.lineTo(Ox, Oy + 3.5);
+      context.stroke();
+
+      // Chấm tròn 2 đầu mút
+      context.beginPath();
+      context.arc(p1.x, p1.y, 2.2, 0, Math.PI * 2);
+      context.arc(p2.x, p2.y, 2.2, 0, Math.PI * 2);
+      context.fillStyle = geo.color || state.color;
+      context.fill();
+    }
     } else if (shape === 'angle') {
       const armLength = geo.armLength || Math.max(80, Math.hypot(end.x - start.x, end.y - start.y));
       const baseAngle = (geo.baseDir !== undefined) ? geo.baseDir : Math.atan2(end.y - start.y, end.x - start.x);
@@ -6500,6 +6634,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (el.shape === 'circle' || el.shape === 'inscribed-triangle' || el.shape === 'two-tangents' || el.shape === 'ellipse') {
         checkPt(el.start, 'Tâm O', el, { pointKey: 'start' }, 0);
       }
+      if (el.shape === 'semicircle') {
+        checkPt(el.start, 'Mút đường kính A', el, { pointKey: 'start' }, 0);
+        checkPt(el.end, 'Mút đường kính B', el, { pointKey: 'end' }, 0);
+        const Ox = (el.start.x + el.end.x) / 2, Oy = (el.start.y + el.end.y) / 2;
+        checkPt({ x: Ox, y: Oy }, 'Tâm O', el, { pointKey: 'center' }, 0);
+      }
+      if (el.shape === 'diameter') {
+        checkPt(el.start, 'Mút đường kính 1', el, { pointKey: 'start' }, 0);
+        checkPt(el.end, 'Mút đường kính 2', el, { pointKey: 'end' }, 0);
+        const Ox = el.center ? el.center.x : (el.start.x + el.end.x) / 2;
+        const Oy = el.center ? el.center.y : (el.start.y + el.end.y) / 2;
+        checkPt({ x: Ox, y: Oy }, 'Tâm O', el, { pointKey: 'center' }, 0);
+      }
       if (el.shape === 'point') {
         checkPt(el.start, el.name ? `Điểm ${el.name}` : 'Điểm', el, { pointKey: 'start' }, 0);
       }
@@ -6540,15 +6687,19 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let i = list.length - 1; i >= 0; i--) {
       const el = list[i];
       if (el.type !== 'geo') continue;
-      if (el.shape === 'circle' || el.shape === 'inscribed-triangle' || el.shape === 'two-tangents') {
-        const r = el.radius || Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
-        const d = Math.hypot(x - el.start.x, y - el.start.y);
+      if (el.shape === 'circle' || el.shape === 'inscribed-triangle' || el.shape === 'two-tangents' || el.shape === 'semicircle') {
+        const Ox = el.shape === 'semicircle' ? (el.start.x + el.end.x) / 2 : el.start.x;
+        const Oy = el.shape === 'semicircle' ? (el.start.y + el.end.y) / 2 : el.start.y;
+        const r = el.shape === 'semicircle'
+          ? Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y) / 2
+          : (el.radius || Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y));
+        const d = Math.hypot(x - Ox, y - Oy);
         const distToRim = Math.abs(d - r);
         if (distToRim < minDist || d < 20) {
           minDist = distToRim;
           best = {
             element: el,
-            center: { x: el.start.x, y: el.start.y },
+            center: { x: Ox, y: Oy },
             radius: r
           };
         }
@@ -6880,6 +7031,81 @@ document.addEventListener('DOMContentLoaded', () => {
     finishGeoTask(newGeo);
     statusToolInfo.textContent = '✨ Đã dựng 2 tiếp tuyến cắt nhau (tự động gắn kết thành 1 nhóm với hình). Kéo điểm giao nhau để điều chỉnh.';
     return true;
+  }
+
+  // Dựng đường kính cho đường tròn: xuất phát từ điểm đã chọn, đi qua tâm O và tới điểm đối diện trên đường tròn
+  function constructDiameter(point, circle, bindingInfo = null) {
+    const circleEl = circle.element || (circle.shape === 'circle' ? circle : null);
+    if (!circleEl && circle.shape !== 'circle') return null;
+    const targetCircle = circleEl || circle;
+    ensureElementId(targetCircle);
+
+    const O = targetCircle.center || (targetCircle.start ? { x: targetCircle.start.x, y: targetCircle.start.y } : { x: 0, y: 0 });
+    const R = targetCircle.radius || (targetCircle.end ? Math.hypot(targetCircle.end.x - targetCircle.start.x, targetCircle.end.y - targetCircle.start.y) : 50);
+
+    const px = (point.x !== undefined) ? point.x : (point.start ? point.start.x : O.x + R);
+    const py = (point.y !== undefined) ? point.y : (point.start ? point.start.y : O.y);
+
+    let ang = Math.atan2(py - O.y, px - O.x);
+    if (isNaN(ang)) ang = 0;
+
+    // Điểm mút 1 chuẩn hóa trên đường tròn
+    const P1 = { x: O.x + R * Math.cos(ang), y: O.y + R * Math.sin(ang) };
+    // Điểm mút 2 đối diện qua tâm O
+    const P2 = { x: O.x - R * Math.cos(ang), y: O.y - R * Math.sin(ang) };
+
+    const ptEl = (point && point.element) ? point.element : (point && point.shape === 'point' ? point : null);
+    if (ptEl) ensureElementId(ptEl);
+
+    const bInfo = bindingInfo || {
+      type: 'circle_diameter',
+      parentId: targetCircle.id,
+      pointElId: ptEl ? ptEl.id : null,
+      angle: ang
+    };
+
+    const newDiameter = {
+      type: 'geo',
+      shape: 'diameter',
+      binding: bInfo,
+      start: P1,
+      end: P2,
+      center: { x: O.x, y: O.y },
+      radius: R,
+      color: state.color,
+      width: state.strokeWidth,
+      dash: state.dashStyle
+    };
+
+    ensureElementId(newDiameter);
+
+    // Tự động tạo thêm chấm tâm O nếu chưa có trên trang
+    let centerPtEl = null;
+    const existingPts = (state.pages[state.currentPage] || []).filter(el => el.type === 'geo' && el.shape === 'point');
+    const hasCenter = existingPts.some(pt => Math.hypot(pt.start.x - O.x, pt.start.y - O.y) < 10);
+    if (!hasCenter) {
+      centerPtEl = {
+        type: 'geo',
+        shape: 'point',
+        start: { x: O.x, y: O.y },
+        end: { x: O.x, y: O.y },
+        color: state.color,
+        width: Math.max(4, state.strokeWidth * 1.5),
+        binding: { type: 'circle_center_point', parentId: targetCircle.id }
+      };
+      ensureElementId(centerPtEl);
+      pushNewElement(centerPtEl);
+    }
+
+    const parentsToLink = [targetCircle, ptEl, centerPtEl].filter(Boolean);
+    linkGroupMulti(parentsToLink, newDiameter);
+    pushNewElement(newDiameter);
+    finishGeoTask(newDiameter);
+
+    statusToolInfo.textContent = '📏 Đã dựng đường kính xuất phát từ điểm được chọn, đi qua tâm O và tới điểm đối diện.';
+    showPageToast('📏 Đã dựng đường kính đi qua tâm O và điểm đối diện');
+    renderPage();
+    return newDiameter;
   }
 
   // Dựng trung điểm giữa 2 điểm (hoặc của một đoạn thẳng)
@@ -8773,6 +8999,15 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           return true;
         }
+      } else if (geoShape === 'diameter') {
+        const ptA = getPointFromElement(elA), circB = getCircleFromElement(elB);
+        const ptB = getPointFromElement(elB), circA = getCircleFromElement(elA);
+        const point = ptA || ptB;
+        const circle = ptA ? circB : (ptB ? circA : null);
+        if (circle) {
+          constructDiameter(point || { x: circle.start.x + (circle.radius || 50), y: circle.start.y }, circle);
+          return true;
+        }
       } else if (geoShape === 'line') {
         const ptA = getPointFromElement(elA);
         const ptB = getPointFromElement(elB);
@@ -9002,6 +9237,39 @@ document.addEventListener('DOMContentLoaded', () => {
           showPageToast(`✓ Đã nhận Điểm 1. Bấm chọn tiếp Điểm 2!`);
           renderPage();
           return true;
+        }
+      }
+
+      if (geoShape === 'diameter') {
+        if (circ) {
+          constructDiameter({ x: circ.start.x + (circ.radius || 50), y: circ.start.y }, circ);
+          return true;
+        }
+        if (pt) {
+          const list = state.pages[state.currentPage] || [];
+          let bestCirc = null;
+          let minDist = 999999;
+          for (const item of list) {
+            if (item.type === 'geo' && item.shape === 'circle' && item.start && item.end) {
+              const O = item.start;
+              const R = Math.hypot(item.end.x - item.start.x, item.end.y - item.start.y);
+              const d = Math.abs(Math.hypot(pt.x - O.x, pt.y - O.y) - R);
+              if (d < minDist && d < R + 60) {
+                minDist = d;
+                bestCirc = item;
+              }
+            }
+          }
+          if (bestCirc) {
+            constructDiameter(pt, bestCirc);
+            return true;
+          } else {
+            state.construction = { point: pt, circle: null, line: null, edges: [] };
+            statusToolInfo.textContent = 'Đường kính: Đã nhận 1 điểm. Hãy bấm chọn tiếp đường tròn để dựng đường kính.';
+            showPageToast('✓ Đã nhận điểm. Bấm chọn đường tròn để dựng đường kính!');
+            renderPage();
+            return true;
+          }
         }
       }
 
@@ -9645,8 +9913,49 @@ document.addEventListener('DOMContentLoaded', () => {
     return false;
   }
 
-  // Xử lý thao tác nhấp chuột/bút khi đang ở chế độ dựng hình (Vuông góc, Song song, Phân giác)
+  // Xử lý thao tác nhấp chuột/bút khi đang ở chế độ dựng hình (Vuông góc, Song song, Phân giác, Đường kính)
   function handleConstructionClick(point) {
+    if (state.activeGeo === 'diameter') {
+      const vertex = findPointAt(point.x, point.y, 25);
+      const directEl = findElementAt(point.x, point.y);
+      const clickedPt = vertex || (directEl && directEl.shape === 'point' ? { x: directEl.start.x, y: directEl.start.y, element: directEl } : { x: point.x, y: point.y });
+
+      let circleEl = null;
+      if (directEl && (directEl.shape === 'circle' || directEl.shape === 'inscribed-triangle' || directEl.shape === 'two-tangents')) {
+        circleEl = directEl;
+      } else {
+        const circleSnap = checkCircleSnap(point);
+        if (circleSnap && circleSnap.circle) {
+          circleEl = circleSnap.circle;
+        } else {
+          const list = state.pages[state.currentPage] || [];
+          let minDist = 999999;
+          for (const el of list) {
+            if (el.type === 'geo' && el.shape === 'circle' && el.start && el.end) {
+              const O = el.start;
+              const R = Math.hypot(el.end.x - el.start.x, el.end.y - el.start.y);
+              const d = Math.abs(Math.hypot(point.x - O.x, point.y - O.y) - R);
+              if (d < minDist && d < R + 60) {
+                minDist = d;
+                circleEl = el;
+              }
+            }
+          }
+        }
+      }
+
+      if (circleEl) {
+        constructDiameter(clickedPt, circleEl);
+        state.construction = { point: null, circle: null, line: null, edges: [] };
+        state.constructionHoverPoint = null;
+        return;
+      } else {
+        statusToolInfo.textContent = 'Đường kính: Hãy bấm vào một điểm trên đường tròn hoặc bấm vào đường tròn để dựng đường kính.';
+        showPageToast('⚠️ Vui lòng nhấp vào đường tròn hoặc điểm trên đường tròn để dựng đường kính');
+        return;
+      }
+    }
+
     if (state.activeGeo === 'perpendicular-bisector') {
       const vertex = findPointAt(point.x, point.y, 25);
       const directEl = findElementAt(point.x, point.y);
@@ -12347,7 +12656,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     } else if (state.activeTool === 'geo' && state.geoStartPoint) {
-      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector' || state.activeGeo === 'point-symmetry' || state.activeGeo === 'axis-symmetry' || state.activeGeo === 'circumcircle' || state.activeGeo === 'incircle') {
+      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector' || state.activeGeo === 'point-symmetry' || state.activeGeo === 'axis-symmetry' || state.activeGeo === 'circumcircle' || state.activeGeo === 'incircle' || state.activeGeo === 'diameter') {
         return;
       }
       let previewEnd = point;
@@ -12854,7 +13163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.isDrawing = false;
 
     if (state.activeTool === 'geo') {
-      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector' || state.activeGeo === 'point-symmetry' || state.activeGeo === 'axis-symmetry' || state.activeGeo === 'circumcircle' || state.activeGeo === 'incircle') {
+      if (state.activeGeo === 'perpendicular' || state.activeGeo === 'parallel' || state.activeGeo === 'bisector' || state.activeGeo === 'tangent' || state.activeGeo === 'point' || state.activeGeo === 'angle' || state.activeGeo === 'midpoint' || state.activeGeo === 'intersection' || state.activeGeo === 'perpendicular-bisector' || state.activeGeo === 'point-symmetry' || state.activeGeo === 'axis-symmetry' || state.activeGeo === 'circumcircle' || state.activeGeo === 'incircle' || state.activeGeo === 'diameter') {
         const d = state.geoStartPoint ? Math.hypot(point.x - state.geoStartPoint.x, point.y - state.geoStartPoint.y) : 0;
         state.geoStartPoint = null;
         if (d < 25) {
@@ -13015,6 +13324,28 @@ document.addEventListener('DOMContentLoaded', () => {
           newGeo.tangentPoint1 = { x: cx + r * Math.cos(a1), y: cy + r * Math.sin(a1) };
           newGeo.tangentPoint2 = { x: cx + r * Math.cos(a2), y: cy + r * Math.sin(a2) };
         }
+      } else if (state.activeGeo === 'semicircle') {
+        const pA = state.geoStartPoint;
+        const pB = finalEnd;
+        const Ox = (pA.x + pB.x) / 2;
+        const Oy = (pA.y + pB.y) / 2;
+        const R = Math.hypot(pB.x - pA.x, pB.y - pA.y) / 2;
+        newGeo.center = { x: Ox, y: Oy };
+        newGeo.radius = R;
+
+        ensureElementId(newGeo);
+        const centerPt = {
+          type: 'geo',
+          shape: 'point',
+          start: { x: Ox, y: Oy },
+          end: { x: Ox, y: Oy },
+          color: state.color,
+          width: Math.max(4, state.strokeWidth * 1.5),
+          binding: { type: 'semicircle_center', parentId: newGeo.id }
+        };
+        ensureElementId(centerPt);
+        pushNewElement(centerPt);
+        linkGroup(centerPt, newGeo);
       } else if (isSolidShape(state.activeGeo)) {
         const solidData = computeSolidShapeData(state.activeGeo, state.geoStartPoint, finalEnd);
         newGeo.points = solidData.points;
@@ -15062,7 +15393,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function activateGeoTool(geoName, targetGroupBtn, targetItemBtn) {
     if (!geoName) return;
 
-    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'angle', 'intersection', 'perpendicular-bisector', 'point-symmetry', 'axis-symmetry', 'circumcircle', 'incircle'].includes(geoName);
+    const isConstructionTask = ['bisector', 'perpendicular', 'parallel', 'tangent', 'two-tangents', 'diameter', 'angle', 'intersection', 'perpendicular-bisector', 'point-symmetry', 'axis-symmetry', 'circumcircle', 'incircle'].includes(geoName);
 
     // 1. Tắt trạng thái active ở các công cụ khác
     toolButtons.forEach(b => b.classList.remove('active'));
@@ -15120,6 +15451,8 @@ document.addEventListener('DOMContentLoaded', () => {
         statusToolInfo.textContent = 'Tiếp tuyến: Bấm chọn 1 điểm (trên hoặc ngoài đường tròn), rồi chọn đường tròn để thực hiện tác vụ';
       } else if (state.activeGeo === 'two-tangents') {
         statusToolInfo.textContent = '2 tiếp tuyến: Bấm chọn 1 điểm ngoài đường tròn, rồi chọn đường tròn để thực hiện tác vụ';
+      } else if (state.activeGeo === 'diameter') {
+        statusToolInfo.textContent = 'Đường kính: Bấm chọn 1 điểm trên đường tròn (hoặc chọn đường tròn) để tự động dựng đường kính xuyên tâm';
       } else if (state.activeGeo === 'intersection') {
         statusToolInfo.textContent = 'Giao điểm: Bấm chọn đường thứ nhất (hoặc đường tròn), rồi chọn tiếp hình thứ 2 để xác định giao điểm';
       }
@@ -15134,6 +15467,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showPageToast('🎯 Chế độ Chọn: Bấm chọn tam giác hoặc 3 điểm để vẽ đường tròn ngoại tiếp');
       } else if (geoName === 'incircle') {
         showPageToast('🎯 Chế độ Chọn: Bấm chọn tam giác hoặc 3 đỉnh để vẽ đường tròn nội tiếp');
+      } else if (geoName === 'diameter') {
+        showPageToast('🎯 Chế độ Chọn: Bấm chọn 1 điểm trên đường tròn để dựng đường kính xuyên tâm');
       } else {
         showPageToast('🎯 Đã chuyển sang chế độ Chọn: Bấm chọn các đối tượng trên bảng vẽ');
       }

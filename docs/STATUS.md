@@ -1,12 +1,30 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 17/11/2026
+**Cập nhật lần cuối:** 18/11/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Tối Ưu Hóa Tác Vụ Đồ Thị, Mô Phỏng Khối Xoay 3D Sáng Tạo, Vẽ Nửa Đường Tròn & Dựng Đường Kính Xuyên Tâm (v86):**
+    + *Khắc Phục Triệt Để Lỗi 600 Giao Điểm Rác Khi Chọn Trùng Hàm:* Nâng cấp hàm `findTwoFunctionsIntersections`: tự động chuẩn hóa chuỗi và kiểm tra đa điểm kiểm định. Khi $f(x)$ và $g(x)$ trùng nhau hoặc có vô số điểm chung, hệ thống lập tức thông báo cảnh báo rõ ràng, không sinh ra danh sách 600 giao điểm làm tràn vỡ giao diện và không vẽ búi đỏ đè lên đồ thị.
+    + *Triệt Tiêu Hoàn Toàn Lỗi In Đúp Nhãn Tọa Độ:* Sửa đổi hàm `drawSpecialPoint` và `drawAreaCalculationRegion`: tự động làm sạch chuỗi và dùng regex nhận diện nhãn đã chứa sẵn tọa độ dạng `M1(x; y)` hoặc `(x; y)`. Đảm bảo nhãn tọa độ chỉ được vẽ duy nhất 1 lần với thẻ pill nền trắng mờ bo góc thanh lịch, không bao giờ in lặp lại đuôi `(-1.3, 3.3)`.
+    + *Mô Phỏng Khối Tròn Xoay 3D Sáng Tạo & Đẹp Mắt Trực Quan:* 
+      * Đặt mặc định hiển thị khối tròn xoay hoàn chỉnh 360° khi mở tab Khối 3D, khắc phục lỗi trơ trọi chỉ có 1 hình elip cam và miền $S$ tím.
+      * Thêm hiệu ứng *Ghost 3D Silhouette* (khung dây bóng ma 3D ảo nét đứt) khi góc quay ở 0°, giúp học sinh lập tức hình dung được vật thể không gian tương lai sẽ được tạo thành từ miền phẳng $S$.
+      * Đổ bóng studio gradient đa tầng mượt mà, hỗ trợ chuyển nhanh giữa các chế độ: Mượt mà 360°, Lát cắt đĩa vi phân Riemann (phương pháp đĩa $\Delta V = \pi R^2 \Delta x$), Bổ đôi khối 180°, và Hoạt ảnh quay động tự động 60fps.
+    + *Công Cụ Mới Trong Menu Hình — "Nửa Đường Tròn (Biết Trước Đường Kính, Xác Định Tâm)":*
+      * Nút công cụ trong dropdown Hình cơ bản (`data-geo="semicircle"`).
+      * Thao tác: Chọn công cụ $\to$ Chọn 2 điểm mút đường kính $A, B$ (hoặc kéo chuột từ $A$ sang $B$).
+      * Tự động xác định tâm $O = ((A.x+B.x)/2, (A.y+B.y)/2)$, bán kính $R = |AB|/2$.
+      * Vẽ cung nửa đường tròn, đoạn thẳng đường kính nối $A, B$, và tự động đánh dấu tâm $O$ trên bảng vẽ để dễ dàng thao tác dựng hình tiếp theo.
+    + *Công Cụ Mới Trong Menu Dựng Hình — "Đường Kính":*
+      * Nút công cụ trong dropdown Dựng hình (`data-geo="diameter"`).
+      * Thao tác: Chọn công cụ Đường kính $\to$ Bấm chọn 1 điểm $P$ trên đường tròn.
+      * Tự động xác định tâm $O$ của đường tròn, tính điểm đối diện $P' = (2 O.x - P.x, 2 O.y - P.y)$ và dựng đoạn thẳng đường kính $PP'$ đi qua tâm $O$.
+      * Gắn ràng buộc hình học động hai chiều (`circle_diameter`): khi đường tròn di chuyển hoặc co giãn, đoạn đường kính tự động bám đuổi cập nhật chuẩn xác.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v86` và cập nhật query string `?v=20261118_v86` trong `web/index.html`.
   - **Tối Ưu Hóa Toàn Diện Viết & Xóa Theo Video Thực Tế - Khử Lỗi 2 Vòng Tròn Tẩy, Sạch 100% Rác Nét & Tâm Ngắm Hình Học Tinh Tế (v85):**
     + *Xóa Bỏ Hoàn Toàn Vòng Tròn Hồng Trễ Nét (Video 1 & 2):* Loại bỏ lớp vẽ vòng tròn canvas giả lập chạy chậm phía sau con trỏ chuột thật. Giờ đây chỉ còn duy nhất 1 vòng tròn con trỏ tẩy chuột êm ái, bám sát $0\text{ms}$ tức thời theo chuyển động của tay.
     + *Quét Liên Tục Tần Số Cao & Chống Giật Lag (Video 1 & 2):* Đọc toàn bộ các sự kiện tần số cao `e.getCoalescedEvents()` (120Hz/240Hz) kết hợp thuật toán dải quét liên tục (Swept Capsule) với bước nhảy mịn lên đến 24 phân đoạn. Chỉ gọi vẽ lại canvas khi thực sự có nét bị xóa (`anyModified === true`), loại bỏ triệt để hiện tượng giật lag màn hình khi lia tẩy qua vùng trống.
