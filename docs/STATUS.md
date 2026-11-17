@@ -7,7 +7,8 @@
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
-  - **Tối Ưu Hóa Tác Vụ Đồ Thị, Mô Phỏng Khối Xoay 3D Sáng Tạo, Vẽ Nửa Đường Tròn & Dựng Đường Kính Xuyên Tâm (v86):**
+  - **Tối Ưu Hóa Tác Vụ Đồ Thị, Mô Phỏng Khối Xoay 3D Sáng Tạo, Vẽ Nửa Đường Tròn & Dựng Đường Kính Xuyên Tâm (v86 - Hotfix):**
+    + *Khắc Phục Lỗi Cú Pháp Gây Đơ Màn Hình:* Sửa lỗi thừa một dấu ngoặc nhọn `}` tại dòng 5870 trong `web/app.js` khiến trình duyệt gặp lỗi `SyntaxError: Unexpected keyword 'else'`. Đã kiểm định toàn bộ mã nguồn JavaScript bằng trình thông dịch JavaScriptCore, đảm bảo 100% không còn lỗi cú pháp.
     + *Khắc Phục Triệt Để Lỗi 600 Giao Điểm Rác Khi Chọn Trùng Hàm:* Nâng cấp hàm `findTwoFunctionsIntersections`: tự động chuẩn hóa chuỗi và kiểm tra đa điểm kiểm định. Khi $f(x)$ và $g(x)$ trùng nhau hoặc có vô số điểm chung, hệ thống lập tức thông báo cảnh báo rõ ràng, không sinh ra danh sách 600 giao điểm làm tràn vỡ giao diện và không vẽ búi đỏ đè lên đồ thị.
     + *Triệt Tiêu Hoàn Toàn Lỗi In Đúp Nhãn Tọa Độ:* Sửa đổi hàm `drawSpecialPoint` và `drawAreaCalculationRegion`: tự động làm sạch chuỗi và dùng regex nhận diện nhãn đã chứa sẵn tọa độ dạng `M1(x; y)` hoặc `(x; y)`. Đảm bảo nhãn tọa độ chỉ được vẽ duy nhất 1 lần với thẻ pill nền trắng mờ bo góc thanh lịch, không bao giờ in lặp lại đuôi `(-1.3, 3.3)`.
     + *Mô Phỏng Khối Tròn Xoay 3D Sáng Tạo & Đẹp Mắt Trực Quan:* 

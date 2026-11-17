@@ -5867,7 +5867,6 @@ document.addEventListener('DOMContentLoaded', () => {
       context.arc(p2.x, p2.y, 2.2, 0, Math.PI * 2);
       context.fillStyle = geo.color || state.color;
       context.fill();
-    }
     } else if (shape === 'angle') {
       const armLength = geo.armLength || Math.max(80, Math.hypot(end.x - start.x, end.y - start.y));
       const baseAngle = (geo.baseDir !== undefined) ? geo.baseDir : Math.atan2(end.y - start.y, end.x - start.x);

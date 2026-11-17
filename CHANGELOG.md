@@ -2,7 +2,10 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
-## [Tối Ưu Hóa Đồ Thị, Mô Phỏng Khối Xoay 3D Sáng Tạo, Vẽ Nửa Đường Tròn & Dựng Đường Kính (v86)] - 18/11/2026
+## [Tối Ưu Hóa Đồ Thị, Mô Phỏng Khối Xoay 3D Sáng Tạo, Vẽ Nửa Đường Tròn & Dựng Đường Kính (v86 - Hotfix)] - 18/11/2026
+
+- **Hotfix Cú Pháp Khẩn Cấp (`web/app.js`):** Khắc phục lỗi cú pháp `SyntaxError: Unexpected keyword 'else'` tại dòng 5870 do thừa một dấu ngoặc nhọn `}` khi bổ sung khối vẽ đường kính. Đã kiểm tra cú pháp toàn diện bằng JavaScriptCore và bộ parser lồng ngoặc đạt 100% không còn lỗi. Ứng dụng đã khôi phục hoạt động mượt mà bình thường.
+- **Nâng Cấp Cache Service Worker:** Nâng cache Service Worker lên `net-app-v86-fix` và cập nhật query string `?v=20261118_v86_fix` trong `web/index.html`.
 
 - **1. Khắc Phục Triệt Để Lỗi 600 Giao Điểm Rác Khi Trùng Hàm (`web/graph_widget.js`):**
   - Tối ưu hóa hàm `findTwoFunctionsIntersections`: tự động chuẩn hóa chuỗi và kiểm tra mẫu 11 điểm kiểm định. Khi hai hàm trùng nhau, lập tức trả về rỗng và hiển thị cảnh báo thân thiện trên giao diện.
