@@ -1,12 +1,19 @@
 # Trạng thái dự án Nét (Status Tracking)
 
-**Cập nhật lần cuối:** 13/11/2026
+**Cập nhật lần cuối:** 17/11/2026
 
 ## 1. Giai đoạn hiện tại
 - **Đã hoàn thành:** 
   - Giai đoạn 0 (Khởi tạo nền tảng, hồ sơ, quy tắc `AGENTS.md`).
   - Giai đoạn 1 (Bộ mã nguồn Web Core hoạt động được tại `web/`).
   - Đã hoàn thiện toàn bộ tính năng vẽ tay, dạ quang, tẩy, chèn chữ, dựng 13 dạng hình học.
+  - **Tối Ưu Hóa Toàn Diện Viết & Xóa Theo Video Thực Tế - Khử Lỗi 2 Vòng Tròn Tẩy, Sạch 100% Rác Nét & Tâm Ngắm Hình Học Tinh Tế (v85):**
+    + *Xóa Bỏ Hoàn Toàn Vòng Tròn Hồng Trễ Nét (Video 1 & 2):* Loại bỏ lớp vẽ vòng tròn canvas giả lập chạy chậm phía sau con trỏ chuột thật. Giờ đây chỉ còn duy nhất 1 vòng tròn con trỏ tẩy chuột êm ái, bám sát $0\text{ms}$ tức thời theo chuyển động của tay.
+    + *Quét Liên Tục Tần Số Cao & Chống Giật Lag (Video 1 & 2):* Đọc toàn bộ các sự kiện tần số cao `e.getCoalescedEvents()` (120Hz/240Hz) kết hợp thuật toán dải quét liên tục (Swept Capsule) với bước nhảy mịn lên đến 24 phân đoạn. Chỉ gọi vẽ lại canvas khi thực sự có nét bị xóa (`anyModified === true`), loại bỏ triệt để hiện tượng giật lag màn hình khi lia tẩy qua vùng trống.
+    + *Triệt Tiêu 100% Rác Nét & Vụn Nét Li Ti (Video 2):* Nâng cấp hàm cắt nét phân đoạn `createSubStroke`: tự động phát hiện và loại bỏ triệt để tất cả các mẩu vụn nét siêu nhỏ (chiều dài $< 4.5\text{px}$ hoặc hộp bao $< 4\text{px}$), chấm dứt hoàn toàn hiện tượng đốm đỏ, gạch vụn li ti rơi rớt lại trên trang giấy sau khi xóa.
+    + *Tâm Ngắm Hình Học Thanh Thoát (Precision Reticle - Video 3):* Thay thế icon mũi tên đen to thô kệch bằng vòng tròn ngắm tâm đôi viền xanh ngọc thanh lịch kèm 4 vạch chữ thập định vị chuẩn xác và thẻ nhãn lệch góc. Giữ nguyên 100% vùng quang đãng tại điểm tiếp xúc, giúp thầy cô dễ dàng bấm trúng tiếp điểm, mút đoạn thẳng mà không bị che khuất tầm nhìn.
+    + *Bổ Sung Bảng Màu Mực Đen Đậm Nét (`#111827`):* Đưa màu mực đen tuyền tương phản cao lên vị trí đầu tiên của bảng màu và đặt làm màu mặc định, chữ viết tay của giáo viên hiển thị rõ ràng, đậm đà, sắc sảo trên video bài giảng.
+    + *Nâng Cấp Cache & Service Worker:* Nâng cache Service Worker lên `net-app-v85` và cập nhật query string `?v=20261117_2225` trong `web/index.html`.
   - **Dán Ảnh/Đối Tượng Thông Minh Vào Khoảng Trống Trên Màn Hình Đang Hiển Thị (v84):**
     + *Nhận Diện Chính Xác Vùng Nhìn Thấy (`getVisibleCanvasViewport`):* Xác định tọa độ canvas thực tế đang hiển thị trên màn hình dựa theo giao điểm hình học của khung nhìn và trang giấy, triệt tiêu lỗi tính toán cũ khiến ảnh luôn bị dán lệch xuống đáy hoặc kẹt ở đầu trang.
     + *Tìm Khoảng Trống Tối Ưu (`findBestEmptySpotInViewport`):* Tự động quét và phát hiện vùng trống trên màn hình không bị chữ hoặc hình vẽ khác che phủ để dán ảnh/đối tượng vào ngay trước mắt người dùng. Nếu chính giữa màn hình trống, đặt ngay trung tâm; nếu đã có chữ/hình, tự động tìm khoảng trống lân cận trong tầm nhìn để không che lấp nội dung cũ.

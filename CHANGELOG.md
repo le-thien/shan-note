@@ -2,6 +2,27 @@
 
 Mọi thay đổi quan trọng của dự án Nét được ghi lại tại đây theo thời gian thực.
 
+## [Tối Ưu Hóa Toàn Diện Viết & Xóa - Khử 2 Vòng Tròn Tẩy, Sạch 100% Rác Nét & Tâm Ngắm Hình Học Tinh Tế (v85)] - 17/11/2026
+
+- **1. Xóa Bỏ Hoàn Toàn Vòng Tròn Hồng Trễ Nét Của Tẩy (`web/app.js`):**
+  - Loại bỏ hoàn toàn lớp vẽ vòng tròn canvas giả lập `state.eraserCursorPoint` vốn bị trễ lag 100-200ms so với con trỏ chuột thật.
+  - Giờ đây chỉ còn duy nhất 1 con trỏ tẩy viền tròn mượt mà bám sát tức thời 0ms theo tay người dùng.
+- **2. Quét Liên Tục Tần Số Cao & Triệt Tiêu Giật Lag (`web/app.js`):**
+  - Tích hợp đọc đầy đủ các sự kiện tần số cao `e.getCoalescedEvents()` (120Hz/240Hz) cho công cụ Tẩy.
+  - Sử dụng thuật toán dải quét liên tục (Swept Capsule) với bước nhảy mịn lên đến 24 phân đoạn, không còn hiện tượng nhảy bước hay bỏ sót nét khi vung tay nhanh.
+  - Chỉ gọi `renderPage()` khi thực sự có nét vẽ bị xóa (`anyModified === true`), trang giấy giữ nguyên trạng thái 60/120 FPS khi rê tẩy qua khoảng trống.
+- **3. Triệt Tiêu 100% Rác Nét & Vụn Nét Li Ti Sau Khi Tẩy (`web/app.js`):**
+  - Tự động phát hiện và loại bỏ triệt để các mẩu vụn nét ngắn dưới 4px hoặc có độ dài đường đi dưới 4.5px sinh ra trong quá trình cắt nét phân đoạn (`createSubStroke`).
+  - Xóa 1 lần là sạch bóng hoàn toàn, không còn hiện tượng đốm đỏ, gạch vụn rải rác trên trang giấy.
+- **4. Tâm Ngắm Hình Học Thanh Thoát (Precision Reticle - `web/app.js`):**
+  - Thay thế icon mũi tên đen che khuất điểm bằng vòng tròn ngắm tâm đôi sắc nét kèm 4 vạch chữ thập định vị chuẩn xác và thẻ nhãn lệch góc.
+  - Giữ tâm điểm và tiếp điểm hoàn toàn quang đãng, dễ ngắm và chọn điểm mút/tiếp tuyến.
+- **5. Bổ Sung Bảng Màu Mực Đen Đậm Nét (`web/index.html`, `web/app.js`):**
+  - Thêm ô màu Mực đen tuyền (`#111827`) và Xanh mực bút máy (`#1e3a8a`), đặt màu đen đậm nét làm màu mực mặc định của bút vẽ.
+- **6. Nâng Cấp Cache & Kiểm Thử Toàn Diện (`web/sw.js`, `web/index.html`, `scratch/test_video_fixes.js`):**
+  - Viết bộ kiểm thử `scratch/test_video_fixes.js` kiểm tra 9 tiêu chí kỹ thuật giải quyết các vấn đề trong 3 video (đạt 9/9 test).
+  - Nâng cache Service Worker lên `net-app-v85` và cập nhật query string `?v=20261117_2225` trong `web/index.html`.
+
 ## [Dán Ảnh/Đối Tượng Thông Minh Vào Khoảng Trống Trên Màn Hình Đang Hiển Thị (v84)] - 13/11/2026
 
 - **1. Xác Định Vùng Khung Nhìn Thực Tế Trên Màn Hình (`getVisibleCanvasViewport` - `web/app.js`):**

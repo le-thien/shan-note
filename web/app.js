@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     orientation: 'portrait', // 'portrait' (khổ dọc 1100x1560) | 'landscape' (khổ ngang 1600x1060)
     activeTool: 'pen', // 'pen' | 'highlighter' | 'eraser' | 'select' | 'text' | 'geo'
     activeGeo: null,   // 'line' | 'circle' | 'angle' | 'triangle' | 'right-triangle' | 'isosceles-triangle' | 'inscribed-triangle' | 'tangent'
-    color: '#30493c',
+    color: '#111827',
     strokeWidth: 1.5,
     dashStyle: 'solid', // 'solid' | 'dashed'
     penSmoothing: 'ultra', // Luôn luôn cố định ở chế độ Siêu siêu mượt (Ultra Streamline)
@@ -509,26 +509,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // Hiển thị vòng tròn bắt dính và mũi tên nhọn khi vẽ đoạn thẳng hoặc tạo điểm gắn trên đường thẳng / đường tròn
       if (state.activeTool === 'geo' && (state.activeGeo === 'line' || state.activeGeo === 'point') && state.hoverSnapPoint && state.currentPage === p) {
         drawSharpArrowIndicator(targetCtx, state.hoverSnapPoint.x, state.hoverSnapPoint.y, state.hoverSnapPoint.label || 'Bắt dính điểm', false);
-      }
-
-      // Hiển thị vòng tròn đầu tẩy trực quan khi đang kéo tẩy nét trên mặt giấy
-      if (state.activeTool === 'eraser' && state.eraserMode === 'partial' && state.isDrawing && state.eraserCursorPoint && state.currentPage === p) {
-        const eRad = state.eraserRadius || 12;
-        targetCtx.save();
-        targetCtx.beginPath();
-        targetCtx.arc(state.eraserCursorPoint.x, state.eraserCursorPoint.y, eRad, 0, Math.PI * 2);
-        targetCtx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
-        targetCtx.lineWidth = 1;
-        targetCtx.setLineDash([2, 2]);
-        targetCtx.fillStyle = 'rgba(239, 68, 68, 0.08)';
-        targetCtx.fill();
-        targetCtx.stroke();
-
-        targetCtx.beginPath();
-        targetCtx.arc(state.eraserCursorPoint.x, state.eraserCursorPoint.y, 1, 0, Math.PI * 2);
-        targetCtx.fillStyle = '#ef4444';
-        targetCtx.fill();
-        targetCtx.restore();
       }
 
       // Hiển thị các điểm và cạnh đang được chọn trong quá trình dựng hình
@@ -1049,15 +1029,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  // Vẽ chỉ báo mũi tên nhọn định vị chính xác đối tượng là điểm khi nằm lẫn lộn nhiều hình
+  // Vẽ chỉ báo tâm ngắm (Precision Reticle) định vị tinh tế đối tượng là điểm, mút, tiếp điểm (không che lấp điểm)
   function drawSharpArrowIndicator(c, tx, ty, label = 'Điểm', isSelected = false) {
     c.save();
 
-    // 1. Vòng tròn ngắm tâm đôi sắc nét quanh điểm
+    const ringRadius = isSelected ? 11 : 8.5;
+    const ringColor = isSelected ? '#047857' : '#10b981';
+
+    // 1. Vòng tròn ngắm tâm sắc nét thanh thoát quanh điểm (không che lấp tâm điểm)
     c.beginPath();
-    c.arc(tx, ty, isSelected ? 12 : 9, 0, Math.PI * 2);
-    c.strokeStyle = isSelected ? '#28634e' : '#10b981';
-    c.lineWidth = 1.8;
+    c.arc(tx, ty, ringRadius, 0, Math.PI * 2);
+    c.strokeStyle = ringColor;
+    c.lineWidth = 1.6;
     if (!isSelected) {
       c.setLineDash([3, 3]);
     } else {
@@ -1065,67 +1048,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     c.stroke();
 
+    // 4 vạch dấu chữ thập (Crosshair Ticks) xung quanh vòng tròn
+    c.setLineDash([]);
+    c.lineWidth = 1.4;
+    c.strokeStyle = ringColor;
     c.beginPath();
-    c.arc(tx, ty, 3.5, 0, Math.PI * 2);
-    c.fillStyle = isSelected ? '#28634e' : '#10b981';
-    c.fill();
-
-    // 2. Mũi tên nhọn chuẩn phong cách icon Chọn (macOS cursor) chỉ thẳng đầu nhọn vào tâm điểm
-    const tipX = tx - 4;
-    const tipY = ty - 4;
-
-    c.save();
-    c.shadowColor = 'rgba(0, 0, 0, 0.3)';
-    c.shadowBlur = 6;
-    c.shadowOffsetX = 1;
-    c.shadowOffsetY = 2;
-
-    // Tam giác nhọn chính của mũi tên
-    c.beginPath();
-    c.moveTo(tipX, tipY);
-    c.lineTo(tipX - 22, tipY - 11);
-    c.lineTo(tipX - 16, tipY - 16);
-    c.lineTo(tipX - 11, tipY - 22);
-    c.closePath();
-
-    c.fillStyle = isSelected ? '#1b4332' : '#243c36';
-    c.fill();
-    c.strokeStyle = '#ffffff';
-    c.lineWidth = 2;
+    // Trái
+    c.moveTo(tx - ringRadius - 4, ty);
+    c.lineTo(tx - ringRadius + 1.5, ty);
+    // Phải
+    c.moveTo(tx + ringRadius - 1.5, ty);
+    c.lineTo(tx + ringRadius + 4, ty);
+    // Trên
+    c.moveTo(tx, ty - ringRadius - 4);
+    c.lineTo(tx, ty - ringRadius + 1.5);
+    // Dưới
+    c.moveTo(tx, ty + ringRadius - 1.5);
+    c.lineTo(tx, ty + ringRadius + 4);
     c.stroke();
 
-    // Cán đuôi mũi tên
+    // Điểm tâm vi mô
     c.beginPath();
-    c.moveTo(tipX - 16, tipY - 16);
-    c.lineTo(tipX - 26, tipY - 26);
-    c.lineWidth = 2.5;
-    c.strokeStyle = isSelected ? '#1b4332' : '#243c36';
-    c.stroke();
-    c.restore();
+    c.arc(tx, ty, 2.2, 0, Math.PI * 2);
+    c.fillStyle = isSelected ? '#047857' : '#10b981';
+    c.fill();
 
-    // 3. Nhãn thông báo nổi bên cạnh mũi tên
+    // 2. Nhãn thông báo tinh tế đặt nổi góc trên (không đè lên điểm ngắm)
     if (label) {
-      c.save();
       c.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       const textWidth = c.measureText(label).width;
-      const tagX = tipX - 28 - textWidth;
-      const tagY = tipY - 30;
+      const tagW = textWidth + 12;
+      const tagH = 19;
+      // Đặt nhãn lệch góc chéo trên phải hoặc trên trái để giữ tâm ngắm hoàn toàn quang đãng
+      const tagX = tx + ringRadius + 6;
+      const tagY = ty - ringRadius - 14;
 
-      // Nền nhãn
-      c.fillStyle = isSelected ? '#1b4332' : '#2d6a4f';
+      c.save();
+      c.shadowColor = 'rgba(0, 0, 0, 0.18)';
+      c.shadowBlur = 4;
+      c.shadowOffsetX = 0;
+      c.shadowOffsetY = 1.5;
+
+      c.fillStyle = isSelected ? '#065f46' : '#115e59';
       if (typeof c.roundRect === 'function') {
         c.beginPath();
-        c.roundRect(tagX - 6, tagY - 12, textWidth + 12, 18, 4);
+        c.roundRect(tagX, tagY, tagW, tagH, 4);
         c.fill();
       } else {
-        c.fillRect(tagX - 6, tagY - 12, textWidth + 12, 18);
+        c.fillRect(tagX, tagY, tagW, tagH);
       }
+      c.restore();
 
-      // Chữ nhãn
       c.fillStyle = '#ffffff';
       c.textBaseline = 'middle';
-      c.fillText(label, tagX, tagY - 3);
-      c.restore();
+      c.textAlign = 'left';
+      c.fillText(label, tagX + 6, tagY + tagH / 2);
     }
 
     c.restore();
@@ -12322,35 +12299,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (state.activeTool === 'eraser') {
       const curRad = state.eraserRadius || 12;
-      if (state.eraserMode === 'partial') {
-        state.eraserCursorPoint = { x: point.x, y: point.y };
-        const last = state.eraserLastPoint || point;
-        const dist = Math.hypot(point.x - last.x, point.y - last.y);
-        const stepDist = Math.max(3, curRad * 0.6);
-        if (dist > stepDist) {
-          const steps = Math.min(8, Math.ceil(dist / stepDist));
-          for (let s = 1; s <= steps; s++) {
-            const t = s / steps;
-            erasePartialAt(last.x + t * (point.x - last.x), last.y + t * (point.y - last.y), curRad);
+      const rawEvents = (typeof e.getCoalescedEvents === 'function')
+        ? e.getCoalescedEvents()
+        : [];
+      const eventsToProcess = (rawEvents && rawEvents.length > 0) ? rawEvents : [e];
+
+      let anyModified = false;
+      for (let evIdx = 0; evIdx < eventsToProcess.length; evIdx++) {
+        const ev = eventsToProcess[evIdx];
+        const pt = getCanvasCoordinates(ev);
+        const last = state.eraserLastPoint || pt;
+        const dist = Math.hypot(pt.x - last.x, pt.y - last.y);
+        const stepDist = Math.max(2.5, curRad * 0.45);
+
+        if (state.eraserMode === 'partial') {
+          if (dist > stepDist) {
+            const steps = Math.min(24, Math.ceil(dist / stepDist));
+            for (let s = 1; s <= steps; s++) {
+              const t = s / steps;
+              if (erasePartialAt(last.x + t * (pt.x - last.x), last.y + t * (pt.y - last.y), curRad)) {
+                anyModified = true;
+              }
+            }
+          } else {
+            if (erasePartialAt(pt.x, pt.y, curRad)) {
+              anyModified = true;
+            }
           }
         } else {
-          erasePartialAt(point.x, point.y, curRad);
+          // Object eraser
+          if (dist > 8) {
+            const steps = Math.min(20, Math.ceil(dist / 8));
+            for (let s = 1; s <= steps; s++) {
+              const t = s / steps;
+              eraseElementAt(last.x + t * (pt.x - last.x), last.y + t * (pt.y - last.y));
+            }
+          } else {
+            eraseElementAt(pt.x, pt.y);
+          }
         }
-        state.eraserLastPoint = { x: point.x, y: point.y };
+        state.eraserLastPoint = { x: pt.x, y: pt.y };
+      }
+
+      // Chỉ vẽ lại canvas khi thực sự có nét bị xóa -> Triệt tiêu 100% hiện tượng giật lag màn hình!
+      if (state.eraserMode === 'partial' && anyModified) {
         renderPage();
-      } else {
-        const last = state.eraserLastPoint || point;
-        const dist = Math.hypot(point.x - last.x, point.y - last.y);
-        if (dist > 8) {
-          const steps = Math.min(8, Math.ceil(dist / 8));
-          for (let s = 1; s <= steps; s++) {
-            const t = s / steps;
-            eraseElementAt(last.x + t * (point.x - last.x), last.y + t * (point.y - last.y));
-          }
-        } else {
-          eraseElementAt(point.x, point.y);
-        }
-        state.eraserLastPoint = { x: point.x, y: point.y };
       }
       return;
     } else if (state.activeTool === 'geo' && state.geoStartPoint) {
@@ -14270,15 +14263,27 @@ document.addEventListener('DOMContentLoaded', () => {
           const subStrokes = [];
           let currentRun = [];
           const createSubStroke = (pts) => {
-            if (pts.length < 2) return null;
+            if (!pts || pts.length < 2) return null;
             let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            let totalPathLen = 0;
             for (let k = 0; k < pts.length; k++) {
               const pt = pts[k];
               if (pt.x < minX) minX = pt.x;
               if (pt.x > maxX) maxX = pt.x;
               if (pt.y < minY) minY = pt.y;
               if (pt.y > maxY) maxY = pt.y;
+              if (k > 0) {
+                totalPathLen += Math.hypot(pt.x - pts[k - 1].x, pt.y - pts[k - 1].y);
+              }
             }
+
+            // Triệt tiêu hoàn toàn rác nét / vụn nét li ti sau khi tẩy:
+            // Tự động bỏ qua các mẩu vụn ngắn dưới 4px hoặc độ dài đường đi < 4.5px
+            const spanDist = Math.hypot(maxX - minX, maxY - minY);
+            if (spanDist < 4.0 && totalPathLen < 4.5) {
+              return null;
+            }
+
             return {
               type: 'stroke',
               tool: el.tool,
@@ -14286,6 +14291,7 @@ document.addEventListener('DOMContentLoaded', () => {
               color: el.color,
               width: el.width,
               dash: el.dash,
+              smoothing: el.smoothing || 'ultra',
               _bbox: { minX, maxX, minY, maxY }
             };
           };
